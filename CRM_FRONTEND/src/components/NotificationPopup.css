@@ -1,0 +1,33 @@
+.notification-popup {
+    position: fixed;
+    bottom: -100px; /* Start off the screen */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.5s ease-in-out;
+  }
+  
+  .notification-popup.show {
+    bottom: 50%; /* Move to center */
+    opacity: 1;  /* Fade in */
+  }
+  
+  .notification-popup.success {
+    color: antiquewhite;
+    border-left: 20px solid #1aff1a;
+    background: #00cc00   ;
+  }
+  
+  .notification-popup.error {
+    border-left: 5px solid #FF3838;
+  }
+  
+  .notification-content {
+    text-align: center;
+  }
+  

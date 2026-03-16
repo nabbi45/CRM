@@ -1,0 +1,392 @@
+.booking-form {
+  background-color: #f7f7f7;
+  /* Light grey for the background */
+  padding: 20px;
+  border-radius: 10px;
+  /* Slightly increased border radius for a softer look */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 20px;
+  max-width: 1000px;
+  margin: 20px auto;
+  /* Added margin to space from top */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  /* Soft shadow for depth */
+}
+
+/* Hides the up and down arrows in input[type="number"] for WebKit browsers */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hides the arrows in Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.booking-form h2 {
+  grid-column: span 2;
+  color: #1c0869;
+  /* Dark blue color for the title */
+  text-align: center;
+  margin-bottom: 20px;
+  font-family: 'Arial', sans-serif;
+  /* Change to a modern font */
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  color: #333;
+  /* Darker color for better readability */
+  margin-bottom: 5px;
+  font-weight: bold;
+  /* Make labels bold */
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  /* Slightly increased padding for better touch target */
+  border: 1px solid #ccc;
+  /* Light grey border */
+  border-radius: 6px;
+  /* Softer corners */
+  background-color: #ffffff;
+  /* White background for input elements */
+  color: #333;
+  /* Dark text for readability */
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  /* Smooth border transition */
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #e87c2a;
+  /* Theme primary color on focus */
+  box-shadow: 0 0 8px rgba(232, 124, 42, 0.5);
+  /* Subtle glow effect */
+}
+
+.form-group select {
+  appearance: none;
+  /* Remove default dropdown arrow */
+  background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"%3E%3Cpath stroke="%234f46e5" stroke-width="2" d="M6 9l6 6 6-6" /%3E%3C/svg%3E');
+  /* Custom dropdown arrow */
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  /* Position the arrow */
+  background-size: 12px;
+  /* Size of the dropdown arrow */
+}
+
+.submit-btn {
+  grid-column: span 2;
+  background-color: #e87c2a;
+  /* Theme primary color for the button */
+  color: #ffffff;
+  padding: 12px 20px;
+  /* Increased padding */
+  border: none;
+  border-radius: 6px;
+  /* Softer corners */
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease, transform 0.2s;
+  /* Smooth transition */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  /* Shadow for button */
+}
+
+.submit-btn:hover {
+  background-color: #c2641c;
+  /* Darker shade on hover */
+  transform: translateY(-2px);
+  /* Lift effect on hover */
+}
+
+/* Popup styles */
+/* Style the Dialog container */
+.MuiDialog-paper {
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #f8f9fa;
+  /* Light background */
+  max-width: 500px;
+  margin: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  /* Soft shadow */
+}
+
+/* Dialog Title Styling */
+.MuiDialogTitle-root {
+  font-size: 22px;
+  font-weight: bold;
+  text-align: center;
+  color: #2c3e50;
+  /* Darker title color */
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Dialog Content Styling */
+.MuiDialogContent-root {
+  font-size: 16px;
+  color: #333;
+  /* Dark text color */
+  text-align: center;
+  padding: 20px 10px;
+}
+
+/* Dialog Actions Styling (button container) */
+.MuiDialogActions-root {
+  display: flex;
+  justify-content: center;
+  /* Center the Close button */
+  padding: 10px;
+}
+
+/* Button Styling */
+.MuiButton-root {
+  font-size: 14px;
+  padding: 10px 20px;
+  background-color: #3498db;
+  /* Primary button color */
+  color: #fff;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.MuiButton-root:hover {
+  background-color: #2980b9;
+  /* Darker hover state */
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 600px) {
+  .MuiDialog-paper {
+    max-width: 90%;
+    padding: 15px;
+  }
+
+  .MuiDialogTitle-root {
+    font-size: 18px;
+  }
+
+  .MuiDialogContent-root {
+    font-size: 14px;
+  }
+}
+
+
+/* Responsive design for smaller screens */
+@media (max-width: 600px) {
+  .MuiDialog-paper {
+    max-width: 90%;
+  }
+
+  .MuiDialogTitle-root {
+    font-size: 20px;
+  }
+
+  .MuiDialogContent-root {
+    font-size: 14px;
+  }
+}
+
+
+/* Responsive design adjustments */
+@media (max-width: 768px) {
+  .booking-form {
+    grid-template-columns: 1fr;
+    /* Stack inputs vertically on small screens */
+  }
+
+  .submit-btn {
+    grid-column: span 1;
+  }
+}
+
+/*new css*/
+
+.booking-form {
+  background-color: #f7f7f7;
+  padding: 20px;
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  /* Changed grid-gap to gap for modern usage */
+  max-width: 1000px;
+  margin: 20px auto;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Remove arrows for number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Form Title */
+.booking-form h2 {
+  grid-column: span 2;
+  color: #e87c2a;
+  text-align: center;
+  margin-bottom: 20px;
+  font-family: 'Arial', sans-serif;
+  font-size: 24px;
+  /* Slightly larger title */
+}
+
+/* Form Group Styling */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  color: #333;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #333;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  /* Ensure full width in the form group */
+}
+
+/* Focus effect */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #e87c2a;
+  box-shadow: 0 0 8px rgba(232, 124, 42, 0.5);
+}
+
+/* Custom dropdown arrow for select fields */
+.form-group select {
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"%3E%3Cpath stroke="%234f46e5" stroke-width="2" d="M6 9l6 6 6-6" /%3E%3C/svg%3E');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+}
+
+/* Submit Button */
+.submit-btn {
+  grid-column: span 2;
+  background-color: #e87c2a;
+  color: #ffffff;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease, transform 0.2s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.submit-btn:hover {
+  background-color: #c2641c;
+  transform: translateY(-2px);
+}
+
+/* Dialog Container Styles */
+.MuiDialog-paper {
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #f8f9fa;
+  max-width: 500px;
+  margin: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Dialog Title */
+.MuiDialogTitle-root {
+  font-size: 22px;
+  font-weight: bold;
+  text-align: center;
+  color: #2c3e50;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* Dialog Content */
+.MuiDialogContent-root {
+  font-size: 16px;
+  color: #333;
+  text-align: center;
+  padding: 20px 10px;
+}
+
+/* Dialog Actions (Buttons) */
+.MuiDialogActions-root {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+}
+
+.MuiButton-root {
+  font-size: 14px;
+  padding: 10px 20px;
+  background-color: #3498db;
+  color: #fff;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.MuiButton-root:hover {
+  background-color: #2980b9;
+}
+
+/* Responsive Design Adjustments */
+@media (max-width: 768px) {
+  .booking-form {
+    grid-template-columns: 1fr;
+    /* Stack form inputs */
+  }
+
+  .submit-btn {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .MuiDialog-paper {
+    max-width: 90%;
+    padding: 15px;
+  }
+
+  .MuiDialogTitle-root {
+    font-size: 18px;
+  }
+
+  .MuiDialogContent-root {
+    font-size: 14px;
+  }
+}

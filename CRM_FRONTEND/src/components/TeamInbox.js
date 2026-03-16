@@ -1,0 +1,441 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+    Box, Typography, TextField, IconButton, Avatar, List, ListItem,
+    ListItemAvatar, ListItemText, Divider, Paper, Badge, InputAdornment, CircularProgress
+} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
+import CallOutlinedIcon from '@mui/icons-material/CallOutlined';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EmojiPicker from 'emoji-picker-react';
+import { apiUrl } from './LoginSignup';
+import { socket } from '../socket';
+
+const ACCENT = '#e87c2a';
+const NAVY = '#1e293b';
+
+const playMessageSound = () => {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.setValueAtTime(900, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+    } catch (e) { }
+};
+
+const TeamInbox = () => {
+    const session = JSON.parse(localStorage.getItem('userSession')) || {};
+    const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
+
+    const [users, setUsers] = useState([]);
+    const [search, setSearch] = useState('');
+    const [activeChat, setActiveChat] = useState({ id: 'global', name: 'All Company', isGlobal: true });
+    const [messages, setMessages] = useState([]);
+    const [inputMsg, setInputMsg] = useState('');
+    const [typingUsers, setTypingUsers] = useState({});
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
+
+    // Load users
+    useEffect(() => {
+        fetchUsers();
+    }, []);
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch(`${apiUrl}/chat/users`, { headers });
+            if (res.ok) setUsers(await res.json());
+        } catch (e) { }
+    };
+
+    // Socket Connection and Global listeners
+    useEffect(() => {
+        if (!session.user_id) return;
+
+        socket.connect();
+        socket.emit("join", session.user_id);
+
+        const handleReceiveMessage = (msg) => {
+            // If message belongs to active chat, append it
+            const belongsToGlobal = msg.is_global && activeChat.isGlobal;
+            const belongsToDirect = !msg.is_global && !activeChat.isGlobal && (msg.sender_id === activeChat.id || msg.receiver_id === activeChat.id);
+
+            if (belongsToGlobal || belongsToDirect) {
+                setMessages(prev => [...prev, msg]);
+                scrollToBottom();
+            }
+
+            // If we are NOT the sender, play sound
+            if (msg.sender_id !== session.user_id) {
+                playMessageSound();
+            }
+
+            // Update sidebar previews
+            fetchUsers();
+        };
+
+        const handleOnlineStatus = ({ userId, isOnline }) => {
+            setUsers(prev => prev.map(u => u._id === userId ? { ...u, isOnline } : u));
+        };
+
+        const handleTyping = ({ sender_id, sender_name, typing, is_global }) => {
+            const chatId = is_global ? 'global' : sender_id;
+            setTypingUsers(prev => {
+                const current = { ...prev };
+                if (typing) current[chatId] = sender_name;
+                else delete current[chatId];
+                return current;
+            });
+        };
+
+        socket.on("receiveMessage", handleReceiveMessage);
+        socket.on("user_online_status", handleOnlineStatus);
+        socket.on("user_typing", handleTyping);
+
+        return () => {
+            socket.off("receiveMessage", handleReceiveMessage);
+            socket.off("user_online_status", handleOnlineStatus);
+            socket.off("user_typing", handleTyping);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeChat]);
+
+    // Load Chat History when activeChat changes
+    useEffect(() => {
+        const fetchHistory = async () => {
+            try {
+                const endpoint = activeChat.isGlobal ? '/chat/global' : `/chat/direct/${activeChat.id}`;
+                const res = await fetch(`${apiUrl}${endpoint}`, { headers });
+                if (res.ok) {
+                    setMessages(await res.json());
+                    scrollToBottom();
+                }
+            } catch (e) { }
+        };
+        fetchHistory();
+        // clear typing map on switch
+        setTypingUsers({});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeChat]);
+
+    const scrollToBottom = () => {
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    };
+
+    const handleSend = async (e) => {
+        e.preventDefault();
+        if (!inputMsg.trim()) return;
+
+        socket.emit("sendMessage", {
+            sender_id: session.user_id,
+            sender_name: session.name,
+            receiver_id: activeChat.isGlobal ? null : activeChat.id,
+            is_global: activeChat.isGlobal,
+            message: inputMsg.trim()
+        });
+
+        socket.emit("typing", {
+            sender_id: session.user_id,
+            sender_name: session.name,
+            receiver_id: activeChat.isGlobal ? null : activeChat.id,
+            is_global: activeChat.isGlobal,
+            typing: false
+        });
+
+        setInputMsg('');
+        setShowEmojiPicker(false);
+    };
+
+    const handleEmojiClick = (emojiObj) => {
+        setInputMsg(prev => prev + emojiObj.emoji);
+    };
+
+    const handleTyping = (e) => {
+        setInputMsg(e.target.value);
+        socket.emit("typing", {
+            sender_id: session.user_id,
+            sender_name: session.name,
+            receiver_id: activeChat.isGlobal ? null : activeChat.id,
+            is_global: activeChat.isGlobal,
+            typing: e.target.value.length > 0
+        });
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch(`${apiUrl}/chat-upload`, {
+                method: "POST",
+                headers: { Authorization: session.token },
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // Immediately emit a message with the attachment
+                socket.emit("sendMessage", {
+                    sender_id: session.user_id,
+                    sender_name: session.name,
+                    receiver_id: activeChat.isGlobal ? null : activeChat.id,
+                    is_global: activeChat.isGlobal,
+                    message: inputMsg.trim() || "Sent an attachment",
+                    attachment_url: data.attachment_url,
+                    attachment_type: data.attachment_type
+                });
+                setInputMsg(''); // clear if they typed any text along with it
+            }
+        } catch (error) {
+            console.error("Upload failed", error);
+        } finally {
+            setIsUploading(false);
+            e.target.value = null; // reset input
+        }
+    };
+
+    const formatTime = (ts) => {
+        return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    };
+
+    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
+
+    // Determine active contact formatting
+    const activeUser = !activeChat.isGlobal ? users.find(u => u._id === activeChat.id) : null;
+
+    return (
+        <Box sx={{ display: 'flex', height: 'calc(100vh - 100px)', bgcolor: 'background.paper', borderRadius: 2, overflow: 'hidden', boxShadow: 3 }}>
+
+            {/* LEFT PANE = CONTACTS */}
+            <Box sx={{ width: 320, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Team Inbox</Typography>
+                    <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="Search conversations..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        InputProps={{
+                            startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                            sx: { borderRadius: 8, bgcolor: 'action.hover' }
+                        }}
+                    />
+                </Box>
+
+                <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
+                    {/* Global Chat Item */}
+                    <ListItem
+                        button
+                        onClick={() => setActiveChat({ id: 'global', name: 'All Company', isGlobal: true })}
+                        sx={{ bgcolor: activeChat.isGlobal ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: activeChat.isGlobal ? `4px solid ${ACCENT}` : '4px solid transparent' }}
+                    >
+                        <ListItemAvatar>
+                            <Avatar sx={{ bgcolor: ACCENT, color: '#fff' }}>AC</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary="All Company Group" secondary="Company-wide announcements" primaryTypographyProps={{ fontWeight: activeChat.isGlobal ? 700 : 500 }} />
+                    </ListItem>
+                    <Divider />
+
+                    {/* DMs List */}
+                    {filteredUsers.map(u => {
+                        const isActive = activeChat.id === u._id;
+                        const lastMsg = u.lastMessage ? u.lastMessage.message : 'Draft available';
+                        const unread = u.lastMessage && u.lastMessage.sender_id !== session.user_id && !u.lastMessage.read_by?.some(r => r.user_id === session.user_id);
+
+                        return (
+                            <ListItem
+                                key={u._id}
+                                button
+                                onClick={() => setActiveChat({ id: u._id, name: u.name, isGlobal: false })}
+                                sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
+                            >
+                                <ListItemAvatar>
+                                    <Badge
+                                        overlap="circular"
+                                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                        variant="dot"
+                                        sx={{ '& .MuiBadge-badge': { backgroundColor: u.isOnline ? '#44b700' : '#bdbdbd', width: 10, height: 10, borderRadius: '50%', border: '2px solid white' } }}
+                                    >
+                                        <Avatar sx={{ bgcolor: 'primary.main' }}>{u.name.charAt(0)}</Avatar>
+                                    </Badge>
+                                </ListItemAvatar>
+                                <ListItemText
+                                    primary={u.name}
+                                    secondary={typingUsers[u._id] ? 'typing...' : lastMsg}
+                                    secondaryTypographyProps={{
+                                        noWrap: true,
+                                        fontWeight: unread ? 700 : 400,
+                                        color: typingUsers[u._id] ? ACCENT : (unread ? 'text.primary' : 'text.secondary')
+                                    }}
+                                    primaryTypographyProps={{ fontWeight: isActive ? 700 : 500 }}
+                                />
+                                {u.lastMessage && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ position: 'absolute', top: 12, right: 16 }}>
+                                        {formatTime(u.lastMessage.createdAt)}
+                                    </Typography>
+                                )}
+                            </ListItem>
+                        );
+                    })}
+                </List>
+            </Box>
+
+            {/* RIGHT PANE = CHAT AREA */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {/* Chat Header */}
+                <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ bgcolor: activeChat.isGlobal ? ACCENT : 'primary.main' }}>
+                            {activeChat.name.charAt(0)}
+                        </Avatar>
+                        <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{activeChat.name}</Typography>
+                            {!activeChat.isGlobal && activeUser && (
+                                <Typography variant="caption" color={activeUser.isOnline ? 'success.main' : 'text.secondary'} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: activeUser.isOnline ? '#44b700' : '#bdbdbd' }} />
+                                    {activeUser.isOnline ? 'Active Now' : 'Offline'}
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton size="small"><MoreVertIcon /></IconButton>
+                    </Box>
+                </Box>
+
+                {/* Chat Messages Log */}
+                <Box sx={{ flex: 1, p: 3, overflowY: 'auto', bgcolor: '#fafafa' }}>
+                    {messages.map((m, i) => {
+                        const isMe = m.sender_id === session.user_id;
+                        const showName = activeChat.isGlobal && !isMe;
+                        return (
+                            <Box key={m._id || i} sx={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', mb: 2 }}>
+                                {showName && <Typography variant="caption" sx={{ ml: 1, mb: 0.5, color: 'text.secondary' }}>{m.sender_name}</Typography>}
+                                <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                                    <Avatar sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: isMe ? ACCENT : 'primary.main' }}>{m.sender_name.charAt(0)}</Avatar>
+                                    <Paper
+                                        elevation={0}
+                                        sx={{
+                                            p: 1.5,
+                                            px: 2,
+                                            maxWidth: 400,
+                                            bgcolor: isMe ? NAVY : '#fff',
+                                            color: isMe ? '#fff' : 'text.primary',
+                                            borderRadius: 2,
+                                            borderTopRightRadius: isMe ? 0 : 8,
+                                            borderTopLeftRadius: !isMe ? 0 : 8,
+                                            border: isMe ? 'none' : '1px solid #e0e0e0'
+                                        }}
+                                    >
+                                        {m.attachment_url && (
+                                            <Box sx={{ mb: 1 }}>
+                                                {m.attachment_type === 'image' ? (
+                                                    <a href={m.attachment_url} target="_blank" rel="noreferrer">
+                                                        <img src={m.attachment_url} alt="attachment" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 4 }} />
+                                                    </a>
+                                                ) : m.attachment_type === 'video' ? (
+                                                    <video src={m.attachment_url} controls style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 4 }} />
+                                                ) : (
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1 }}>
+                                                        <InsertDriveFileIcon sx={{ color: isMe ? '#fff' : 'text.secondary' }} />
+                                                        <a href={m.attachment_url} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                                                            View Attachment Document
+                                                        </a>
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        )}
+                                        {m.message && m.message !== "Sent an attachment" && (
+                                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: isMe ? '#ffffff' : 'inherit' }}>{m.message}</Typography>
+                                        )}
+                                    </Paper>
+                                </Box>
+                                <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary', px: 1 }}>
+                                    {formatTime(m.createdAt || new Date())}
+                                </Typography>
+                            </Box>
+                        );
+                    })}
+                    {typingUsers[activeChat.isGlobal ? 'global' : activeChat.id] && (
+                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', ml: 5 }}>
+                            {typingUsers[activeChat.isGlobal ? 'global' : activeChat.id]} is typing...
+                        </Typography>
+                    )}
+                    <div ref={messagesEndRef} />
+                </Box>
+
+                <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', position: 'relative' }}>
+
+                    {/* Emoji Picker Popover */}
+                    {showEmojiPicker && (
+                        <Box sx={{ position: 'absolute', bottom: '100%', left: 24, zIndex: 10 }}>
+                            <EmojiPicker onEmojiClick={handleEmojiClick} theme="light" />
+                        </Box>
+                    )}
+
+                    <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Paper elevation={0} sx={{ flex: 1, display: 'flex', alignItems: 'center', px: 1, py: 0.5, bgcolor: 'action.hover', borderRadius: 8 }}>
+                            <IconButton size="small" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                                <SentimentSatisfiedAltIcon />
+                            </IconButton>
+
+                            <input
+                                type="file"
+                                hidden
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx"
+                            />
+                            <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                {isUploading ? <CircularProgress size={20} /> : <AttachFileIcon />}
+                            </IconButton>
+
+                            <TextField
+                                fullWidth
+                                placeholder={`Type your reply to ${activeChat.name}...`}
+                                variant="standard"
+                                InputProps={{ disableUnderline: true }}
+                                sx={{ ml: 1, py: 1 }}
+                                value={inputMsg}
+                                onChange={handleTyping}
+                            />
+                        </Paper>
+                        <IconButton
+                            type="submit"
+                            disabled={!inputMsg.trim()}
+                            sx={{ bgcolor: NAVY, color: '#fff', '&:hover': { bgcolor: '#0f172a' }, '&.Mui-disabled': { bgcolor: '#e0e0e0' } }}
+                        >
+                            <SendIcon fontSize="small" />
+                        </IconButton>
+                    </form>
+                </Box>
+            </Box>
+
+        </Box>
+    );
+};
+
+export default TeamInbox;

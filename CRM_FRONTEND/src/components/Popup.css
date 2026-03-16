@@ -1,0 +1,60 @@
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background for overlay */
+    backdrop-filter: blur(5px); /* Apply blur effect to the background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-content {
+    background-color: transparent; /* Remove background color */
+    padding: 40px; /* Increased padding for a better look */
+    border-radius: 15px; /* Rounded edges for a softer appearance */
+    max-width: 90%; /* Full width responsive */
+    width: 800px; /* Set a fixed width for the popup */
+    height: auto; /* Auto height to accommodate content */
+    position: relative;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); /* Soft shadow for depth */
+    transition: transform 0.3s ease; /* Smooth transition */
+    animation: popupFadeIn 0.3s forwards; /* Animation on open */
+}
+
+@keyframes popupFadeIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.popup-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: red; /* Red background for the close button */
+    border: 2px solid #fff; /* White border around the button */
+    color: #fff; /* White text color */
+    border-radius: 50%; /* Make it circular */
+    width: 35px; /* Set width */
+    height: 35px; /* Set height */
+    font-size: 18px; /* Font size for the close icon */
+    cursor: pointer;
+    display: flex; /* Flexbox for centering the text */
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+    transition: background-color 0.3s, transform 0.3s; /* Smooth transition */
+}
+
+.popup-close:hover {
+    background-color: #ff0000; /* Darker red on hover */
+    transform: scale(1.1); /* Slightly scale up on hover */
+}
