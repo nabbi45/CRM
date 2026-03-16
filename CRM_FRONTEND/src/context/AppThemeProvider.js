@@ -13,28 +13,28 @@ const createAppTheme = (mode) =>
     palette: {
       mode,
       primary: {
-        main: mode === 'monochrome' ? '#000000' : (mode === 'light' ? '#1e293b' : '#f8fafc'),
-        dark: mode === 'monochrome' ? '#000000' : '#0f172a',
-        light: mode === 'monochrome' ? '#333333' : '#334155',
+        main: '#e87c2a', // Default Orange Theme
+        dark: '#c2641c',
+        light: '#f59e4b',
       },
       secondary: {
-        main: mode === 'monochrome' ? '#777777' : '#e87c2a',
-        dark: mode === 'monochrome' ? '#333333' : '#c2641c',
-        light: mode === 'monochrome' ? '#aaaaaa' : '#f59e4b',
+        main: mode === 'light' ? '#1e293b' : '#f1f5f9',
+        dark: '#0f172a',
+        light: '#334155',
       },
       background: {
-        default: mode === 'monochrome' ? '#ffffff' : (mode === 'light' ? '#f1f5f9' : '#0b1120'),
-        paper: mode === 'monochrome' ? '#ffffff' : (mode === 'light' ? '#ffffff' : '#111827'),
+        default: mode === 'light' ? '#f1f5f9' : '#0b1120',
+        paper: mode === 'light' ? '#ffffff' : '#111827',
       },
       text: {
-        primary: mode === 'monochrome' ? '#000000' : (mode === 'light' ? '#1e293b' : '#f1f5f9'),
-        secondary: mode === 'monochrome' ? '#444444' : (mode === 'light' ? '#64748b' : '#94a3b8'),
+        primary: mode === 'light' ? '#1e293b' : '#f1f5f9',
+        secondary: mode === 'light' ? '#64748b' : '#94a3b8',
       },
-      success: { main: mode === 'monochrome' ? '#000000' : '#10b981' },
-      warning: { main: mode === 'monochrome' ? '#000000' : '#f59e0b' },
-      error: { main: mode === 'monochrome' ? '#000000' : '#ef4444' },
-      info: { main: mode === 'monochrome' ? '#000000' : '#3b82f6' },
-      divider: mode === 'monochrome' ? 'rgba(0,0,0,0.1)' : (mode === 'light' ? 'rgba(148,163,184,0.3)' : 'rgba(30,41,59,0.8)'),
+      success: { main: '#10b981' },
+      warning: { main: '#f59e0b' },
+      error: { main: '#ef4444' },
+      info: { main: '#3b82f6' },
+      divider: mode === 'light' ? 'rgba(148,163,184,0.3)' : 'rgba(30,41,59,0.8)',
     },
     shape: {
       borderRadius: 12,
@@ -51,7 +51,7 @@ const createAppTheme = (mode) =>
       h5: { fontWeight: 700, letterSpacing: '-0.02em' },
       h6: { fontWeight: 600, letterSpacing: '-0.01em' },
       subtitle1: { fontWeight: 500 },
-      body2: { color: mode === 'monochrome' ? '#444444' : (mode === 'light' ? '#64748b' : '#94a3b8') },
+      body2: { color: mode === 'light' ? '#64748b' : '#94a3b8' },
     },
     components: {
       MuiButton: {
@@ -65,10 +65,10 @@ const createAppTheme = (mode) =>
             fontSize: '0.875rem',
           },
           containedPrimary: {
-            backgroundColor: mode === 'monochrome' ? '#000000' : '#e87c2a',
+            backgroundColor: '#e87c2a',
             color: '#ffffff',
             '&:hover': {
-              backgroundColor: mode === 'monochrome' ? '#333333' : '#c2641c',
+              backgroundColor: '#c2641c',
             },
           },
         },
@@ -183,11 +183,7 @@ export const AppThemeProvider = ({ children }) => {
     () => ({
       mode,
       toggleColorMode: () => {
-        setMode((prev) => {
-          if (prev === 'light') return 'dark';
-          if (prev === 'dark') return 'monochrome';
-          return 'light';
-        });
+        setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
       },
     }),
     [mode]

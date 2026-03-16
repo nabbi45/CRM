@@ -28,7 +28,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
-import ContrastOutlinedIcon from '@mui/icons-material/ContrastOutlined';
+
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
@@ -456,25 +456,7 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         >
           {mode === 'light' ? 'Dark mode' : 'Light mode'}
         </Button>
-        <Button
-          variant="text"
-          onClick={toggleColorMode}
-          startIcon={<ContrastOutlinedIcon />}
-          sx={{
-            borderRadius: 2,
-            color: TEXT_DIM,
-            fontSize: '0.8rem',
-            justifyContent: 'flex-start',
-            pl: 2,
-            '&:hover': {
-              backgroundColor: HOVER_BG,
-              color: TEXT_BRIGHT,
-            },
-          }}
-          fullWidth
-        >
-          {mode === 'monochrome' ? 'Exit Monochrome' : 'Monochrome theme'}
-        </Button>
+
         <Button
           variant="contained"
           sx={{
