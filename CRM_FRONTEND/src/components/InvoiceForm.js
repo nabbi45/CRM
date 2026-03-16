@@ -17,8 +17,8 @@ function InvoiceForm({ onPreview, onDownload }) {
   const [clientPostcode, setClientPostcode] = useState('');
   const [clientGstNumber, setClientGstNumber] = useState('');
   const [companyDetails, setCompanyDetails] = useState({
-    name: 'GROWTHERA VENTURES PRIVATE LIMITED',
-    email: 'support@growtheraventures.com',
+    name: 'FARSIGHT PRIVATE LIMITED',
+    email: 'support@farsight.com',
     phone: '+91 9810924009',
     gstPan: 'N/A',
     streetAddress: 'M-1 ARV PARK, office No.G-02',
@@ -29,7 +29,7 @@ function InvoiceForm({ onPreview, onDownload }) {
     digitalStamp: digitalStamp,
     bankAccountNumber: "10239056265",
     ifscCode: "IDFB0020151",
-    accountHolderName: "Growthera Ventures Private Limited",
+    accountHolderName: "Farsight Private Limited",
     bankName: "IDFC BANK"
   });
 

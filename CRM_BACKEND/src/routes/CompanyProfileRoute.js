@@ -11,18 +11,18 @@ CompanyProfileRoutes.get("/", async (req, res) => {
         const profile = await CompanyProfileModel.findOne();
         if (!profile) {
             const defaultProfile = {
-                company_name: "GROWTHERA VENTURES PRIVATE LIMITED",
+                company_name: "FARSIGHT PRIVATE LIMITED",
                 address: "M-1 ARV PARK, office No.G-02, Noida, Uttar Pradesh, Sec-63 201301",
                 contact_number: "+91 9810924009",
-                email: "support@growtheraventures.com",
+                email: "support@farsight.com",
                 bank_name: "IDFC BANK",
-                account_name: "Growthera Ventures Private Limited",
+                account_name: "Farsight Private Limited",
                 account_number: "10239056265",
                 ifsc_code: "IDFB0020151",
                 gst_number: "N/A",
                 pan_number: "N/A",
                 logo_url: `${req.protocol}://${req.get('host')}/assets/logo.png`,
-                seal_url: `${req.protocol}://${req.get('host')}/assets/Growthera%20Digital%20Stamp.jpg`
+                seal_url: `${req.protocol}://${req.get('host')}/assets/stamp.jpg`
             };
             return res.status(200).send(defaultProfile);
         }
@@ -31,7 +31,7 @@ CompanyProfileRoutes.get("/", async (req, res) => {
 
         // Ensure missing fields still gracefully fallback for UI mapping
         if (!data.logo_url) data.logo_url = `${req.protocol}://${req.get('host')}/assets/logo.png`;
-        if (!data.seal_url) data.seal_url = `${req.protocol}://${req.get('host')}/assets/Growthera%20Digital%20Stamp.jpg`;
+        if (!data.seal_url) data.seal_url = `${req.protocol}://${req.get('host')}/assets/stamp.jpg`;
         if (!data.mail_host) data.mail_host = '';
         if (!data.mail_port) data.mail_port = '';
         if (!data.mail_user) data.mail_user = '';
@@ -52,7 +52,7 @@ CompanyProfileRoutes.get("/public", async (req, res) => {
         const fallbackLogo = `${req.protocol}://${req.get('host')}/assets/logo.png`;
         if (!profile) {
             return res.status(200).send({
-                company_name: "GROWTHERA VENTURES PRIVATE LIMITED",
+                company_name: "FARSIGHT PRIVATE LIMITED",
                 logo_url: fallbackLogo
             });
         }

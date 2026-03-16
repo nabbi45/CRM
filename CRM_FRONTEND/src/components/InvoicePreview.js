@@ -16,7 +16,7 @@ function InvoicePreview({ invoice }) {
   return (
     <div className="bg-white shadow-lg max-w-4xl mx-auto overflow-hidden">
       <div id="invoice-preview" className="relative bg-white" style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
-        <div 
+        <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
           style={{
             backgroundImage: `url(${invoice.companyDetails.watermark})`,
@@ -32,7 +32,7 @@ function InvoicePreview({ invoice }) {
             <div className="flex items-center space-x-4">
               <img
                 src={invoice.companyDetails.logo}
-                alt="Growthera Ventures Logo"
+                alt="Company Logo"
                 className="w-64 h-32 object-contain"
               />
             </div>
@@ -150,9 +150,9 @@ function InvoicePreview({ invoice }) {
             <div className="text-center">
               <div className="w-40 h-16 border-b border-gray-300 mb-2 flex items-end justify-center">
                 {invoice.companyDetails.digitalStamp && (
-                  <img 
-                    src={invoice.companyDetails.digitalStamp} 
-                    alt="Digital Stamp" 
+                  <img
+                    src={invoice.companyDetails.digitalStamp}
+                    alt="Digital Stamp"
                     className="w-24 h-24 object-contain opacity-70"
                   />
                 )}

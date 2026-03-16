@@ -16,14 +16,14 @@ AgreementRoute.get("/:bookingId", authenticateUser, async (req, res) => {
     let companyProfile = await CompanyProfileModel.findOne();
     if (!companyProfile) {
       companyProfile = {
-        company_name: "GROWTHERA VENTURES PRIVATE LIMITED",
+        company_name: "FARSIGHT PRIVATE LIMITED",
         address: "M-1 ARV PARK, office No.G-02, Noida, Uttar Pradesh, Sec-63 201301",
         logo_url: `${req.protocol}://${req.get('host')}/assets/logo.png`,
-        seal_url: `${req.protocol}://${req.get('host')}/assets/Growthera%20Digital%20Stamp.jpg`
+        seal_url: `${req.protocol}://${req.get('host')}/assets/stamp.jpg`
       };
     } else {
       if (!companyProfile.logo_url) companyProfile.logo_url = `${req.protocol}://${req.get('host')}/assets/logo.png`;
-      if (!companyProfile.seal_url) companyProfile.seal_url = `${req.protocol}://${req.get('host')}/assets/Growthera%20Digital%20Stamp.jpg`;
+      if (!companyProfile.seal_url) companyProfile.seal_url = `${req.protocol}://${req.get('host')}/assets/stamp.jpg`;
     }
 
     const latestInvoice = await DocumentModel.findOne({ bookingId: req.params.bookingId, type: 'Invoice' }).sort({ createdAt: -1 });
