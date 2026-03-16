@@ -15,7 +15,7 @@ import { enqueueSnackbar } from "notistack";
 import servicesList from "../Data/ServicesData";
 import ServiceDropdown from "./Servicesdropdown";
 import { apiUrl } from "./LoginSignup";
-import { FourMp } from "@mui/icons-material";
+
 import Mailer from "./mail";
 
 const AddBooking = ({ onClose }) => {
@@ -62,15 +62,24 @@ const AddBooking = ({ onClose }) => {
     const fetchUsers = async () => {
       try {
         const userSession = JSON.parse(localStorage.getItem('userSession'));
-        const response = await fetch(`${apiUrl}/user`, {
+        if (!userSession) return;
+
+        // Use /user/all to get the full list of employees for sharing
+        const response = await fetch(`${apiUrl}/user/all`, {
           headers: { 'Authorization': userSession?.token || '' }
         });
+
         if (response.ok) {
           const data = await response.json();
-          setUsers(data); // array of employee objects
+          // Backend returns { Users: [...] }
+          setUsers(Array.isArray(data.Users) ? data.Users : []);
+        } else {
+          // If restricted or error, default to empty to prevent crash
+          setUsers([]);
         }
       } catch (error) {
-        console.error("Failed to fetch developers/salespersons for sharing:", error);
+        console.error("Failed to fetch users for sharing:", error);
+        setUsers([]); // Fallback to empty array
       }
     };
     fetchUsers();
@@ -85,12 +94,6 @@ const AddBooking = ({ onClose }) => {
         : [], // Map selected options to an array
     });
   };
-
-  const serviceOptions = servicesList.map((service) => ({
-    value: service.value,
-    label: service.label,
-    isDisabled: service.disabled, // Optional: Handle disabled options
-  }));
 
   const validate = () => {
     let validationErrors = {};
@@ -280,30 +283,10 @@ const AddBooking = ({ onClose }) => {
   };
 
 
-
   const handleDialogClose = () => {
     setOpenDialog(false);
     if (onClose) onClose();
   };
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const userSession = JSON.parse(localStorage.getItem("userSession"));
-        const res = await fetch(`${apiUrl}/user/all`, {
-          headers: {
-            Authorization: userSession.token
-          }
-        });
-        const data = await res.json();
-        setUsers(data.Users); // this should be the array of users
-      } catch (err) {
-        console.error("Error fetching users", err);
-      }
-    };
-    fetchUsers();
-  }, []);
-
 
   return (
     <Box

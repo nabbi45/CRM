@@ -3,7 +3,7 @@ import { Building2, Mail, MapPin, FileText, Plus, Trash2, Download, Eye } from '
 import { saveInvoiceToDatabase } from '../utils/invoiceService';
 import { format } from 'date-fns';
 import logo from "../assets/logo.png";
-import digitalStamp from "../assets/Growthera Digital Stamp.jpg";
+import digitalStamp from "../assets/stamp.jpg";
 
 import { apiUrl } from './LoginSignup';
 
@@ -159,14 +159,14 @@ function InvoiceForm({ onPreview, onDownload }) {
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Proforma Invoice</h1>
-        <p className="text-gray-600">Generate professional invoices for Growthera Ventures</p>
+        <p className="text-gray-600">Generate professional invoices for Farsight</p>
       </div>
 
       {/* Growthera Company Details Display (Read-only) */}
       <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
         <div className="flex items-center mb-4">
           <Building2 className="w-5 h-5 text-blue-600 mr-2" />
-          <h2 className="text-xl font-semibold text-gray-900">Growthera Ventures Details</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Company Details</h2>
         </div>
 
         <div className="flex items-start space-x-6">
