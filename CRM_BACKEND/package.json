@@ -1,0 +1,48 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "start": "npm list && node dist/bundle.js",
+    "serve": "npm run build && npm start",
+    "dev": "concurrently \"npx webpack --watch\" \"npm run dev-server\"",
+    "dev-server": "nodemon src/index.js",
+    "nodemon": "nodemon --exec node src/index.js"
+  },
+  "proxy": "https://crm-jeig.onrender.com",
+  "keywords": [],
+  "author": "Abhinav Raj",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "babel-node": "^0.0.1-security",
+    "bcrypt": "^5.1.1",
+    "cloudinary": "^1.41.3",
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "4.1",
+    "mongoose": "^8.5.1",
+    "multer": "^2.0.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^6.10.0",
+    "nodemon": "^3.1.9",
+    "regex": "^4.3.3",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.7",
+    "@babel/node": "^7.29.0",
+    "@babel/preset-env": "^7.26.9",
+    "babel-loader": "^9.2.1",
+    "parcel-bundler": "^1.12.5",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-node-externals": "^3.0.0"
+  }
+}
