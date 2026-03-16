@@ -4,6 +4,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useNavigate } from 'react-router-dom';
 import { apiUrl } from './LoginSignup';
 import { io } from 'socket.io-client';
+import { useColorMode } from '../context/AppThemeProvider';
 
 const socketUrl = apiUrl.replace('/api', ''); // Adjust if apiUrl points to /api exactly
 const socket = io(socketUrl, { autoConnect: false });
@@ -26,6 +27,7 @@ const playMessageSound = () => {
 };
 
 const ChatFAB = () => {
+    const { mode } = useColorMode();
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const navigate = useNavigate();
     const [unreadCount, setUnreadCount] = useState(0);
@@ -67,16 +69,31 @@ const ChatFAB = () => {
 
     return (
         <Fab
-            color="primary"
             aria-label="chat"
-            sx={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1200, bgcolor: '#1e293b', '&:hover': { bgcolor: '#0f172a' } }}
+            sx={{
+                position: 'fixed',
+                bottom: 32,
+                right: 32,
+                zIndex: 1200,
+                bgcolor: 'transparent',
+                boxShadow: 'none',
+                color: '#ffffff',
+                '&:hover': {
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    transform: 'scale(1.1) rotate(-5deg)',
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                filter: mode === 'light'
+                    ? 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'
+                    : 'drop-shadow(0 0 15px rgba(232,124,42,0.4))',
+            }}
             onClick={() => {
                 setUnreadCount(0);
                 navigate('/dashboard/communication');
             }}
         >
             <Badge badgeContent={unreadCount} color="error" max={99}>
-                <ChatBubbleOutlineIcon />
+                <ChatBubbleOutlineIcon sx={{ fontSize: '2rem' }} />
             </Badge>
         </Fab>
     );
