@@ -12,7 +12,7 @@ const DynamicHead = () => {
                 const res = await fetch(`${apiUrl}/company/public`);
                 const data = await res.json();
                 if (res.ok) {
-                    if (data.company_name) document.title = data.company_name;
+                    document.title = "Dashboard";
                     if (data.logo_url) {
                         let link = document.querySelector("link[rel~='icon']");
                         if (!link) {

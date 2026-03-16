@@ -77,9 +77,9 @@ const ChatFAB = () => {
                 zIndex: 1200,
                 bgcolor: 'transparent',
                 boxShadow: 'none',
-                color: '#ffffff',
+                color: mode === 'light' ? '#000000' : '#ffffff',
                 '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    bgcolor: mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.1)',
                     transform: 'scale(1.1) rotate(-5deg)',
                 },
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
