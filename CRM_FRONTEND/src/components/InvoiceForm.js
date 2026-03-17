@@ -17,20 +17,20 @@ function InvoiceForm({ onPreview, onDownload }) {
   const [clientPostcode, setClientPostcode] = useState('');
   const [clientGstNumber, setClientGstNumber] = useState('');
   const [companyDetails, setCompanyDetails] = useState({
-    name: 'FARSIGHT PRIVATE LIMITED',
-    email: 'support@farsight.com',
-    phone: '+91 9810924009',
+    name: 'Your Company',
+    email: 'support@company.com',
+    phone: '+91 0000000000',
     gstPan: 'N/A',
-    streetAddress: 'M-1 ARV PARK, office No.G-02',
-    city: 'Noida',
-    region: 'Uttar Pradesh',
-    postcode: 'Sec-63 201301',
+    streetAddress: 'Loading address...',
+    city: '',
+    region: '',
+    postcode: '',
     logo: logo,
     digitalStamp: digitalStamp,
-    bankAccountNumber: "10239056265",
-    ifscCode: "IDFB0020151",
-    accountHolderName: "Farsight Private Limited",
-    bankName: "IDFC BANK"
+    bankAccountNumber: "0000000000",
+    ifscCode: "IFSC0000000",
+    accountHolderName: "Company Account Name",
+    bankName: "Bank Name"
   });
 
   React.useEffect(() => {
@@ -159,7 +159,7 @@ function InvoiceForm({ onPreview, onDownload }) {
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Proforma Invoice</h1>
-        <p className="text-gray-600">Generate professional invoices for Farsight</p>
+        <p className="text-gray-600">Generate professional invoices for {companyDetails.name}</p>
       </div>
 
       {/* Growthera Company Details Display (Read-only) */}

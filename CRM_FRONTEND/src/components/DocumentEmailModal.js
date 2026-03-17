@@ -15,8 +15,8 @@ const DocumentEmailModal = ({ isOpen, onClose, documentType, bookingEmail, gener
     useEffect(() => {
         if (isOpen) {
             setRecipient(bookingEmail || '');
-            setSubject(`Your ${documentType} from Farsight`);
-            setBody(`Dear Client,\n\nPlease find your attached ${documentType}.\n\nThank you for choosing Farsight.`);
+            setSubject(`Your ${documentType} from Company`);
+            setBody(`Dear Client,\n\nPlease find your attached ${documentType}.\n\nThank you for choosing our services.`);
             // Fetch default CC from profile
             fetchProfile();
         }

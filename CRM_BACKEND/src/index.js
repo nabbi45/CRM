@@ -32,17 +32,39 @@ const server = createServer(app); // Wrap Express with HTTP Server
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://crm.farsightconsultancy.com",
+  "https://crm-nabbi45.vercel.app" // Vercel default if needed
+];
+
 const corsOptions = {
-  origin: "*", // Allow all origins
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"], // Allow only these HTTP methods
-  allowedHeaders: ["Content-Type", "Authorization", "user-role"], // Allow only these headers
-  credentials: true, // Allow cookies to be included in the requests
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app")) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"],
+  allowedHeaders: ["Content-Type", "Authorization", "user-role"],
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
