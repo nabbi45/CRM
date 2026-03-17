@@ -355,9 +355,10 @@ const History = () => {
         authorization: `${userSession.token}`,
       },
     })
-      .then((response) => {
+      .then(async (response) => {
         if (!response.ok) {
-          throw new Error("Error moving the booking to trash");
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || "Error moving the booking to trash");
         }
         setBookings((prev) =>
           prev.filter((booking) => booking._id !== bookingToDelete)
@@ -367,7 +368,7 @@ const History = () => {
         });
       })
       .catch((error) => {
-        enqueueSnackbar("Failed to move booking to trash!", { variant: "error" });
+        enqueueSnackbar(error.message || "Failed to move booking to trash!", { variant: "error" });
       })
       .finally(() => {
         setIsDeleteModalOpen(false);

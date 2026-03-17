@@ -40,10 +40,19 @@ const Trash = () => {
         'user-role': userSession?.user_role,
       },
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'Failed to restore booking');
+        }
+        return res.json();
+      })
       .then(() => {
         enqueueSnackbar('Booking restored!', { variant: 'success' });
         setTrashedBookings((prev) => prev.filter((b) => b._id !== id));
+      })
+      .catch((err) => {
+        enqueueSnackbar(err.message || 'Failed to restore booking', { variant: 'error' });
       });
   };
 
@@ -55,10 +64,19 @@ const Trash = () => {
         'user-role': userSession?.user_role,
       },
     })
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || 'Failed to permanently delete booking');
+        }
+        return res.json();
+      })
       .then(() => {
         enqueueSnackbar('Booking permanently deleted!', { variant: 'info' });
         setTrashedBookings((prev) => prev.filter((b) => b._id !== id));
+      })
+      .catch((err) => {
+        enqueueSnackbar(err.message || 'Failed to permanently delete booking', { variant: 'error' });
       });
   };
 
