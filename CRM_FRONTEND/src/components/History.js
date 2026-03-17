@@ -511,126 +511,31 @@ const History = () => {
         </Box>
       </Box>
 
-      {/* Filter Container for Date and Status */}
-      <div className="filter-container">
-
-
-        {/* Date Filter */}
-        <div className="date-filter">
-          <select value={dateType} onChange={(e) => setDateType(e.target.value)} className="paymentmode-dropdown">
-            <option value="booking">Filter By Booking Date</option>
-            <option value="payment">Filter By Payment Date</option>
-          </select>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)} // Updates startDate state
-            placeholder="Start Date"
-            onKeyDown={handleKeyPress}
-          />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)} // Updates endDate state
-            placeholder="End Date"
-            onKeyDown={handleKeyPress}
-          />
-          <button className="search-button" onClick={handleSearch}>
-            <i className="fa-solid fa-magnifying-glass"></i>
-          </button>
-        </div>
-
-        <div className="paymentmode-filter">
-          <select
-            value={paymentmode}
-            onChange={(e) => setPaymentmode(e.target.value)}
-            className="paymentmode-dropdown"
-          >
-            <option value="">Paymentmodes</option>
-            <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
-            <option value="HDFC Bank">HDFC Bank</option>
-            <option value="Razorpay">Razorpay</option>
-            <option value="HDFC Gateway">HDFC Gateway</option>
-            <option value="CashFree Gateway">CashFree Gateway</option>
-            <option value="Phonepe Gateway">Phonepe Gateway</option>
-            <option value="Enego Projects">Enego Projects</option>
-            <option value="Cash">Cash</option>
-          </select>
-          <button className="search-button" onClick={handleSearch}>
-            <i className="fa-solid fa-magnifying-glass"></i>
-          </button>
-        </div>
-
-
-        <div className="service-filter">
-          <select
-            value={services}
-            onChange={(e) => setService(e.target.value)}
-            className="service-dropdown"
-          >
-            <option value="">Select Service</option>
-            {servicesList.map((serviceItem) => (
-              <option
-                key={serviceItem.value}
-                value={serviceItem.value}
-                disabled={serviceItem.disabled}
-              >
-                {serviceItem.label}
-              </option>
-            ))}
-          </select>
-          <button className="search-button" onClick={handleSearch}>
-            <i className="fa-solid fa-magnifying-glass"></i>
-          </button>
-        </div>
-
-
-        {/* Status Filter */}
-        <div className="status-filter">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="status-dropdown"
-          >
-            <option value="">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-          </select>
-          <button className="search-button" onClick={handleSearch}>
-            <i className="fa-solid fa-magnifying-glass"></i>
-          </button>
-        </div>
-
-        <div className="search-container">
-          <input
-            type="text"
-            className="search-bar"
-            placeholder="Search by BDM Name..."
-            value={bdmSearch}
-            onChange={(e) => setBdmSearch(e.target.value)} // Use `bdmSearch` state for BDM name search
-          />
-          <button className="search-button" onClick={handleSearch}>
-            Search
-          </button>
-        </div>
-
-        <div>
-          <button className="reset-button" onClick={handleResetFilters}>
-            Reset Filters
-          </button>
-        </div>
-      </div>
-      <div className="search-container">
+      {/* Unified Search Bar Container */}
+      <div className="filter-container search-container" style={{ margin: '20px auto', display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center' }}>
         <input
           type="text"
           className="search-bar"
-          placeholder="Search by company name or booking ID..."
+          style={{ padding: '10px 15px', width: '100%', maxWidth: '600px', borderRadius: '8px', border: '1px solid #ccc' }}
+          placeholder="Search by Employee, Date (YYYY-MM-DD), Client, Booking ID, Service, Status..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={handleKeyPress}
         />
-        <button className="search-button" onClick={handleSearch}>
+        <button
+          className="search-button"
+          onClick={handleSearch}
+          style={{ padding: '10px 20px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '8px' }}></i>
           Search
+        </button>
+        <button
+          className="reset-button"
+          onClick={handleResetFilters}
+          style={{ padding: '10px 20px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Reset
         </button>
       </div>
       <div className="booking-list">

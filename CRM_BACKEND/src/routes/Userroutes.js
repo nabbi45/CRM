@@ -13,7 +13,7 @@ const saltRounds = 5;
 const UserRoutes = express.Router();
 
 //Creating User
-UserRoutes.post("/adduser",authenticateUser, authorizeDevRole, async (req, res) => {
+UserRoutes.post("/adduser", authenticateUser, authorizeDevRole, async (req, res) => {
   try {
     const { name, email, password, user_role } = req.body;
     // Check if all required fields are provided
@@ -53,7 +53,7 @@ UserRoutes.post("/adduser",authenticateUser, authorizeDevRole, async (req, res) 
 });
 
 //edit user
-UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole,async (req, res) => {
+UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -99,7 +99,7 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole,async (req,
 
 
 // Deleting User
-UserRoutes.delete("/deleteuser/:id",authenticateUser, authorizeDevRole ,async (req, res) => {
+UserRoutes.delete("/deleteuser/:id", authenticateUser, authorizeDevRole, async (req, res) => {
   try {
     const { id } = req.params; // Assuming you are using a unique ID for the user
 
@@ -156,8 +156,8 @@ UserRoutes.post('/login', async (req, res) => {
     }
 
     // Find the user by email
-    const user = await UserModel.findOneAndUpdate({ email },{isActive:true});
-    
+    const user = await UserModel.findOneAndUpdate({ email }, { isActive: true });
+
 
     if (!user) {
       return res.status(404).send({
@@ -177,7 +177,7 @@ UserRoutes.post('/login', async (req, res) => {
 
     // If credentials are valid, send a success response
     res.status(200).send({
-     token,user
+      token, user
     });
 
   } catch (error) {
@@ -187,11 +187,11 @@ UserRoutes.post('/login', async (req, res) => {
 });
 
 //logout
-UserRoutes.patch('/logout/:id',async(req,res)=>{
-  const {id}= req.params
+UserRoutes.patch('/logout/:id', async (req, res) => {
+  const { id } = req.params
   try {
-    const user = await UserModel.findByIdAndUpdate(id,{isActive:false})
-    
+    const user = await UserModel.findByIdAndUpdate(id, { isActive: false })
+
     if (!user) {
       return res.status(404).send({
         message: "User not found.",
@@ -207,7 +207,7 @@ UserRoutes.patch('/logout/:id',async(req,res)=>{
 
 //getting all the bookings for specific user
 
-UserRoutes.get('/bookings/:id', authenticateUser,async (req, res) => {
+UserRoutes.get('/bookings/:id', authenticateUser, async (req, res) => {
   const id = req.params.id;
   try {
     if (!req.params.id) {
@@ -231,13 +231,13 @@ UserRoutes.get('/bookings/:id', authenticateUser,async (req, res) => {
 })
 
 //unified search 
-UserRoutes.get('/:id?', authenticateUser,async (req, res) => {
+UserRoutes.get('/:id?', authenticateUser, async (req, res) => {
   const booking_id = req.params.id; // This may be undefined if no id is provided
   const searchPattern = req.query.pattern; // Search pattern from the query parameter
   const userRole = req.query.userRole; // Assuming user's role is stored in req.user
   const userId = req.query.userId; // Assuming user's ID is stored in req.user
-// console.log(userRole,userId);
-let contactNo=parseInt(searchPattern)
+  // console.log(userRole,userId);
+  let contactNo = parseInt(searchPattern)
 
   try {
     let Booking;
@@ -259,6 +259,7 @@ let contactNo=parseInt(searchPattern)
     } else if (searchPattern) {
       // Combine search for both company_name and contact_person under the same pattern
       const searchQuery = {
+        isDeleted: false, // Ensure we do not return trashed bookings
         $or: [
           { company_name: { $regex: searchPattern, $options: 'i' } },
           { contact_person: { $regex: searchPattern, $options: 'i' } },
@@ -266,32 +267,34 @@ let contactNo=parseInt(searchPattern)
           { pan: { $regex: searchPattern, $options: 'i' } },
           { gst: { $regex: searchPattern, $options: 'i' } },
           { services: { $regex: searchPattern, $options: 'i' } },
-          { bdm: { $regex: searchPattern, $options: 'i' } },
-          { $expr: { $regexMatch: { input: { $toString: "$contact_no" }, regex: searchPattern } } }
+          { status: { $regex: searchPattern, $options: 'i' } }, // Replaces status filter
+          { bank: { $regex: searchPattern, $options: 'i' } }, // Replaces paymentmode filter
+          { bdm: { $regex: searchPattern, $options: 'i' } }, // Replaces bdm filter
+          { $expr: { $regexMatch: { input: { $toString: "$contact_no" }, regex: searchPattern } } },
+          { $expr: { $regexMatch: { input: { $dateToString: { format: "%Y-%m-%d", date: "$date" } }, regex: searchPattern } } }, // Replaces booking date filter
+          { $expr: { $regexMatch: { input: { $dateToString: { format: "%Y-%m-%d", date: "$payment_date" } }, regex: searchPattern } } } // Replaces payment date filter
         ]
       };
 
       if (['dev', 'admin', 'senior admin', 'srdev'].includes(userRole)) {
-        Booking = await BookingModel.find(searchQuery);
+        Booking = await BookingModel.find(searchQuery).sort({ createdAt: -1 });
       } else {
         // Search within user's bookings only if not dev, admin, or senior admin
         Booking = await BookingModel.find({
           ...searchQuery,
           user_id: userId // Ensure the user only gets their own bookings
-        });
+        }).sort({ createdAt: -1 });
       }
 
       if (Booking.length === 0) {
-        return res.status(404).send({
-          message: "No bookings found matching the pattern",
-        });
+        return res.status(200).send([]);
       }
     } else {
       // If neither an ID nor a search pattern is provided, return an error
       return res.status(400).send({
         message: "Either id or pattern query parameter is required",
       });
-    }    
+    }
     res.status(200).send(Booking);
 
   } catch (error) {

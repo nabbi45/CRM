@@ -62,11 +62,47 @@ const Trash = () => {
       });
   };
 
+  const handleEmptyTrash = () => {
+    if (!window.confirm("Are you sure you want to permanently delete ALL items in the trash? This cannot be undone.")) {
+      return;
+    }
+
+    setLoading(true);
+    fetch(`${apiUrl}/booking/emptytrash`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: userSession?.token,
+        'user-role': userSession?.user_role,
+      },
+    })
+      .then((res) => res.json())
+      .then(() => {
+        enqueueSnackbar('Trash emptied successfully!', { variant: 'info' });
+        setTrashedBookings([]);
+      })
+      .catch(() => {
+        enqueueSnackbar('Failed to empty trash.', { variant: 'error' });
+      })
+      .finally(() => setLoading(false));
+  };
+
   if (loading) return <p>Loading trashed bookings...</p>;
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Trashed Bookings</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2>Trashed Bookings</h2>
+        {trashedBookings.length > 0 && (
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleEmptyTrash}
+          >
+            Empty Trash
+          </Button>
+        )}
+      </div>
+
       {trashedBookings.length === 0 ? (
         <p>No trashed bookings.</p>
       ) : (
@@ -94,7 +130,7 @@ const Trash = () => {
               color="success"
               size="small"
               onClick={() => handleRestore(booking._id)}
-              sx={{ marginRight: 1 }}
+              sx={{ marginRight: 1, marginTop: 1 }}
             >
               Restore
             </Button>
@@ -103,6 +139,7 @@ const Trash = () => {
               color="error"
               size="small"
               onClick={() => handleDeletePermanent(booking._id)}
+              sx={{ marginTop: 1 }}
             >
               Delete Permanently
             </Button>

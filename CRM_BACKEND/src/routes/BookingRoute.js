@@ -185,8 +185,8 @@ BookingRoutes.patch("/trash/:id", authenticateUser, async (req, res) => {
   const userRole = req.headers["user-role"];
   const deletedBy = req.headers["user-name"];
 
-  if (!userRole || !["srdev", "dev"].includes(userRole)) {
-    return res.status(403).send({ message: "Only dev or srdev can move bookings to trash." });
+  if (!userRole || !["srdev", "dev", "senior admin", "admin"].includes(userRole)) {
+    return res.status(403).send({ message: "Only admins or devs can move bookings to trash." });
   }
 
   try {
@@ -211,8 +211,8 @@ BookingRoutes.patch("/trash/:id", authenticateUser, async (req, res) => {
 BookingRoutes.get("/trash", authenticateUser, async (req, res) => {
   const userRole = req.headers["user-role"];
 
-  if (!userRole || !["srdev", "dev"].includes(userRole)) {
-    return res.status(403).send({ message: "Only srdev or dev can view trash." });
+  if (!userRole || !["srdev", "dev", "senior admin", "admin"].includes(userRole)) {
+    return res.status(403).send({ message: "Only admins or devs can view trash." });
   }
 
   try {
@@ -228,8 +228,8 @@ BookingRoutes.patch("/restore/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;
   const userRole = req.headers["user-role"];
 
-  if (!userRole || !["srdev", "dev"].includes(userRole)) {
-    return res.status(403).send({ message: "Only srdev or dev can restore trashed bookings." });
+  if (!userRole || !["srdev", "dev", "senior admin", "admin"].includes(userRole)) {
+    return res.status(403).send({ message: "Only admins or devs can restore trashed bookings." });
   }
 
   try {
@@ -251,13 +251,14 @@ BookingRoutes.patch("/restore/:id", authenticateUser, async (req, res) => {
 
 
 
-//Delete Booking
+//Delete Booking Permanently
 BookingRoutes.delete("/deletebooking/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;
   const userRole = req.headers["user-role"];
 
-  if (userRole !== "srdev") {
-    return res.status(403).send({ message: "Only srdev can permanently delete bookings." });
+  // Allow admins and devs to permanently delete
+  if (!["srdev", "dev", "senior admin", "admin"].includes(userRole)) {
+    return res.status(403).send({ message: "Insufficient permissions to permanently delete bookings." });
   }
 
   const booking = await BookingModel.findById(id);
@@ -277,6 +278,24 @@ BookingRoutes.delete("/deletebooking/:id", authenticateUser, async (req, res) =>
     return res.status(500).send({ message: err.message });
   }
 });
+
+//Empty Trash (Bulk Delete)
+BookingRoutes.delete("/emptytrash", authenticateUser, async (req, res) => {
+  const userRole = req.headers["user-role"];
+
+  // Allow admins and devs to permanently delete
+  if (!["srdev", "dev", "senior admin", "admin"].includes(userRole)) {
+    return res.status(403).send({ message: "Insufficient permissions to empty trash." });
+  }
+
+  try {
+    await BookingModel.deleteMany({ isDeleted: true });
+    return res.status(200).send({ message: "Trash emptied successfully." });
+  } catch (err) {
+    return res.status(500).send({ message: err.message });
+  }
+});
+
 
 
 //Getting all bookings
