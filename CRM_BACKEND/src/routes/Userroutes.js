@@ -431,22 +431,23 @@ UserRoutes.post('/request-reset-password', async (req, res) => {
     await user.save();
 
     // Create a reset URL with the token
-    const resetUrl = `http://localhost:5353/user/reset-password/${resetToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
     // Send an email with the reset link (setup `nodemailer` transport)
     const transporter = nodemailer.createTransport({
-      host: "smtp.hostinger.com",
-      port: 465,
-      secure: true, // true for port 465, false for other ports
+      host: process.env.MAIL_HOST || "smtp.hostinger.com",
+      port: process.env.MAIL_PORT || 465,
+      secure: true, 
       auth: {
-        user: "siteadmin@enego.co.in",
-        pass: "Siteadmin@enego@321",
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
       },
     });
 
     const mailOptions = {
       to: user.email,
-      from: 'siteadmin@enego.co.in',
+      from: process.env.MAIL_USER,
       subject: 'Password Reset Request',
       text: `You are receiving this email because you (or someone else) have requested to reset the password for your account.\n\n
       Please click the following link, or paste it into your browser to complete the process:\n\n

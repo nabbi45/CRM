@@ -10,7 +10,7 @@ const router = express.Router();
  */
 const authorizeSelfOrHR = (req, res, next) => {
   const requestedUserId = req.params.id;
-  if (req.user.userId !== requestedUserId && req.user.role !== "HR") {
+  if (req.user.userId !== requestedUserId && req.user.user_role !== "HR") {
     return res.status(403).json({ 
       message: "Access denied. You can only access your own profile or need HR privileges." 
     });
