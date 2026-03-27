@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Building2, Mail, MapPin, FileText, Plus, Trash2, Download, Eye } from 'lucide-react';
 import { saveInvoiceToDatabase } from '../utils/invoiceService';
 import { format } from 'date-fns';
-import logo from "../assets/logo.png";
-import digitalStamp from "../assets/stamp.jpg";
 
 import { apiUrl } from './LoginSignup';
 
@@ -25,8 +23,8 @@ function InvoiceForm({ onPreview, onDownload }) {
     city: '',
     region: '',
     postcode: '',
-    logo: logo,
-    digitalStamp: digitalStamp,
+    logo: null,
+    digitalStamp: null,
     bankAccountNumber: "0000000000",
     ifscCode: "IFSC0000000",
     accountHolderName: "Company Account Name",
@@ -171,11 +169,17 @@ function InvoiceForm({ onPreview, onDownload }) {
 
         <div className="flex items-start space-x-6">
           <div className="flex-shrink-0">
-            <img
-              src={companyDetails.logo}
-              alt="Company Logo"
-              className="w-24 h-24 object-contain"
-            />
+            {companyDetails.logo ? (
+              <img
+                src={companyDetails.logo}
+                alt="Company Logo"
+                className="w-24 h-24 object-contain"
+              />
+            ) : (
+              <div className="w-24 h-24 bg-gray-100 flex items-center justify-center rounded-md border border-gray-200">
+                <Building2 className="w-8 h-8 text-gray-300" />
+              </div>
+            )}
           </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -202,11 +206,17 @@ function InvoiceForm({ onPreview, onDownload }) {
             </div>
           </div>
           <div className="flex-shrink-0">
-            <img
-              src={companyDetails.digitalStamp}
-              alt="Digital Stamp"
-              className="w-20 h-20 object-contain border rounded-lg bg-white p-1"
-            />
+            {companyDetails.digitalStamp ? (
+              <img
+                src={companyDetails.digitalStamp}
+                alt="Digital Stamp"
+                className="w-20 h-20 object-contain border rounded-lg bg-white p-1"
+              />
+            ) : (
+              <div className="w-20 h-20 bg-gray-50 flex items-center justify-center rounded-lg border border-dashed border-gray-300">
+                <span className="text-xs text-gray-400 text-center">No Stamp</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

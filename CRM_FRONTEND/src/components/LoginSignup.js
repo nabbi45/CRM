@@ -8,8 +8,6 @@ import {
   Divider,
   Snackbar,
   Alert,
-  Select,
-  MenuItem,
   useTheme,
 } from "@mui/material";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
@@ -87,12 +85,6 @@ const LoginSignup = ({ onLoginSuccess }) => {
     }
 
     return errors;
-  };
-
-  const handleRegisterClick = () => {
-    setIsActive(true);
-    setFormErrors({});
-    setFormData({ email: "", password: "", name: "", userrole: "" });
   };
 
   const handleLoginClick = () => {

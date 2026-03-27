@@ -38,6 +38,7 @@ import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
 import { useColorMode } from '../context/AppThemeProvider';
 import UserEditModal from './UserEditModal';
+import axios from 'axios';
 
 /* ──────────────────── colour tokens ──────────────────── */
 const SIDEBAR_BG = '#0f172a';
@@ -150,7 +151,7 @@ const Sidebar = () => {
     };
     fetchLogo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userSession?.user_id]);
+  }, [userSession?.user_id, userSession?.token, userSession?.user_role]);
 
   const menuItems = useMemo(() => {
     const items = [];
@@ -245,14 +246,17 @@ const Sidebar = () => {
     }
 
     return items;
-  }, [userSession?.user_role, hasProfile]);
+  }, [userSession?.user_role, hasProfile, unreads]);
 
   const drawerPaperSx = {
     width: 250,
     boxSizing: 'border-box',
-    backgroundColor: theme.palette.mode === 'light' ? '#ffffff' : SIDEBAR_BG,
-    borderRight: theme.palette.mode === 'light' ? '1px solid rgba(0,0,0,0.06)' : 'none',
-    color: theme.palette.mode === 'light' ? '#475569' : TEXT_DIM,
+    backgroundColor: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(15, 23, 42, 0.65)',
+    backdropFilter: 'blur(16px)',
+    borderRight: theme.palette.mode === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
+    color: theme.palette.mode === 'light' ? '#0f172a' : TEXT_DIM,
+    boxShadow: theme.palette.mode === 'light' ? '0 12px 40px rgba(0,0,0,0.04)' : '0 12px 40px rgba(0,0,0,0.3)',
+    transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
   };
 
   return (
