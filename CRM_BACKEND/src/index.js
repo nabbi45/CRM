@@ -13,6 +13,7 @@ import BroadcastRoutes from "./routes/BroadcastRoute.js";
 import LeaveRoutes from "./routes/LeaveRoute.js";
 import ChatRoutes from "./routes/ChatRoute.js"; // New Chat Route
 import ChatUploadRoutes from "./routes/ChatUploadRoute.js"; // New Chat Upload Route
+import LeadRoutes from "./routes/LeadRoute.js"; // Sales Inquiry Route
 
 import cors from "cors";
 import path from "path";
@@ -85,6 +86,7 @@ app.use("/broadcasts", BroadcastRoutes);
 app.use("/leaves", LeaveRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/chat-upload", ChatUploadRoutes);
+app.use("/lead", LeadRoutes);
 
 // Keep track of connected users { userId: Set<socketId> }
 global.onlineUsers = new Map();

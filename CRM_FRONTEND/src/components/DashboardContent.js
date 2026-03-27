@@ -265,7 +265,7 @@ const DashboardContent = () => {
   const medals = ["🥇", "🥈", "🥉"];
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: 2, animation: 'fadeIn 0.5s ease-out', '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } } }}>
       <Box
         sx={{
           display: "flex",
@@ -318,7 +318,15 @@ const DashboardContent = () => {
           },
         ].map((c, i) => (
           <Grid item xs={12} sm={6} md={isAdmin ? 3 : 4} key={i}>
-            <Card sx={{ position: "relative", overflow: "visible" }}>
+            <Card sx={{ 
+              position: "relative", overflow: "visible",
+              animation: 'slideUp 0.4s ease-out both',
+              animationDelay: `${i * 0.08}s`,
+              '@keyframes slideUp': {
+                from: { opacity: 0, transform: 'translateY(20px)' },
+                to: { opacity: 1, transform: 'translateY(0)' },
+              },
+            }}>
               <CardContent sx={{ pb: '16px !important' }}>
                 <Box
                   sx={{
@@ -366,7 +374,7 @@ const DashboardContent = () => {
       <Grid container spacing={2.5} sx={{ mt: 1 }}>
         {/* Monthly Revenue Chart */}
         <Grid item xs={12} md={isAdmin ? 7 : 12}>
-          <Card>
+          <Card sx={{ animation: 'slideUp 0.5s ease-out 0.3s both', '@keyframes slideUp': { from: { opacity: 0, transform: 'translateY(20px)' }, to: { opacity: 1, transform: 'translateY(0)' } } }}>
             <CardContent>
               <Box
                 sx={{
@@ -489,7 +497,7 @@ const DashboardContent = () => {
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
           Recent Bookings
         </Typography>
-        <TableContainer component={Paper}>
+        <TableContainer component={Paper} sx={{ animation: 'slideUp 0.5s ease-out 0.4s both', '@keyframes slideUp': { from: { opacity: 0, transform: 'translateY(20px)' }, to: { opacity: 1, transform: 'translateY(0)' } } }}>
           <Table>
             <TableHead>
               <TableRow>

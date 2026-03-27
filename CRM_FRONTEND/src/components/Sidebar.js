@@ -34,19 +34,12 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { socket } from '../socket';
-import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
 import { useColorMode } from '../context/AppThemeProvider';
 import UserEditModal from './UserEditModal';
+import axios from 'axios';
 
-/* ──────────────────── colour tokens ──────────────────── */
-const SIDEBAR_BG = '#0f172a';
-const SIDEBAR_HEADER = '#0b1120';
-const TEXT_DIM = '#94a3b8';
-const TEXT_BRIGHT = '#f1f5f9';
 const ACCENT = '#e87c2a';
-const HOVER_BG = 'rgba(232,124,42,0.08)';
-const ACTIVE_BG = 'rgba(232,124,42,0.15)';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,6 +50,7 @@ const Sidebar = () => {
   const [userSessionState, setUserSessionState] = useState(null);
   const navigate = useNavigate();
   const { mode } = useColorMode();
+  const theme = useTheme();
 
   const userSession = useMemo(
     () => userSessionState || JSON.parse(localStorage.getItem('userSession')),
@@ -65,8 +59,6 @@ const Sidebar = () => {
 
   useEffect(() => {
     if (!userSession?.user_id) return;
-
-    // Fetch initial unread count on mount
     const fetchInitialUnreads = async () => {
       try {
         const res = await fetch(`${apiUrl}/chat/unreads`, {
@@ -86,32 +78,23 @@ const Sidebar = () => {
     }
 
     const handleReceive = (msg) => {
-      // Don't notify if user is sender
       if (msg.sender_id === userSession.user_id) return;
-
-      // If we are not currently on the communication page, increment the bubble
       if (!window.location.pathname.includes('/dashboard/communication')) {
         setUnreads(prev => prev + 1);
       }
     };
 
     socket.on("receiveMessage", handleReceive);
-
-    return () => {
-      socket.off("receiveMessage", handleReceive);
-    };
+    return () => { socket.off("receiveMessage", handleReceive); };
   }, [userSession?.user_id, window.location.pathname]);
 
-  // When user navigates to communication page, clear badge
   useEffect(() => {
     if (window.location.pathname.includes('/dashboard/communication')) {
       setUnreads(0);
     }
   }, [window.location.pathname]);
 
-  const toggleDrawer = () => {
-    setIsOpen((prev) => !prev);
-  };
+  const toggleDrawer = () => setIsOpen((prev) => !prev);
 
   const handleLogout = () => {
     localStorage.removeItem('userSession');
@@ -131,10 +114,8 @@ const Sidebar = () => {
         setHasProfile(false);
       }
     };
-
     if (userSession?.user_id) fetchProfileStatus();
 
-    // Fetch company logo
     const fetchLogo = async () => {
       try {
         const res = await fetch(`${apiUrl}/company`, {
@@ -145,7 +126,7 @@ const Sidebar = () => {
         });
         const data = await res.json();
         if (res.ok && data?.logo_url) setCompanyLogo(data.logo_url);
-      } catch (e) { /* fallback to static logo */ }
+      } catch (e) { }
     };
     fetchLogo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,8 +134,6 @@ const Sidebar = () => {
 
   const menuItems = useMemo(() => {
     const items = [];
-
-    // only add base menu if not HR
     if (userSession?.user_role !== 'HR') {
       items.push(
         { text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard' },
@@ -166,92 +145,67 @@ const Sidebar = () => {
       );
     }
 
-    // Role-specific menu items
     if (userSession?.user_role === 'dev') {
       items.push(
-        {
-          text: 'Manage User',
-          icon: <PeopleAltOutlinedIcon />,
-          path: '/dashboard/removeuser',
-        },
-        {
-          text: 'Manage Services',
-          icon: <MiscellaneousServicesOutlinedIcon />,
-          path: '/dashboard/addservices',
-        },
-        {
-          text: 'Company Profile',
-          icon: <BusinessOutlinedIcon />,
-          path: '/dashboard/company-profile',
-        },
+        { text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser' },
+        { text: 'Manage Services', icon: <MiscellaneousServicesOutlinedIcon />, path: '/dashboard/addservices' },
+        { text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile' },
       );
     } else if (userSession?.user_role === 'srdev') {
       items.push(
-        {
-          text: 'Manage User',
-          icon: <PeopleAltOutlinedIcon />,
-          path: '/dashboard/removeuser',
-        },
-        {
-          text: 'Manage Services',
-          icon: <MiscellaneousServicesOutlinedIcon />,
-          path: '/dashboard/addservices',
-        },
-        {
-          text: 'Company Profile',
-          icon: <BusinessOutlinedIcon />,
-          path: '/dashboard/company-profile',
-        },
+        { text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser' },
+        { text: 'Manage Services', icon: <MiscellaneousServicesOutlinedIcon />, path: '/dashboard/addservices' },
+        { text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile' },
       );
     } else if (userSession?.user_role === 'HR') {
       items.push(
-        {
-          text: 'Manage Employees',
-          icon: <PeopleAltOutlinedIcon />,
-          path: '/dashboard/manage-employees',
-        },
+        { text: 'Manage Employees', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/manage-employees' },
       );
     }
 
-    // Leave Management — available to all users
     items.push(
       { text: 'Leave Management', icon: <EventNoteOutlinedIcon />, path: '/dashboard/leave-management' }
     );
 
-    // Communication — available to all users
-    items.push(
-      {
-        text: 'Communication',
-        icon: (
-          <Badge badgeContent={unreads} color="error" max={99}>
-            <ChatBubbleOutlineIcon />
-          </Badge>
-        ),
-        path: '/dashboard/communication'
-      }
-    );
+    items.push({
+      text: 'Communication',
+      icon: (
+        <Badge badgeContent={unreads} color="error" max={99}>
+          <ChatBubbleOutlineIcon />
+        </Badge>
+      ),
+      path: '/dashboard/communication'
+    });
 
-    // Profile menu item
     if (hasProfile) {
       items.push({ text: 'My Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/my-profile' });
     } else if (['HR', 'admin', 'dev', 'srdev'].includes(userSession?.user_role)) {
       items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile' });
     }
 
-    // Trash at the very bottom (dev/srdev only)
     if (userSession?.user_role === 'dev' || userSession?.user_role === 'srdev') {
       items.push({ text: 'Trash', icon: <DeleteOutlineIcon />, path: '/dashboard/trash' });
     }
 
     return items;
-  }, [userSession?.user_role, hasProfile]);
+  }, [userSession?.user_role, hasProfile, unreads]);
+
+  // Dynamic sidebar colors based on theme
+  const sidebarBg = mode === 'light' ? '#ffffff' : '#0f172a';
+  const sidebarHeaderBg = mode === 'light' ? '#fafbfc' : '#0b1120';
+  const textDim = mode === 'light' ? '#6b7280' : '#94a3b8';
+  const textBright = mode === 'light' ? '#111827' : '#f1f5f9';
+  const hoverBg = mode === 'light' ? 'rgba(232,124,42,0.06)' : 'rgba(232,124,42,0.08)';
+  const activeBg = mode === 'light' ? 'rgba(232,124,42,0.1)' : 'rgba(232,124,42,0.15)';
+  const borderColor = mode === 'light' ? '#e5e7eb' : 'rgba(31,41,55,0.5)';
 
   const drawerPaperSx = {
-    width: 250,
+    width: 260,
     boxSizing: 'border-box',
-    backgroundColor: SIDEBAR_BG,
-    borderRight: 'none',
-    color: TEXT_DIM,
+    backgroundColor: sidebarBg,
+    borderRight: `1px solid ${borderColor}`,
+    color: textDim,
+    transition: 'background-color 0.3s ease, border-color 0.3s ease',
   };
 
   return (
@@ -289,6 +243,8 @@ const Sidebar = () => {
           userSession={userSession}
           companyLogo={companyLogo}
           onEditProfile={() => setEditModalOpen(true)}
+          mode={mode}
+          colors={{ sidebarHeaderBg, textDim, textBright, hoverBg, activeBg, borderColor }}
         />
       </Drawer>
 
@@ -307,6 +263,8 @@ const Sidebar = () => {
           userSession={userSession}
           companyLogo={companyLogo}
           onEditProfile={() => setEditModalOpen(true)}
+          mode={mode}
+          colors={{ sidebarHeaderBg, textDim, textBright, hoverBg, activeBg, borderColor }}
         />
       </Drawer>
 
@@ -320,9 +278,10 @@ const Sidebar = () => {
   );
 };
 
-const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, companyLogo, onEditProfile }) => {
-  const { mode, toggleColorMode } = useColorMode();
+const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, companyLogo, onEditProfile, mode, colors }) => {
+  const { toggleColorMode } = useColorMode();
   const initials = (userSession?.name || 'U').charAt(0).toUpperCase();
+  const { sidebarHeaderBg, textDim, textBright, hoverBg, activeBg, borderColor } = colors;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -335,39 +294,44 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
           pt: 3,
           pb: 2,
           px: 2,
-          backgroundColor: SIDEBAR_HEADER,
+          backgroundColor: sidebarHeaderBg,
         }}
       >
-        <img
-          src={companyLogo || logo}
-          alt="Dashboard Logo"
-          style={{ width: '140px', marginBottom: '12px', objectFit: 'contain' }}
-        />
-        <Typography
-          variant="caption"
+        {companyLogo ? (
+          <img
+            src={companyLogo}
+            alt="Dashboard Logo"
+            style={{ width: '130px', marginBottom: '12px', objectFit: 'contain' }}
+          />
+        ) : (
+          <Typography variant="h6" sx={{ color: textBright, fontWeight: 700, mb: 1 }}>Dashboard</Typography>
+        )}
+
+        <Box
           sx={{
-            color: TEXT_DIM,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            fontSize: '0.65rem',
-            mb: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            cursor: 'pointer',
+            p: 1,
+            borderRadius: 2,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              backgroundColor: hoverBg,
+            },
           }}
-        >
-          Welcome
-        </Typography>
-        <Box 
-          sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
           onClick={onEditProfile}
           title="Click to edit profile"
         >
           <Avatar
             src={userSession?.profilePicture || ""}
             sx={{
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               bgcolor: ACCENT,
-              fontSize: '0.85rem',
+              fontSize: '0.9rem',
               fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(232,124,42,0.3)',
             }}
           >
             {!userSession?.profilePicture && initials}
@@ -376,27 +340,26 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
             <Typography
               variant="subtitle2"
               sx={{
-                color: TEXT_BRIGHT,
+                color: textBright,
                 fontWeight: 600,
                 fontSize: '0.85rem',
-                textTransform: 'uppercase',
                 lineHeight: 1.2,
               }}
             >
               {userSession?.name || 'User'}
             </Typography>
-            <Typography variant="caption" sx={{ color: TEXT_DIM, fontSize: '0.65rem' }}>
+            <Typography variant="caption" sx={{ color: textDim, fontSize: '0.65rem' }}>
               Edit Profile
             </Typography>
           </Box>
         </Box>
       </Box>
 
-      <Divider sx={{ borderColor: 'rgba(148,163,184,0.1)', mt: 1 }} />
+      <Divider sx={{ borderColor }} />
 
       {/* ── Navigation Items ── */}
-      <List sx={{ flexGrow: 1, pt: 1.5, px: 1 }}>
-        {menuItems.map((item) => (
+      <List sx={{ flexGrow: 1, pt: 1.5, px: 1.5, overflow: 'auto' }}>
+        {menuItems.map((item, index) => (
           <NavLink
             to={item.path}
             key={item.text}
@@ -408,18 +371,24 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
               <ListItem
                 sx={{
                   mb: 0.3,
-                  borderRadius: 2,
-                  py: 0.8,
+                  borderRadius: 2.5,
+                  py: 0.9,
                   px: 1.5,
-                  transition: 'all 0.15s ease',
-                  color: isActive ? ACCENT : TEXT_DIM,
-                  backgroundColor: isActive ? ACTIVE_BG : 'transparent',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  color: isActive ? ACCENT : textDim,
+                  backgroundColor: isActive ? activeBg : 'transparent',
                   borderLeft: isActive
                     ? `3px solid ${ACCENT}`
                     : '3px solid transparent',
                   '&:hover': {
-                    backgroundColor: isActive ? ACTIVE_BG : HOVER_BG,
-                    color: TEXT_BRIGHT,
+                    backgroundColor: isActive ? activeBg : hoverBg,
+                    color: textBright,
+                    transform: 'translateX(3px)',
+                  },
+                  animation: `slideInLeft 0.3s ease-out ${index * 0.03}s both`,
+                  '@keyframes slideInLeft': {
+                    from: { opacity: 0, transform: 'translateX(-10px)' },
+                    to: { opacity: 1, transform: 'translateX(0)' },
                   },
                 }}
               >
@@ -445,7 +414,7 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         ))}
       </List>
 
-      <Divider sx={{ borderColor: 'rgba(148,163,184,0.1)', mx: 2 }} />
+      <Divider sx={{ borderColor, mx: 2 }} />
 
       {/* ── Bottom Actions ── */}
       <Box
@@ -464,14 +433,15 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
             mode === 'light' ? <DarkModeRoundedIcon /> : <LightModeRoundedIcon />
           }
           sx={{
-            borderRadius: 2,
-            color: TEXT_DIM,
+            borderRadius: 2.5,
+            color: textDim,
             fontSize: '0.8rem',
             justifyContent: 'flex-start',
             pl: 2,
+            transition: 'all 0.2s ease',
             '&:hover': {
-              backgroundColor: HOVER_BG,
-              color: TEXT_BRIGHT,
+              backgroundColor: hoverBg,
+              color: textBright,
             },
           }}
           fullWidth
@@ -482,11 +452,15 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         <Button
           variant="contained"
           sx={{
-            backgroundColor: ACCENT,
-            borderRadius: 2,
+            background: `linear-gradient(135deg, ${ACCENT} 0%, #f59e4b 100%)`,
+            borderRadius: 2.5,
             fontSize: '0.8rem',
+            boxShadow: '0 2px 8px rgba(232,124,42,0.3)',
+            transition: 'all 0.3s ease',
             '&:hover': {
-              backgroundColor: '#c2641c',
+              background: 'linear-gradient(135deg, #d06820 0%, #e87c2a 100%)',
+              boxShadow: '0 4px 12px rgba(232,124,42,0.4)',
+              transform: 'translateY(-1px)',
             },
           }}
           startIcon={<LogoutRoundedIcon />}

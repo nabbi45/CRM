@@ -72,7 +72,7 @@ const Dashboard = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          marginLeft: isSmallScreen ? 0 : '250px',
+          marginLeft: isSmallScreen ? 0 : '260px',
           transition: theme.transitions.create('margin', {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
