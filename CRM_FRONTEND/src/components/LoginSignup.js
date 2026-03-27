@@ -275,13 +275,9 @@ const LoginSignup = ({ onLoginSuccess }) => {
           }}
         >
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 4 }}>
-            <Box sx={{ minHeight: 40 }}>
-              {companyLogo ? (
+            <Box sx={{ minHeight: 48, display: 'flex', alignItems: 'center' }}>
+              {companyLogo && (
                 <img src={companyLogo} alt="Company Logo" style={{ height: 48, objectFit: "contain" }} />
-              ) : (
-                <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.main", letterSpacing: "-0.03em" }}>
-                  BizLink
-                </Typography>
               )}
             </Box>
             <IconButton onClick={toggleColorMode} sx={{ bgcolor: "background.default" }} size="small">

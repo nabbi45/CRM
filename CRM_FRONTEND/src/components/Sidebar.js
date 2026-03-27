@@ -45,8 +45,8 @@ const SIDEBAR_HEADER = '#0b1120';
 const TEXT_DIM = '#94a3b8';
 const TEXT_BRIGHT = '#f1f5f9';
 const ACCENT = '#111827';
-const HOVER_BG = 'rgba(232,124,42,0.08)';
-const ACTIVE_BG = 'rgba(232,124,42,0.15)';
+const HOVER_BG = 'rgba(15,23,42,0.06)';
+const ACTIVE_BG = 'rgba(15,23,42,0.1)';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,6 +57,7 @@ const Sidebar = () => {
   const [userSessionState, setUserSessionState] = useState(null);
   const navigate = useNavigate();
   const { mode } = useColorMode();
+  const theme = useTheme();
 
   const userSession = useMemo(
     () => userSessionState || JSON.parse(localStorage.getItem('userSession')),
@@ -249,9 +250,9 @@ const Sidebar = () => {
   const drawerPaperSx = {
     width: 250,
     boxSizing: 'border-box',
-    backgroundColor: SIDEBAR_BG,
-    borderRight: 'none',
-    color: TEXT_DIM,
+    backgroundColor: theme.palette.mode === 'light' ? '#ffffff' : SIDEBAR_BG,
+    borderRight: theme.palette.mode === 'light' ? '1px solid rgba(0,0,0,0.06)' : 'none',
+    color: theme.palette.mode === 'light' ? '#475569' : TEXT_DIM,
   };
 
   return (
@@ -322,7 +323,10 @@ const Sidebar = () => {
 
 const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, companyLogo, onEditProfile }) => {
   const { mode, toggleColorMode } = useColorMode();
+  const theme = useTheme();
   const initials = (userSession?.name || 'U').charAt(0).toUpperCase();
+
+  const isLight = theme.palette.mode === 'light';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -335,7 +339,8 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
           pt: 3,
           pb: 2,
           px: 2,
-          backgroundColor: SIDEBAR_HEADER,
+          backgroundColor: isLight ? '#f8fafc' : SIDEBAR_HEADER,
+          borderBottom: isLight ? '1px solid rgba(0,0,0,0.06)' : 'none',
         }}
       >
         <img
@@ -346,7 +351,7 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         <Typography
           variant="caption"
           sx={{
-            color: TEXT_DIM,
+            color: isLight ? '#64748b' : TEXT_DIM,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
             fontSize: '0.65rem',
@@ -376,8 +381,8 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
             <Typography
               variant="subtitle2"
               sx={{
-                color: TEXT_BRIGHT,
-                fontWeight: 600,
+                color: isLight ? '#0f172a' : TEXT_BRIGHT,
+                fontWeight: 700,
                 fontSize: '0.85rem',
                 textTransform: 'uppercase',
                 lineHeight: 1.2,
@@ -412,14 +417,14 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
                   py: 0.8,
                   px: 1.5,
                   transition: 'all 0.15s ease',
-                  color: isActive ? ACCENT : TEXT_DIM,
+                  color: isActive ? (isLight ? '#0f172a' : ACCENT) : (isLight ? '#64748b' : TEXT_DIM),
                   backgroundColor: isActive ? ACTIVE_BG : 'transparent',
                   borderLeft: isActive
-                    ? `3px solid ${ACCENT}`
+                    ? `3px solid ${isLight ? '#0f172a' : ACCENT}`
                     : '3px solid transparent',
                   '&:hover': {
                     backgroundColor: isActive ? ACTIVE_BG : HOVER_BG,
-                    color: TEXT_BRIGHT,
+                    color: isLight ? '#0f172a' : TEXT_BRIGHT,
                   },
                 }}
               >
@@ -482,7 +487,8 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         <Button
           variant="contained"
           sx={{
-            backgroundColor: ACCENT,
+            backgroundColor: isLight ? '#0f172a' : ACCENT,
+            color: '#fff',
             borderRadius: 2,
             fontSize: '0.8rem',
             '&:hover': {
