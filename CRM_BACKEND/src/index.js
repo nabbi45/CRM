@@ -49,8 +49,7 @@ const io = new Server(server, {
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
-  "https://crm.farsightconsultancy.com",
-  "https://crm-nabbi45.vercel.app" // Vercel default if needed
+  process.env.FRONTEND_URL,
 ];
 
 const corsOptions = {
