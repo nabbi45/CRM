@@ -29,7 +29,7 @@
 .header-icon {
   width: 64px;
   height: 64px;
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -69,7 +69,7 @@
 .stat-number {
   font-size: 2rem;
   font-weight: 700;
-  color: #e87c2a;
+  color: #111827;
   display: block;
   line-height: 1;
 }
@@ -128,7 +128,7 @@
 
 .search-input:focus {
   outline: none;
-  border-color: #e87c2a;
+  border-color: #111827;
   background: white;
   box-shadow: 0 0 0 3px rgba(232, 124, 42, 0.1);
 }
@@ -153,12 +153,12 @@
 }
 
 .filter-btn:hover {
-  border-color: #e87c2a;
-  color: #e87c2a;
+  border-color: #111827;
+  color: #111827;
 }
 
 .filter-btn.active {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
   border-color: transparent;
 }
@@ -184,7 +184,7 @@
 
 .sort-select:focus {
   outline: none;
-  border-color: #e87c2a;
+  border-color: #111827;
 }
 
 .action-controls {
@@ -218,7 +218,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
   border: none;
   border-radius: 16px;
@@ -240,7 +240,7 @@
   border-radius: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  border-top: 3px solid #e87c2a;
+  border-top: 3px solid #111827;
 }
 
 .filters-content {
@@ -274,7 +274,7 @@
 
 .filter-select:focus {
   outline: none;
-  border-color: #e87c2a;
+  border-color: #111827;
 }
 
 .clear-filters-btn {
@@ -333,7 +333,7 @@
 .select-all-checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #e87c2a;
+  accent-color: #111827;
 }
 
 .select-all-label {
@@ -365,8 +365,8 @@
 }
 
 .employee-card.selected {
-  border-color: #e87c2a;
-  box-shadow: 0 0 0 1px #e87c2a, 0 10px 25px rgba(232, 124, 42, 0.15);
+  border-color: #111827;
+  box-shadow: 0 0 0 1px #111827, 0 10px 25px rgba(232, 124, 42, 0.15);
 }
 
 .card-header {
@@ -381,7 +381,7 @@
 .employee-checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #e87c2a;
+  accent-color: #111827;
   cursor: pointer;
 }
 
@@ -431,7 +431,7 @@
 
 .dropdown-toggle:hover {
   background: #f3f4f6;
-  color: #e87c2a;
+  color: #111827;
 }
 
 .card-content {
@@ -613,7 +613,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 1rem 2rem;
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
   border: none;
   border-radius: 16px;
@@ -648,7 +648,7 @@
 
 .loading-spinner {
   animation: spin 1s linear infinite;
-  color: #e87c2a;
+  color: #111827;
 }
 
 .error-icon {
@@ -671,7 +671,7 @@
 }
 
 .retry-button {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
   border: none;
   padding: 0.875rem 2rem;
@@ -882,7 +882,7 @@
 }
 
 .modal-btn.primary {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
 }
 
@@ -949,7 +949,7 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #e87c2a;
+  border-color: #111827;
   box-shadow: 0 0 0 3px rgba(232, 124, 42, 0.1);
 }
 

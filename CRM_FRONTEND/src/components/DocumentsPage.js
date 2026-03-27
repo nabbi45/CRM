@@ -82,7 +82,7 @@ const DocumentsPage = () => {
 
     return (
         <div style={{ padding: '20px', color: mode === 'light' ? '#0f172a' : '#f8fafc' }}>
-            <h2 style={{ fontSize: '2rem', marginBottom: '8px', color: '#e87c2a' }}>Generated Documents</h2>
+            <h2 style={{ fontSize: '2rem', marginBottom: '8px', color: '#111827' }}>Generated Documents</h2>
             <p style={{ marginBottom: '16px', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>View and download all generated Invoices and Agreements</p>
 
             <div style={{ marginBottom: '24px' }}>
@@ -121,7 +121,7 @@ const DocumentsPage = () => {
                             boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <FileText color="#e87c2a" size={28} />
+                                <FileText color="#111827" size={28} />
                                 <div>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{doc.title || `${doc.type} Document`}</h3>
                                     <p style={{ fontSize: '0.85rem', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>
@@ -139,7 +139,7 @@ const DocumentsPage = () => {
                                 </button>
                                 <button
                                     onClick={() => handleDownload(doc)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#e87c2a', color: '#fff', fontWeight: '500' }}>
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#111827', color: '#fff', fontWeight: '500' }}>
                                     <Download size={16} /> Download
                                 </button>
                                 {isAdmin && (

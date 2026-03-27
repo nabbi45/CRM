@@ -172,7 +172,7 @@ const CompanyProfile = () => {
 
     return (
         <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', color: mode === 'light' ? '#0f172a' : '#f8fafc' }}>
-            <h2 style={{ fontSize: '2rem', marginBottom: '20px', color: '#e87c2a' }}>Company Profile & Branding</h2>
+            <h2 style={{ fontSize: '2rem', marginBottom: '20px', color: '#111827' }}>Company Profile & Branding</h2>
 
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', alignItems: 'center', backgroundColor: mode === 'light' ? '#f8fafc' : '#0f172a', padding: '20px', borderRadius: '8px', border: `1px solid ${mode === 'light' ? '#e2e8f0' : '#1e293b'}` }}>
                 <div style={{ flex: 1 }}>
@@ -182,7 +182,7 @@ const CompanyProfile = () => {
                     </p>
                     <input type="file" accept="image/*" onChange={handleFileChange} style={{ marginBottom: '10px' }} />
                     <div>
-                        <Button variant="contained" style={{ backgroundColor: '#e87c2a', color: '#fff' }} onClick={handleUploadLogo} disabled={loading || !file}>
+                        <Button variant="contained" style={{ backgroundColor: '#111827', color: '#fff' }} onClick={handleUploadLogo} disabled={loading || !file}>
                             Upload Logo
                         </Button>
                     </div>
@@ -202,7 +202,7 @@ const CompanyProfile = () => {
                     </p>
                     <input type="file" accept="image/*" onChange={handleSealFileChange} style={{ marginBottom: '10px' }} />
                     <div>
-                        <Button variant="contained" style={{ backgroundColor: '#e87c2a', color: '#fff' }} onClick={handleUploadSeal} disabled={loading || !sealFile}>
+                        <Button variant="contained" style={{ backgroundColor: '#111827', color: '#fff' }} onClick={handleUploadSeal} disabled={loading || !sealFile}>
                             Upload Seal
                         </Button>
                     </div>
@@ -242,7 +242,7 @@ const CompanyProfile = () => {
                     </div>
                 </div>
 
-                <h3 style={{ marginTop: '20px', marginBottom: '15px', color: '#e87c2a', borderBottom: `1px solid ${mode === 'light' ? '#e2e8f0' : '#1e293b'}`, paddingBottom: '10px' }}>Bank Details</h3>
+                <h3 style={{ marginTop: '20px', marginBottom: '15px', color: '#111827', borderBottom: `1px solid ${mode === 'light' ? '#e2e8f0' : '#1e293b'}`, paddingBottom: '10px' }}>Bank Details</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                     <div>
                         <label style={labelStyle}>Bank Name</label>
@@ -262,7 +262,7 @@ const CompanyProfile = () => {
                     </div>
                 </div>
 
-                <h3 style={{ marginTop: '20px', marginBottom: '15px', color: '#e87c2a', borderBottom: `1px solid ${mode === 'light' ? '#e2e8f0' : '#1e293b'}`, paddingBottom: '10px' }}>Email Dispatch Configuration</h3>
+                <h3 style={{ marginTop: '20px', marginBottom: '15px', color: '#111827', borderBottom: `1px solid ${mode === 'light' ? '#e2e8f0' : '#1e293b'}`, paddingBottom: '10px' }}>Email Dispatch Configuration</h3>
                 <p style={{ fontSize: '0.85rem', marginBottom: '15px', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>
                     Configure SMTP settings to send Agreements and Invoices directly from the CRM. Use an App Password if using Gmail.
                 </p>
@@ -289,7 +289,7 @@ const CompanyProfile = () => {
                     </div>
                 </div>
 
-                <Button type="submit" variant="contained" style={{ backgroundColor: '#e87c2a', color: '#fff', marginTop: '20px', width: '100%' }} disabled={loading}>
+                <Button type="submit" variant="contained" style={{ backgroundColor: '#111827', color: '#fff', marginTop: '20px', width: '100%' }} disabled={loading}>
                     Save Profile Details
                 </Button>
             </form>

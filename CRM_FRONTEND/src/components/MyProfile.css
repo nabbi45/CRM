@@ -75,7 +75,7 @@
   right: 10px;
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -160,7 +160,7 @@
 
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
 }
 
@@ -218,7 +218,7 @@
 }
 
 .section-icon {
-  color: #e87c2a;
+  color: #111827;
   flex-shrink: 0;
 }
 
@@ -285,7 +285,7 @@
 
 .copy-button:hover {
   background: #f3f4f6;
-  color: #e87c2a;
+  color: #111827;
 }
 
 .field-value {
@@ -413,7 +413,7 @@
 
 .loading-spinner {
   animation: spin 1s linear infinite;
-  color: #e87c2a;
+  color: #111827;
 }
 
 .error-icon {
@@ -435,7 +435,7 @@
 }
 
 .action-button {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
   border: none;
   padding: 0.875rem 2rem;

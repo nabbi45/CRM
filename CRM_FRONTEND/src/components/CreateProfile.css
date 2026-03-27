@@ -88,7 +88,7 @@
 }
 
 .step.active .step-indicator {
-  background: #e87c2a;
+  background: #111827;
   color: white;
   transform: scale(1.08);
   animation: pulseStep 1.4s ease-in-out infinite;
@@ -150,7 +150,7 @@
 }
 
 .step-icon {
-  color: #e87c2a;
+  color: #111827;
 }
 
 .form-grid {
@@ -191,7 +191,7 @@
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: #e87c2a;
+  border-color: #111827;
   box-shadow: 0 0 0 3px rgba(232, 124, 42, 0.1);
 }
 
@@ -238,7 +238,7 @@
 }
 
 .label-icon {
-  color: #e87c2a;
+  color: #111827;
 }
 
 .upload-area {
@@ -253,7 +253,7 @@
 }
 
 .upload-area:hover {
-  border-color: #e87c2a;
+  border-color: #111827;
   background: #f0f4ff;
 }
 
@@ -355,7 +355,7 @@
 
 .next-button,
 .submit-button {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
 }
 
@@ -420,7 +420,7 @@
 
 .loading-spinner {
   animation: spin 1s linear infinite;
-  color: #e87c2a;
+  color: #111827;
 }
 
 .loading-text {
@@ -470,7 +470,7 @@
 }
 
 .success-button {
-  background: linear-gradient(135deg, #e87c2a 0%, #f59e4b 100%);
+  background: linear-gradient(135deg, #111827 0%, #334155 100%);
   color: white;
   border: none;
   padding: 1rem 2rem;

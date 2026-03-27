@@ -9,7 +9,7 @@ import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import CircleIcon from '@mui/icons-material/Circle';
 import { apiUrl } from './LoginSignup';
 
-const ACCENT = '#e87c2a';
+const ACCENT = '#111827';
 const POLL_INTERVAL = 30000;
 
 // Programmatic notification sound (Web Audio API — no file needed)

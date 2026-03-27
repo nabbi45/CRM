@@ -13,7 +13,7 @@ import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from './LoginSignup';
 import Loader from './Loader';
 
-const ACCENT = '#e87c2a';
+const ACCENT = '#111827';
 
 const statusColors = {
     pending: '#f59e0b',

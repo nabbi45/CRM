@@ -1,105 +1,60 @@
-/* ═══════════════════════════════════════════
-   Scorecard — Premium Design
-   ═══════════════════════════════════════════ */
-
 .scorecard-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-  max-width: 100%;
-  margin: 0 auto;
-  animation: fadeIn 0.5s ease-out;
-}
-
-.scorecard-stats {
-  flex: 1;
-  padding-right: 50px;
-}
-
-.scorecard-stats table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.scorecard-stats th,
-.scorecard-stats td {
-  padding: 12px 20px;
-  text-align: left;
-  font-size: 0.938rem;
-  font-family: 'Inter', sans-serif;
-  transition: background-color 0.2s ease;
-}
-
-.scorecard-stats th {
-  font-weight: 700;
-  color: #374151;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.scorecard-stats td {
-  color: inherit;
-}
-
-.scorecard-stats tr:hover td {
-  background-color: rgba(232, 124, 42, 0.04);
-}
-
-.scorecard-chart {
-  position: relative;
-  width: 280px;
-  height: 280px;
-  animation: scaleIn 0.5s ease-out 0.2s both;
-}
-
-.chart-percentage {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  font-size: 1.25rem;
-}
-
-.chart-percentage h3 {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0;
-  color: inherit;
-  letter-spacing: -0.02em;
-}
-
-.chart-percentage p {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@media (max-width: 768px) {
-  .scorecard-container {
-    flex-direction: column;
-    gap: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    max-width: 100%;
+    margin: 0 auto;
   }
-
+  
   .scorecard-stats {
-    padding-right: 0;
+    flex: 1;
+    padding-right: 50px;
+  }
+  
+  .scorecard-stats table {
     width: 100%;
+    border-collapse: collapse;
   }
-
+  
+  .scorecard-stats th,
+  .scorecard-stats td {
+    padding: 10px 20px;
+    text-align: left;
+    font-size: 18px;
+  }
+  
+  .scorecard-stats th {
+    font-weight: bold;
+  }
+  
+  .scorecard-stats td {
+    color: #333;
+  }
+  
   .scorecard-chart {
-    width: 220px;
-    height: 220px;
+    position: relative;
+    width: 300px;
+    height: 300px;
   }
-}
+  
+  .chart-percentage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-size: 24px;
+  }
+  
+  .chart-percentage h3 {
+    font-size: 32px;
+    margin: 0;
+  }
+  
+  .chart-percentage p {
+    margin: 0;
+    font-size: 16px;
+    color: #666;
+  }
+  
