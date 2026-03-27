@@ -53,7 +53,7 @@ UserRoutes.post("/adduser", authenticateUser, authorizeDevRole, async (req, res)
 });
 
 //edit user
-UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole, async (req, res) => {
+UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole,async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -91,6 +91,46 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole, async (req
     }
 
     return res.status(200).send({ message: 'User updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).send({ message: error.message });
+  }
+});
+
+// User Self Update Profile Route
+UserRoutes.put('/update-profile', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { name, email, profilePicture } = req.body;
+
+    const updates = {};
+    if (name) updates.name = name;
+    if (profilePicture) updates.profilePicture = profilePicture;
+
+    if (email) {
+      updates.email = email.toLowerCase();
+      // Check if another user has this email
+      const existingUser = await UserModel.findOne({ email: updates.email, _id: { $ne: userId } });
+      if (existingUser) {
+        return res.status(409).send({ message: 'Email is already registered by another user' });
+      }
+    }
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true }
+    ).select('-password'); // Exclude password from response
+
+    if (!updatedUser) {
+      return res.status(404).send({ message: 'User not found' });
+    }
+
+    return res.status(200).send({ 
+       message: 'Profile updated successfully', 
+       user: updatedUser 
+    });
+
   } catch (error) {
     console.error(error.message);
     return res.status(500).send({ message: error.message });

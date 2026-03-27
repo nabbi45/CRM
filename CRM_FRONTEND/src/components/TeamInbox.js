@@ -279,7 +279,9 @@ const TeamInbox = () => {
                                         variant="dot"
                                         sx={{ '& .MuiBadge-badge': { backgroundColor: u.isOnline ? '#44b700' : '#bdbdbd', width: 10, height: 10, borderRadius: '50%', border: '2px solid white' } }}
                                     >
-                                        <Avatar sx={{ bgcolor: 'primary.main' }}>{u.name.charAt(0)}</Avatar>
+                                        <Avatar src={u.profilePicture || ''} sx={{ bgcolor: 'primary.main' }}>
+                                            {!u.profilePicture && u.name.charAt(0)}
+                                        </Avatar>
                                     </Badge>
                                 </ListItemAvatar>
                                 <ListItemText
@@ -308,8 +310,8 @@ const TeamInbox = () => {
                 {/* Chat Header */}
                 <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar sx={{ bgcolor: activeChat.isGlobal ? ACCENT : 'primary.main' }}>
-                            {activeChat.name.charAt(0)}
+                        <Avatar src={!activeChat.isGlobal && activeUser ? (activeUser.profilePicture || '') : ''} sx={{ bgcolor: activeChat.isGlobal ? ACCENT : 'primary.main' }}>
+                            {(!activeChat.isGlobal && activeUser?.profilePicture) ? null : activeChat.name.charAt(0)}
                         </Avatar>
                         <Box>
                             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{activeChat.name}</Typography>
@@ -331,11 +333,16 @@ const TeamInbox = () => {
                     {messages.map((m, i) => {
                         const isMe = m.sender_id === session.user_id;
                         const showName = activeChat.isGlobal && !isMe;
+                        const sender = users.find(u => u._id === m.sender_id);
+                        const senderProfilePic = isMe ? session.profilePicture : sender?.profilePicture;
+                        
                         return (
                             <Box key={m._id || i} sx={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', mb: 2 }}>
                                 {showName && <Typography variant="caption" sx={{ ml: 1, mb: 0.5, color: 'text.secondary' }}>{m.sender_name}</Typography>}
                                 <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                                    <Avatar sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: isMe ? ACCENT : 'primary.main' }}>{m.sender_name.charAt(0)}</Avatar>
+                                    <Avatar src={senderProfilePic || ''} sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: isMe ? ACCENT : 'primary.main' }}>
+                                        {!senderProfilePic && m.sender_name.charAt(0)}
+                                    </Avatar>
                                     <Paper
                                         elevation={0}
                                         sx={{

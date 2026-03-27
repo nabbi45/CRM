@@ -11,7 +11,7 @@ ChatRoutes.get("/users", authenticateUser, async (req, res) => {
         const currentUserId = req.user.userId;
         // Fetch all users except the current user
         const users = await UserModel.find({ _id: { $ne: currentUserId } })
-            .select("name email user_role")
+            .select("name email user_role profilePicture")
             .lean();
 
         // For each user, fetch the last message exchanged with the current user

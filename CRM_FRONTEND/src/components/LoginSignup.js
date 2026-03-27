@@ -15,8 +15,7 @@ import {
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { useNavigate } from "react-router-dom";
-import lightLogo from "../assets/logo.png";
-import darkLogo from "../assets/whitelogo.png";
+// Static logo imports removed to prevent cross-company branding leakage
 import { useColorMode } from "../context/AppThemeProvider";
 
 export const apiUrl =
@@ -187,6 +186,7 @@ const LoginSignup = ({ onLoginSuccess }) => {
             name: user.name,
             email: user.email,
             user_role: user.user_role,
+            profilePicture: user.profilePicture || "",
             loginTime: Date.now(),
           })
         );
@@ -253,12 +253,18 @@ const LoginSignup = ({ onLoginSuccess }) => {
             p: 4,
           }}
         >
-          <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
-            <img
-              src={companyLogo || (mode === "light" ? lightLogo : darkLogo)}
-              alt="Logo"
-              style={{ height: 56 }}
-            />
+          <Box sx={{ display: "flex", justifyContent: "center", mb: 3, minHeight: 56 }}>
+            {companyLogo ? (
+              <img
+                src={companyLogo}
+                alt="Company Logo"
+                style={{ height: 56 }}
+              />
+            ) : (
+              <Typography variant="h5" sx={{ fontWeight: 600, color: "text.primary" }}>
+                Sign In
+              </Typography>
+            )}
           </Box>
 
           <Box

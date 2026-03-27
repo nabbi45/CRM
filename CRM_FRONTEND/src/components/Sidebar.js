@@ -35,9 +35,9 @@ import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { socket } from '../socket';
 import logo from '../assets/whitelogo.png';
-import axios from 'axios';
 import { apiUrl } from './LoginSignup';
 import { useColorMode } from '../context/AppThemeProvider';
+import UserEditModal from './UserEditModal';
 
 /* ──────────────────── colour tokens ──────────────────── */
 const SIDEBAR_BG = '#0f172a';
@@ -53,12 +53,14 @@ const Sidebar = () => {
   const [hasProfile, setHasProfile] = useState(false);
   const [companyLogo, setCompanyLogo] = useState(null);
   const [unreads, setUnreads] = useState(0);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [userSessionState, setUserSessionState] = useState(null);
   const navigate = useNavigate();
   const { mode } = useColorMode();
 
   const userSession = useMemo(
-    () => JSON.parse(localStorage.getItem('userSession')),
-    []
+    () => userSessionState || JSON.parse(localStorage.getItem('userSession')),
+    [userSessionState]
   );
 
   useEffect(() => {
@@ -286,6 +288,7 @@ const Sidebar = () => {
           menuItems={menuItems}
           userSession={userSession}
           companyLogo={companyLogo}
+          onEditProfile={() => setEditModalOpen(true)}
         />
       </Drawer>
 
@@ -303,13 +306,21 @@ const Sidebar = () => {
           menuItems={menuItems}
           userSession={userSession}
           companyLogo={companyLogo}
+          onEditProfile={() => setEditModalOpen(true)}
         />
       </Drawer>
+
+      <UserEditModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        userSession={userSession}
+        onProfileUpdated={(newSession) => setUserSessionState(newSession)}
+      />
     </Box>
   );
 };
 
-const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, companyLogo }) => {
+const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, companyLogo, onEditProfile }) => {
   const { mode, toggleColorMode } = useColorMode();
   const initials = (userSession?.name || 'U').charAt(0).toUpperCase();
 
@@ -344,33 +355,44 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         >
           Welcome
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box 
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+          onClick={onEditProfile}
+          title="Click to edit profile"
+        >
           <Avatar
+            src={userSession?.profilePicture || ""}
             sx={{
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               bgcolor: ACCENT,
-              fontSize: '0.75rem',
+              fontSize: '0.85rem',
               fontWeight: 700,
             }}
           >
-            {initials}
+            {!userSession?.profilePicture && initials}
           </Avatar>
-          <Typography
-            variant="subtitle2"
-            sx={{
-              color: TEXT_BRIGHT,
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              textTransform: 'uppercase',
-            }}
-          >
-            {userSession?.name || 'User'}
-          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                color: TEXT_BRIGHT,
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                textTransform: 'uppercase',
+                lineHeight: 1.2,
+              }}
+            >
+              {userSession?.name || 'User'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: TEXT_DIM, fontSize: '0.65rem' }}>
+              Edit Profile
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
-      <Divider sx={{ borderColor: 'rgba(148,163,184,0.1)' }} />
+      <Divider sx={{ borderColor: 'rgba(148,163,184,0.1)', mt: 1 }} />
 
       {/* ── Navigation Items ── */}
       <List sx={{ flexGrow: 1, pt: 1.5, px: 1 }}>
