@@ -18,7 +18,6 @@ import {
   TextField,
   Box,
 } from "@mui/material";
-import { Edit, Delete } from "@mui/icons-material";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
 
@@ -31,24 +30,31 @@ const ServicesComponent = () => {
   const [serviceName, setServiceName] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
-  const userSession = JSON.parse(localStorage.getItem("userSession"));
+  const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
+
+  const authHeaders = {
+    "Content-Type": "application/json",
+    authorization: userSession?.token || "",
+  };
+
+  const fetchServices = async () => {
+    const response = await axios.get(`${apiUrl}/services/api/services`, {
+      headers: authHeaders,
+    });
+    setServices(response.data);
+  };
 
   useEffect(() => {
-    const fetchServices = async () => {
+    const load = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/services/api/services`,{
-          headers: {
-            "Content-Type": "application/json",
-            authorization: `${userSession.token}`,
-          },
-        });
-        setServices(response.data);
+        await fetchServices();
       } catch (error) {
         console.error("Error fetching services", error);
       }
     };
 
-    fetchServices();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddService = async (e) => {
@@ -69,15 +75,13 @@ const ServicesComponent = () => {
         },
         {
           headers: {
-            "Content-Type": "application/json",
-            authorization: `${userSession.token}`
+            ...authHeaders,
           },
         }
       );
 
       // Fetch the updated list of services
-      const response = await axios.get(`${apiUrl}/services/api/services`);
-      setServices(response.data); // Update the state with the latest data
+      await fetchServices();
 
       enqueueSnackbar("Service added successfully!", { variant: "success" });
 
@@ -110,20 +114,12 @@ const ServicesComponent = () => {
         },
         {
           headers: {
-            "Content-Type": "application/json",
-            authorization: `${userSession.token}`
-
+            ...authHeaders,
           },
         }
       );
 
-      const response = await axios.get(`${apiUrl}/services/api/services`,{
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `${userSession.token}`,
-        },
-      });
-      setServices(response.data);
+      await fetchServices();
       enqueueSnackbar("Service updated successfully!", { variant: "success" });
       setIsEditing(false);
       setSelectedService(null);
@@ -144,15 +140,13 @@ const ServicesComponent = () => {
     try {
       const res = await axios.delete(`${apiUrl}/services/api/services/${serviceToDelete}`, {
         headers: {
-          "Content-Type": "application/json",
-          authorization: `${userSession.token}`,
+          ...authHeaders,
         },
       });
 
       console.log(res)
 
-      const response = await axios.get(`${apiUrl}/services/api/services/`);
-      setServices(response.data);
+      await fetchServices();
       enqueueSnackbar("Service deleted successfully!", { variant: "success" });
       setIsDeleteModalOpen(false);
       setServiceToDelete(null);
@@ -175,22 +169,13 @@ const ServicesComponent = () => {
         },
         {
           headers: {
-            "Content-Type": "application/json",
-            authorization: `${userSession.token}`,
+            ...authHeaders,
           },
         }
       );
       console.log(res);
 
-      const response = await axios.get(`${apiUrl}/services/api/services`,{
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `${userSession.token}`,
-        },
-      }
-        
-      );
-      setServices(response.data); // Refresh the services list
+      await fetchServices();
       enqueueSnackbar(
         `Service ${service.status ? "disabled" : "enabled"} successfully!`,
         { variant: "success" }
@@ -218,7 +203,12 @@ const ServicesComponent = () => {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box
+      sx={{
+        p: { xs: 1, sm: 2 },
+        animation: "fadeSlideIn 320ms ease",
+      }}
+    >
       <Typography variant="h4" align="center" gutterBottom>
         Add Service
       </Typography>
@@ -233,19 +223,32 @@ const ServicesComponent = () => {
       >
         <form
           onSubmit={handleAddService}
-          style={{ display: "flex", gap: "8px" }}
+          style={{
+            display: "flex",
+            gap: "8px",
+            width: "100%",
+            flexWrap: "wrap",
+          }}
         >
           <TextField
             label="Service Name"
             value={newServiceName}
             onChange={(e) => setNewServiceName(e.target.value)}
             required
+            size="small"
+            sx={{ minWidth: { xs: "100%", sm: 280 }, flex: 1 }}
           />
-          <Button variant="contained" color="primary" type="submit">
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+            sx={{ width: { xs: "100%", sm: "auto" } }}
+          >
             Add Service
           </Button>
         </form>
       </Box>
+
       <Typography variant="h4" align="center" gutterBottom>
         Services List
       </Typography>
@@ -262,7 +265,7 @@ const ServicesComponent = () => {
       </Box>
 
       {/* Table Container */}
-      <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+      <TableContainer component={Paper} sx={{ overflowX: "auto", borderRadius: 3 }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -278,7 +281,7 @@ const ServicesComponent = () => {
                 service.name.toLowerCase().includes(searchTerm.toLowerCase())
               )
               .map((service, index) => (
-                <TableRow key={service.id}>
+                <TableRow key={service._id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{service.name}</TableCell>
                   <TableCell>

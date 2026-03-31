@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Box, Typography, TextField, IconButton, Avatar, List, ListItem,
-    ListItemAvatar, ListItemText, Divider, Paper, Badge, InputAdornment, CircularProgress
+    ListItemAvatar, ListItemText, Divider, Paper, Badge, InputAdornment, CircularProgress,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import SearchIcon from '@mui/icons-material/Search';
-import CloseIcon from '@mui/icons-material/Close';
-import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
-import CallOutlinedIcon from '@mui/icons-material/CallOutlined';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
@@ -39,10 +39,13 @@ const playMessageSound = () => {
 const TeamInbox = () => {
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
+    const theme = useTheme();
+    const isTabletOrBelow = useMediaQuery(theme.breakpoints.down('md'));
 
     const [users, setUsers] = useState([]);
     const [search, setSearch] = useState('');
     const [activeChat, setActiveChat] = useState({ id: 'global', name: 'All Company', isGlobal: true });
+    const [mobilePane, setMobilePane] = useState('list');
     const [messages, setMessages] = useState([]);
     const [inputMsg, setInputMsg] = useState('');
     const [typingUsers, setTypingUsers] = useState({});
@@ -222,11 +225,28 @@ const TeamInbox = () => {
 
     const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
 
+    useEffect(() => {
+        if (isTabletOrBelow) {
+            setMobilePane('list');
+        }
+    }, [isTabletOrBelow]);
+
     // Determine active contact formatting
     const activeUser = !activeChat.isGlobal ? users.find(u => u._id === activeChat.id) : null;
 
     return (
-        <Box sx={{ display: 'flex', height: 'calc(100vh - 100px)', bgcolor: 'background.paper', borderRadius: 2, overflow: 'hidden', boxShadow: 3 }}>
+        <Box
+            sx={{
+                display: 'flex',
+                flexDirection: isTabletOrBelow ? 'column' : 'row',
+                height: { xs: 'calc(100vh - 132px)', md: 'calc(100vh - 100px)' },
+                bgcolor: 'background.paper',
+                borderRadius: 2,
+                overflow: 'hidden',
+                boxShadow: 3,
+                animation: 'fadeSlideIn 320ms ease',
+            }}
+        >
             <style>{`
                 @keyframes bounceSlideUp {
                     0% { opacity: 0; transform: translateY(15px) scale(0.98); }
@@ -235,7 +255,17 @@ const TeamInbox = () => {
             `}</style>
 
             {/* LEFT PANE = CONTACTS */}
-            <Box sx={{ width: 320, borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column' }}>
+            <Box
+                sx={{
+                    width: { xs: '100%', md: 320 },
+                    borderRight: { xs: 'none', md: '1px solid' },
+                    borderBottom: { xs: '1px solid', md: 'none' },
+                    borderColor: 'divider',
+                    display: isTabletOrBelow && mobilePane === 'chat' ? 'none' : 'flex',
+                    flexDirection: 'column',
+                    height: { xs: '100%', md: 'auto' },
+                }}
+            >
                 <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Team Inbox</Typography>
                     <TextField
@@ -255,7 +285,10 @@ const TeamInbox = () => {
                     {/* Global Chat Item */}
                     <ListItem
                         button
-                        onClick={() => setActiveChat({ id: 'global', name: 'All Company', isGlobal: true })}
+                        onClick={() => {
+                            setActiveChat({ id: 'global', name: 'All Company', isGlobal: true });
+                            if (isTabletOrBelow) setMobilePane('chat');
+                        }}
                         sx={{ bgcolor: activeChat.isGlobal ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: activeChat.isGlobal ? `4px solid ${ACCENT}` : '4px solid transparent' }}
                     >
                         <ListItemAvatar>
@@ -275,7 +308,10 @@ const TeamInbox = () => {
                             <ListItem
                                 key={u._id}
                                 button
-                                onClick={() => setActiveChat({ id: u._id, name: u.name, isGlobal: false })}
+                                onClick={() => {
+                                    setActiveChat({ id: u._id, name: u.name, isGlobal: false });
+                                    if (isTabletOrBelow) setMobilePane('chat');
+                                }}
                                 sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
                             >
                                 <ListItemAvatar>
@@ -312,10 +348,21 @@ const TeamInbox = () => {
             </Box>
 
             {/* RIGHT PANE = CHAT AREA */}
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <Box
+                sx={{
+                    flex: 1,
+                    display: isTabletOrBelow && mobilePane === 'list' ? 'none' : 'flex',
+                    flexDirection: 'column',
+                }}
+            >
                 {/* Chat Header */}
                 <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {isTabletOrBelow && (
+                            <IconButton size="small" onClick={() => setMobilePane('list')}>
+                                <ArrowBackRoundedIcon />
+                            </IconButton>
+                        )}
                         <Avatar src={!activeChat.isGlobal && activeUser ? (activeUser.profilePicture || '') : ''} sx={{ bgcolor: activeChat.isGlobal ? ACCENT : 'primary.main' }}>
                             {(!activeChat.isGlobal && activeUser?.profilePicture) ? null : activeChat.name.charAt(0)}
                         </Avatar>
@@ -335,7 +382,7 @@ const TeamInbox = () => {
                 </Box>
 
                 {/* Chat Messages Log */}
-                <Box sx={{ flex: 1, p: 3, overflowY: 'auto', bgcolor: '#fafafa' }}>
+                <Box sx={{ flex: 1, p: { xs: 1.5, sm: 2.5, md: 3 }, overflowY: 'auto', bgcolor: '#fafafa' }}>
                     {messages.map((m, i) => {
                         const isMe = m.sender_id === session.user_id;
                         const showName = activeChat.isGlobal && !isMe;
@@ -364,7 +411,7 @@ const TeamInbox = () => {
                                             sx={{
                                                 p: 1.5,
                                                 px: 2,
-                                                maxWidth: 400,
+                                                maxWidth: { xs: 260, sm: 360, md: 420 },
                                                 bgcolor: isMe ? '#111827' : '#ffffff',
                                                 color: isMe ? '#fff' : '#111827',
                                                 borderRadius: 3,
@@ -411,7 +458,7 @@ const TeamInbox = () => {
                     <div ref={messagesEndRef} />
                 </Box>
 
-                <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', position: 'relative' }}>
+                <Box sx={{ p: { xs: 1.2, sm: 2 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', position: 'relative' }}>
 
                     {/* Emoji Picker Popover */}
                     {showEmojiPicker && (

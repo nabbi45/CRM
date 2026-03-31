@@ -33,8 +33,9 @@ import ChatFAB from '../components/ChatFAB';
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTabletOrBelow = useMediaQuery(theme.breakpoints.down('md'));
   const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
+
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 
@@ -61,7 +62,14 @@ const Dashboard = () => {
       <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
 
       {/* Notification Bell — fixed top-right */}
-      <Box sx={{ position: 'fixed', top: 12, right: 20, zIndex: 1300 }}>
+      <Box
+        sx={{
+          position: 'fixed',
+          top: { xs: 10, sm: 12 },
+          right: { xs: 12, sm: 20 },
+          zIndex: 1300,
+        }}
+      >
         <NotificationBell />
       </Box>
 
@@ -72,15 +80,15 @@ const Dashboard = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          marginLeft: isSmallScreen ? 0 : '250px',
+          marginLeft: isTabletOrBelow ? 0 : '250px',
           transition: theme.transitions.create('margin', {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
-          p: { xs: 2, md: 3 },
+          p: { xs: 1.5, sm: 2, md: 2.5, lg: 3 },
         }}
       >
-        {isSmallScreen && <Toolbar />}
+        {isTabletOrBelow && <Toolbar />}
 
         <Routes>
           <Route path="/" element={<DashboardContent />} />

@@ -6,7 +6,7 @@ import { apiUrl } from "./LoginSignup";
 const ServiceDropdown = ({ formData, setFormData }) => {
   const [serviceOptions, setServiceOptions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const userSession = JSON.parse(localStorage.getItem("userSession"));
+  const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
 
 
   // Fetch services from API
@@ -17,7 +17,7 @@ const ServiceDropdown = ({ formData, setFormData }) => {
         const response = await fetch(`${apiUrl}/services/api/services`,{
           headers: {
             "Content-Type": "application/json",
-            authorization: `${userSession.token}`,
+            authorization: userSession.token || "",
           },
         });
         if (!response.ok) {

@@ -11,7 +11,7 @@ ServiceRoutes.post('/api/services',authenticateUser,async (req, res) => {
     const { name, value, status } = req.body;
 
     // Validate input
-    if (!name || !value || !status) {
+    if (!name || !value || typeof status !== 'boolean') {
         return res.status(400).send('Invalid input data');
     }
 

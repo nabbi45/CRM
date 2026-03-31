@@ -3,7 +3,12 @@ import jwt from 'jsonwebtoken';
 // Authentication Middleware to check if the user is authenticated
 export const authenticateUser = async (req, res, next) => {
   try {
-    const token = req.headers.authorization; // Extract token from Bearer <token>
+    const authHeader = req.headers.authorization || req.headers.Authorization || req.headers['x-access-token'];
+
+    let token = authHeader;
+    if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+      token = authHeader.slice(7).trim();
+    }
 
     if (!token) {
       return res.status(401).send({ message: 'Authentication required' });

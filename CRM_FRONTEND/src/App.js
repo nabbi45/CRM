@@ -5,6 +5,7 @@ import Dashboard from './Pages/Dashboard';
 // import Scorecard from './components/Scorecard';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { SnackbarProvider } from 'notistack';
+import './App.css';
 
 const LOGIN_DURATION = 20 * 60 * 60 * 1000; // 20 hours in milliseconds
 

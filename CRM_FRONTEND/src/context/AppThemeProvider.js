@@ -13,24 +13,24 @@ const createAppTheme = (mode) =>
     palette: {
       mode,
       primary: {
-        main: mode === 'light' ? '#111827' : '#ffffff', // Jet Black in light mode, White in dark mode
-        dark: mode === 'light' ? '#000000' : '#e2e8f0',
-        light: mode === 'light' ? '#334155' : '#94a3b8',
+        main: mode === 'light' ? '#f2542d' : '#f97316',
+        dark: mode === 'light' ? '#cc3f1e' : '#ea580c',
+        light: mode === 'light' ? '#fd8a71' : '#fb923c',
       },
       secondary: {
-        main: mode === 'light' ? '#ffffff' : '#1e293b',
-        dark: mode === 'light' ? '#f8fafc' : '#0f172a',
-        light: mode === 'light' ? '#f1f5f9' : '#334155',
+        main: mode === 'light' ? '#111827' : '#e2e8f0',
+        dark: mode === 'light' ? '#020617' : '#94a3b8',
+        light: mode === 'light' ? '#374151' : '#ffffff',
       },
       background: {
-        default: mode === 'light' ? '#f5f5f0' : '#0a0a0a', // Beige off-white background
-        paper: mode === 'light' ? '#ffffff' : '#111111',  // Pure white cards
+        default: mode === 'light' ? '#f3f4f6' : '#020617',
+        paper: mode === 'light' ? '#ffffff' : '#0f172a',
       },
       text: {
         primary: mode === 'light' ? '#111827' : '#f8fafc',
         secondary: mode === 'light' ? '#475569' : '#94a3b8',
       },
-      success: { main: '#10b981' },
+      success: { main: '#16a34a' },
       warning: { main: '#f59e0b' },
       error: { main: '#ef4444' },
       info: { main: '#3b82f6' },
@@ -67,14 +67,16 @@ const createAppTheme = (mode) =>
             paddingInline: 24,
             paddingBlock: 12,
             fontSize: '0.9rem',
-            boxShadow: 'none', // Flat premium look
+            boxShadow: 'none',
+            transition: 'all 220ms ease',
           },
           containedPrimary: {
-            backgroundColor: mode === 'light' ? '#111827' : '#ffffff',
-            color: mode === 'light' ? '#ffffff' : '#111827',
+            backgroundColor: mode === 'light' ? '#f2542d' : '#f97316',
+            color: '#ffffff',
             '&:hover': {
-              backgroundColor: mode === 'light' ? '#000000' : '#e2e8f0',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              backgroundColor: mode === 'light' ? '#e24a23' : '#ea580c',
+              transform: 'translateY(-1px)',
+              boxShadow: mode === 'light' ? '0 10px 20px rgba(242,84,45,0.2)' : '0 10px 20px rgba(249,115,22,0.25)',
             },
           },
         },
@@ -84,13 +86,14 @@ const createAppTheme = (mode) =>
           root: {
             borderRadius: 16,
             backgroundImage: 'none',
-            backgroundColor: mode === 'light' ? '#ffffff' : '#111111',
+            backgroundColor: mode === 'light' ? '#ffffff' : '#0f172a',
             border: mode === 'light'
-                ? '1px solid rgba(0,0,0,0.06)'
+                ? '1px solid rgba(17,24,39,0.06)'
                 : '1px solid rgba(255,255,255,0.1)',
             boxShadow: mode === 'light'
-              ? '0 4px 24px rgba(0,0,0,0.04)'
+              ? '0 8px 28px rgba(15,23,42,0.06)'
               : '0 4px 24px rgba(0,0,0,0.4)',
+            transition: 'box-shadow 220ms ease, transform 220ms ease',
           },
         },
       },
@@ -111,8 +114,9 @@ const createAppTheme = (mode) =>
               ? '1px solid rgba(0,0,0,0.06)'
               : '1px solid rgba(255,255,255,0.1)',
             boxShadow: mode === 'light'
-              ? '0 4px 24px rgba(0,0,0,0.04)'
+              ? '0 8px 24px rgba(15,23,42,0.05)'
               : '0 4px 24px rgba(0,0,0,0.4)',
+            transition: 'transform 220ms ease, box-shadow 220ms ease',
           },
         },
       },

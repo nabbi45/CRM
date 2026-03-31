@@ -14,7 +14,7 @@ import {
   useTheme,
   Badge,
 } from '@mui/material';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -57,6 +57,7 @@ const Sidebar = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [userSessionState, setUserSessionState] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { mode } = useColorMode();
   const theme = useTheme();
 
@@ -92,7 +93,7 @@ const Sidebar = () => {
       if (msg.sender_id === userSession.user_id) return;
 
       // If we are not currently on the communication page, increment the bubble
-      if (!window.location.pathname.includes('/dashboard/communication')) {
+      if (!location.pathname.includes('/dashboard/communication')) {
         setUnreads(prev => prev + 1);
       }
     };
@@ -102,14 +103,14 @@ const Sidebar = () => {
     return () => {
       socket.off("receiveMessage", handleReceive);
     };
-  }, [userSession?.user_id, window.location.pathname]);
+  }, [location.pathname, userSession?.user_id]);
 
   // When user navigates to communication page, clear badge
   useEffect(() => {
-    if (window.location.pathname.includes('/dashboard/communication')) {
+    if (location.pathname.includes('/dashboard/communication')) {
       setUnreads(0);
     }
-  }, [window.location.pathname]);
+  }, [location.pathname]);
 
   const toggleDrawer = () => {
     setIsOpen((prev) => !prev);
@@ -267,7 +268,7 @@ const Sidebar = () => {
         edge="start"
         onClick={toggleDrawer}
         sx={{
-          display: { xs: 'block', sm: 'none' },
+          display: { xs: 'block', md: 'none' },
           position: 'fixed',
           top: 10,
           left: 10,
@@ -283,7 +284,7 @@ const Sidebar = () => {
         open={isOpen}
         onClose={toggleDrawer}
         sx={{
-          display: { xs: 'block', sm: 'none' },
+          display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': drawerPaperSx,
         }}
       >
@@ -302,7 +303,7 @@ const Sidebar = () => {
         variant="permanent"
         open
         sx={{
-          display: { xs: 'none', sm: 'block' },
+          display: { xs: 'none', md: 'block' },
           '& .MuiDrawer-paper': drawerPaperSx,
         }}
       >

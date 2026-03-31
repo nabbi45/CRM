@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Typography,
-  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -16,8 +15,9 @@ import {
   Paper,
   Avatar,
   Chip,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import { Brightness4, Brightness7 } from "@mui/icons-material";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import BookOnlineOutlinedIcon from "@mui/icons-material/BookOnlineOutlined";
@@ -26,7 +26,6 @@ import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
-import { useColorMode } from "../context/AppThemeProvider";
 
 const ACCENT = "#111827";
 const ACCENT_LIGHT = "rgba(232,124,42,0.12)";
@@ -42,7 +41,8 @@ const DashboardContent = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [monthlyRevData, setMonthlyRevData] = useState({ labels: [], values: [] });
   const [loading, setLoading] = useState(true);
-  const { mode, toggleColorMode } = useColorMode();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
@@ -265,7 +265,7 @@ const DashboardContent = () => {
   const medals = ["🥇", "🥈", "🥉"];
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: { xs: 1, sm: 2 }, animation: "fadeSlideIn 320ms ease" }}>
       <Box
         sx={{
           display: "flex",
@@ -318,7 +318,13 @@ const DashboardContent = () => {
           },
         ].map((c, i) => (
           <Grid item xs={12} sm={6} md={isAdmin ? 3 : 4} key={i}>
-            <Card sx={{ position: "relative", overflow: "visible" }}>
+            <Card
+              sx={{
+                position: "relative",
+                overflow: "visible",
+                "&:hover": { transform: "translateY(-2px)" },
+              }}
+            >
               <CardContent sx={{ pb: '16px !important' }}>
                 <Box
                   sx={{
@@ -428,7 +434,7 @@ const DashboardContent = () => {
                     }}
                   />
                 </Box>
-                <TableContainer>
+                <TableContainer sx={{ overflowX: "auto" }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -489,8 +495,8 @@ const DashboardContent = () => {
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
           Recent Bookings
         </Typography>
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+          <Table size={isMobile ? "small" : "medium"}>
             <TableHead>
               <TableRow>
                 <TableCell>Company Name</TableCell>

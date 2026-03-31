@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge, Fab } from '@mui/material';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiUrl } from './LoginSignup';
 import { io } from 'socket.io-client';
 import { useColorMode } from '../context/AppThemeProvider';
@@ -30,6 +30,7 @@ const ChatFAB = () => {
     const { mode } = useColorMode();
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const navigate = useNavigate();
+    const location = useLocation();
     const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
@@ -44,7 +45,7 @@ const ChatFAB = () => {
             if (msg.sender_id === session.user_id) return;
 
             // If we are not currently on the communication page, increment the bubble
-            if (!window.location.pathname.includes('/dashboard/communication')) {
+            if (!location.pathname.includes('/dashboard/communication')) {
                 setUnreadCount(prev => prev + 1);
                 playMessageSound();
             }
@@ -57,23 +58,22 @@ const ChatFAB = () => {
             socket.disconnect();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [location.pathname, session.user_id]);
 
     // When user navigates to communication page, clear badge
     useEffect(() => {
-        if (window.location.pathname.includes('/dashboard/communication')) {
+        if (location.pathname.includes('/dashboard/communication')) {
             setUnreadCount(0);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [window.location.pathname]);
+    }, [location.pathname]);
 
     return (
         <Fab
             aria-label="chat"
             sx={{
                 position: 'fixed',
-                bottom: 32,
-                right: 32,
+                bottom: { xs: 16, sm: 24, md: 32 },
+                right: { xs: 14, sm: 18, md: 32 },
                 zIndex: 1200,
                 bgcolor: 'transparent',
                 boxShadow: 'none',
