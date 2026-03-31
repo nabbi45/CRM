@@ -44,6 +44,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_users',
     'manage_services',
     'company_profile',
+    'manage_employees',
     'leave_management',
     'communication',
     'my_profile',
@@ -59,6 +60,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_users',
     'manage_services',
     'company_profile',
+    'manage_employees',
     'leave_management',
     'communication',
     'my_profile',
@@ -193,7 +195,7 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole, async (req
 UserRoutes.put('/update-profile', authenticateUser, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { name, email, profilePicture } = req.body;
+    const { name, email, profilePicture, password } = req.body;
 
     const updates = {};
     if (name) updates.name = name;
@@ -206,6 +208,13 @@ UserRoutes.put('/update-profile', authenticateUser, async (req, res) => {
       if (existingUser) {
         return res.status(409).send({ message: 'Email is already registered by another user' });
       }
+    }
+
+    if (password) {
+      if (password.toString().trim().length < 6) {
+        return res.status(400).send({ message: 'Password must be at least 6 characters long' });
+      }
+      updates.password = await bcrypt.hash(password.toString().trim(), saltRounds);
     }
 
     const updatedUser = await UserModel.findByIdAndUpdate(

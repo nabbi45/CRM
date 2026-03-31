@@ -4,8 +4,11 @@ import { downloadInvoiceAsPDF } from '../utils/invoiceGenerator';
 import { generatePDFBase64FromElement } from '../utils/pdfGenerator';
 import { saveInvoiceToDatabase } from '../utils/invoiceService';
 import DocumentEmailModal from './DocumentEmailModal';
+import { useColorMode } from '../context/AppThemeProvider';
 
 function InvoiceActions({ invoice, onBack }) {
+  const { mode } = useColorMode();
+  const isDark = mode === 'dark';
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -43,11 +46,11 @@ function InvoiceActions({ invoice, onBack }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto mt-6">
+    <div className={`rounded-lg shadow-lg p-6 max-w-4xl mx-auto mt-6 ${isDark ? 'bg-slate-900 border border-slate-700 text-slate-100' : 'bg-white'}`}>
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
           <ArrowLeft className="w-5 h-5" />
           <span>Back to Form</span>
@@ -87,7 +90,7 @@ function InvoiceActions({ invoice, onBack }) {
         </div>
       </div>
 
-      <div className="mt-4 text-sm text-gray-600 text-center">
+      <div className={`mt-4 text-sm text-center ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
         <p>
           Invoice Number: <span className="font-semibold">{invoice.invoiceNumber}</span>
         </p>

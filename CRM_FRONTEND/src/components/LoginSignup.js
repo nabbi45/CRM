@@ -9,7 +9,6 @@ import {
   Snackbar,
   Alert,
   useTheme,
-  useMediaQuery,
 } from "@mui/material";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
@@ -29,11 +28,11 @@ const LoginSignup = ({ onLoginSuccess }) => {
     userrole: "",
   });
   const [companyLogo, setCompanyLogo] = useState(null);
+  const headlineWords = ["innovation", "growth", "progress", "impact"];
 
   const [formErrors, setFormErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const theme = useTheme();
-  const isLaptopUp = useMediaQuery(theme.breakpoints.up("lg"));
   const { mode, toggleColorMode } = useColorMode();
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -220,6 +219,32 @@ const LoginSignup = ({ onLoginSuccess }) => {
     name: "", mobile: "", email: "", address: "", companyName: "", location: "", noOfEmails: "", companyDomain: ""
   });
   const [salesLoading, setSalesLoading] = useState(false);
+  const [typedWord, setTypedWord] = useState("");
+  const [wordIndex, setWordIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [isDeletingWord, setIsDeletingWord] = useState(false);
+
+  useEffect(() => {
+    const currentWord = headlineWords[wordIndex % headlineWords.length];
+    const typingSpeed = isDeletingWord ? 45 : 90;
+
+    const timer = setTimeout(() => {
+      if (!isDeletingWord && charIndex < currentWord.length) {
+        setTypedWord(currentWord.slice(0, charIndex + 1));
+        setCharIndex((prev) => prev + 1);
+      } else if (!isDeletingWord && charIndex === currentWord.length) {
+        setTimeout(() => setIsDeletingWord(true), 850);
+      } else if (isDeletingWord && charIndex > 0) {
+        setTypedWord(currentWord.slice(0, charIndex - 1));
+        setCharIndex((prev) => prev - 1);
+      } else {
+        setIsDeletingWord(false);
+        setWordIndex((prev) => prev + 1);
+      }
+    }, typingSpeed);
+
+    return () => clearTimeout(timer);
+  }, [charIndex, isDeletingWord, wordIndex]);
 
   const handleSalesChange = (e) => setSalesForm({ ...salesForm, [e.target.name]: e.target.value });
 
@@ -250,57 +275,40 @@ const LoginSignup = ({ onLoginSuccess }) => {
     <>
       <Box
         sx={{
-          display: "flex",
+          display: "grid",
           minHeight: "100vh",
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: theme.palette.mode === "light" ? "#f5f5f0" : "#0a0a0a",
           padding: 2,
-          gap: 3,
+          gap: 2,
         }}
       >
-        {isLaptopUp && (
-          <Box
+        <Box sx={{ textAlign: "center", mb: 1 }}>
+          <Typography
             sx={{
-              width: "100%",
-              maxWidth: 520,
-              minHeight: 640,
-              borderRadius: 4,
-              position: "relative",
-              overflow: "hidden",
-              boxShadow: "0 20px 48px rgba(0,0,0,0.35)",
-              background: "linear-gradient(135deg, #050505 0%, #130202 35%, #1d0303 100%)",
-              display: "flex",
-              alignItems: "flex-start",
-              p: 4,
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                inset: 0,
-                background: 'repeating-linear-gradient(100deg, rgba(255,44,20,0.95) 0px, rgba(255,44,20,0.95) 6px, rgba(0,0,0,0) 22px, rgba(0,0,0,0) 58px)',
-                opacity: 0.9,
-                pointerEvents: 'none',
-                mixBlendMode: 'screen',
-              },
+              fontSize: { xs: "1.35rem", sm: "1.75rem", md: "2.15rem" },
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: mode === "dark" ? "#f8fafc" : "#111827",
             }}
           >
-            <Box sx={{ position: "relative", zIndex: 1 }}>
-              {companyLogo && (
-                <img
-                  src={companyLogo}
-                  alt="Company Logo"
-                  style={{ height: 56, objectFit: "contain", marginBottom: 10 }}
-                />
-              )}
-              <Typography sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 700, fontSize: "1.2rem" }}>
-                Welcome back
-              </Typography>
-              <Typography sx={{ color: "rgba(255,255,255,0.7)", mt: 0.5, maxWidth: 340 }}>
-                Access your CRM workspace and continue managing your business operations.
-              </Typography>
+            Innovation starts with {" "}
+            <Box
+              component="span"
+              sx={{
+                color: "#ff3b1f",
+                borderRight: `2px solid ${mode === "dark" ? "#f8fafc" : "#111827"}`,
+                pr: 0.5,
+                minWidth: { xs: 100, md: 135 },
+                display: "inline-block",
+                textAlign: "left",
+              }}
+            >
+              {typedWord}
             </Box>
-          </Box>
-        )}
+          </Typography>
+        </Box>
 
         <Box
           sx={{

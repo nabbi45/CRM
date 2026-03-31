@@ -17,6 +17,8 @@ import {
   DialogTitle,
   TextField,
   Box,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
@@ -31,6 +33,8 @@ const ServicesComponent = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const authHeaders = {
     "Content-Type": "application/json",
@@ -207,6 +211,8 @@ const ServicesComponent = () => {
       sx={{
         p: { xs: 1, sm: 2 },
         animation: "fadeSlideIn 320ms ease",
+        width: "100%",
+        overflowX: "hidden",
       }}
     >
       <Typography variant="h4" align="center" gutterBottom>
@@ -265,8 +271,8 @@ const ServicesComponent = () => {
       </Box>
 
       {/* Table Container */}
-      <TableContainer component={Paper} sx={{ overflowX: "auto", borderRadius: 3 }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ width: "100%", overflowX: "auto", borderRadius: 3 }}>
+        <Table sx={{ minWidth: isMobile ? 540 : 680 }}>
           <TableHead>
             <TableRow>
               <TableCell>No</TableCell>
@@ -288,12 +294,13 @@ const ServicesComponent = () => {
                     {service.status ? "Enabled" : "Disabled"}
                   </TableCell>
                   <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                       <Button
                         variant="contained"
                         color="primary"
                         size="small"
                         onClick={() => handleEditClick(service)}
+                        sx={{ backgroundColor: "#111827", '&:hover': { backgroundColor: "#000000" } }}
                       >
                         Edit
                       </Button>

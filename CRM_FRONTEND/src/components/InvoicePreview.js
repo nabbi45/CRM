@@ -1,7 +1,10 @@
 import React from 'react';
 import { format } from 'date-fns';
+import { useColorMode } from '../context/AppThemeProvider';
 
 function InvoicePreview({ invoice }) {
+  const { mode } = useColorMode();
+  const isDark = mode === 'dark';
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -14,7 +17,7 @@ function InvoicePreview({ invoice }) {
   };
 
   return (
-    <div className="bg-white shadow-lg max-w-4xl mx-auto overflow-hidden">
+    <div className={`shadow-lg max-w-4xl mx-auto overflow-hidden ${isDark ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
       <div id="invoice-preview" className="relative bg-white" style={{ width: '210mm', minHeight: '297mm', padding: '20mm' }}>
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"

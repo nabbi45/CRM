@@ -8,8 +8,11 @@ import {
   applyRoleTemplate,
   getDefaultFeaturePermissionsForRole,
 } from "../utils/featureAccess";
+import { useColorMode } from "../context/AppThemeProvider";
 
 const AddUser = () => {
+  const { mode } = useColorMode();
+  const isDark = mode === "dark";
   const [userRole, setUserRole] = useState("");
   const [userId, setUserId] = useState(""); // Store the logged-in user's ID
   const [Token, setToken] = useState(""); // Store the logged-in user's ID
@@ -105,77 +108,112 @@ const AddUser = () => {
   };
 
   return (
-    <div
+    <form
+      onSubmit={handleSubmit}
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
         margin: "16px auto",
         padding: "16px",
-        border: "1px solid rgba(148,163,184,0.4)",
-        borderRadius: "12px",
-        backgroundColor: "rgba(15,23,42,0.02)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.35)"}`,
+        borderRadius: "14px",
+        background: isDark
+          ? "linear-gradient(145deg, rgba(15,23,42,1) 0%, rgba(30,41,59,1) 100%)"
+          : "linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%)",
         maxWidth: "100%",
-        overflowX: "auto",
       }}
     >
-      <label htmlFor="name" style={{ whiteSpace: "nowrap" }}>
-        Name:
-      </label>
-      <input
-        type="text"
-        id="name"
-        name="name"
-        value={formData.name}
-        onChange={handleChange}
+      <div
         style={{
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          flex: "1 1 auto",
-          minWidth: "150px",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "12px",
         }}
-        required
-      />
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label htmlFor="name" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+            Name
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            style={{
+              padding: "10px 12px",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
+              borderRadius: "8px",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              color: isDark ? "#f8fafc" : "#0f172a",
+            }}
+            required
+          />
+        </div>
 
-      <label htmlFor="email" style={{ whiteSpace: "nowrap" }}>
-        Email:
-      </label>
-      <input
-        type="email"
-        id="email"
-        name="email"
-        value={formData.email}
-        onChange={handleChange}
-        style={{
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          flex: "1 1 auto",
-          minWidth: "150px",
-        }}
-        required
-      />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label htmlFor="email" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            style={{
+              padding: "10px 12px",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
+              borderRadius: "8px",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              color: isDark ? "#f8fafc" : "#0f172a",
+            }}
+            required
+          />
+        </div>
 
-      <label htmlFor="user_role" style={{ whiteSpace: "nowrap" }}>
-        Role:
-      </label>
-      <input
-        list="available-roles"
-        id="user_role"
-        name="user_role"
-        value={formData.user_role}
-        onChange={handleRoleChange}
-        placeholder="e.g. admin / super admin / custom role"
-        style={{
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          flex: "1 1 auto",
-          minWidth: "220px",
-        }}
-        required
-      />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label htmlFor="user_role" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+            Role
+          </label>
+          <input
+            list="available-roles"
+            id="user_role"
+            name="user_role"
+            value={formData.user_role}
+            onChange={handleRoleChange}
+            placeholder="e.g. admin / super admin / custom role"
+            style={{
+              padding: "10px 12px",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
+              borderRadius: "8px",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              color: isDark ? "#f8fafc" : "#0f172a",
+            }}
+            required
+          />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label htmlFor="password" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            style={{
+              padding: "10px 12px",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
+              borderRadius: "8px",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              color: isDark ? "#f8fafc" : "#0f172a",
+            }}
+            required
+          />
+        </div>
+      </div>
+
       <datalist id="available-roles">
         <option value="admin" />
         <option value="senior admin" />
@@ -188,12 +226,11 @@ const AddUser = () => {
 
       <div
         style={{
-          width: "100%",
           display: "flex",
           flexWrap: "wrap",
           gap: "8px",
-          marginTop: "4px",
-          marginBottom: "2px",
+          marginTop: "12px",
+          marginBottom: "8px",
         }}
       >
         {ROLE_TEMPLATE_OPTIONS.map((template) => {
@@ -207,8 +244,8 @@ const AddUser = () => {
                 padding: "6px 10px",
                 borderRadius: "999px",
                 border: isActive ? "1px solid #ff3b1f" : "1px solid rgba(148,163,184,0.45)",
-                backgroundColor: isActive ? "rgba(255,59,31,0.12)" : "#fff",
-                color: isActive ? "#b42318" : "#334155",
+                backgroundColor: isActive ? "rgba(255,59,31,0.12)" : (isDark ? "rgba(15,23,42,0.78)" : "#fff"),
+                color: isActive ? "#b42318" : (isDark ? "#cbd5e1" : "#334155"),
                 fontSize: "0.78rem",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -220,55 +257,38 @@ const AddUser = () => {
         })}
       </div>
 
-      <label htmlFor="password" style={{ whiteSpace: "nowrap" }}>
-        Password:
-      </label>
-      <input
-        type="password"
-        id="password"
-        name="password"
-        value={formData.password}
-        onChange={handleChange}
-        style={{
-          padding: "8px",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-          flex: "1 1 auto",
-          minWidth: "150px",
-        }}
-        required
-      />
-
-      <button
-        type="submit"
-        onClick={handleSubmit}
-        style={{
-          padding: "10px 20px",
-          backgroundColor: "#007BFF",
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
-      >
-        Add User
-      </button>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+        <button
+          type="submit"
+          style={{
+            padding: "10px 18px",
+            backgroundColor: "#ff3b1f",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            fontWeight: 600,
+          }}
+        >
+          Add User
+        </button>
+      </div>
 
       <div
         style={{
           width: "100%",
           marginTop: "8px",
-          border: "1px solid rgba(148,163,184,0.35)",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.16)" : "rgba(148,163,184,0.35)"}`,
           borderRadius: "10px",
           padding: "10px",
-          backgroundColor: "rgba(15,23,42,0.03)",
+          backgroundColor: isDark ? "rgba(15,23,42,0.5)" : "rgba(15,23,42,0.03)",
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: "8px" }}>Role tab permissions</div>
+        <div style={{ fontWeight: 600, marginBottom: "8px", color: isDark ? "#f8fafc" : "#0f172a" }}>Role tab permissions</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "6px 10px" }}>
           {FEATURE_KEYS.map((featureKey) => (
-            <label key={featureKey} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem" }}>
+            <label key={featureKey} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: isDark ? "#e2e8f0" : "#0f172a" }}>
               <input
                 type="checkbox"
                 checked={formData.feature_permissions.includes(featureKey)}
@@ -279,7 +299,7 @@ const AddUser = () => {
           ))}
         </div>
       </div>
-    </div>
+    </form>
   );
 };
 

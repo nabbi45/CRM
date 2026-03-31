@@ -174,12 +174,12 @@ const RemoveUser = () => {
   };
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" align="center" gutterBottom>
+    <Box sx={{ p: { xs: 1, sm: 2 }, width: "100%", overflowX: "hidden" }}>
+      <Typography variant="h4" align="center" gutterBottom sx={{ fontSize: { xs: "1.55rem", sm: "2rem" } }}>
         Add User
       </Typography>
       <AddUser />
-      <Typography variant="h4" align="center" gutterBottom>
+      <Typography variant="h4" align="center" gutterBottom sx={{ mt: 1.5, fontSize: { xs: "1.55rem", sm: "2rem" } }}>
         Users List
       </Typography>
       {/* Search Input */}
@@ -194,8 +194,8 @@ const RemoveUser = () => {
       </Box>
 
       {/* Table Container */}
-      <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
-        <Table>
+      <TableContainer component={Paper} sx={{ overflowX: "auto", borderRadius: 2 }}>
+        <Table sx={{ minWidth: 580 }}>
           <TableHead>
             <TableRow>
               <TableCell>No</TableCell>
@@ -214,11 +214,15 @@ const RemoveUser = () => {
                   {!isMobileOrTablet && <TableCell>{user.email}</TableCell>}
                   <TableCell>{user.user_role}</TableCell>
                   <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                       {isMobileOrTablet ? (
                         <>
                           <IconButton
-                            color="primary"
+                            sx={{
+                              backgroundColor: "#111827",
+                              color: "#fff",
+                              '&:hover': { backgroundColor: "#000000" },
+                            }}
                             onClick={() => handleEditClick(user)}
                             size="small"
                           >
@@ -236,10 +240,13 @@ const RemoveUser = () => {
                         <>
                           <Button
                             variant="contained"
-                            color="primary"
                             size="small"
                             onClick={() => handleEditClick(user)}
-                            sx={{ mr: 1 }}
+                            sx={{
+                              mr: 1,
+                              backgroundColor: "#111827",
+                              '&:hover': { backgroundColor: "#000000" },
+                            }}
                           >
                             Edit
                           </Button>

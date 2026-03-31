@@ -22,6 +22,8 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
   const [name, setName] = useState(userSession?.name || "");
   const [email, setEmail] = useState(userSession?.email || "");
   const [profilePicture, setProfilePicture] = useState(userSession?.profilePicture || "");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -41,9 +43,24 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
   };
 
   const handleSave = async () => {
+    if (password && password.length < 6) {
+      enqueueSnackbar("Password must be at least 6 characters long", { variant: "error" });
+      return;
+    }
+
+    if (password && password !== confirmPassword) {
+      enqueueSnackbar("Password and confirm password do not match", { variant: "error" });
+      return;
+    }
+
     setLoading(true);
     try {
-      const payload = { name, email, profilePicture };
+      const payload = {
+        name,
+        email,
+        profilePicture,
+        ...(password ? { password } : {}),
+      };
       const response = await axios.put(`${apiUrl}/user/update-profile`, payload, {
         headers: { Authorization: userSession.token },
       });
@@ -59,6 +76,8 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
         };
         localStorage.setItem("userSession", JSON.stringify(newSession));
         onProfileUpdated(newSession);
+        setPassword("");
+        setConfirmPassword("");
         onClose();
       }
     } catch (error) {
@@ -120,6 +139,25 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
           margin="normal"
           disabled={loading}
           type="email"
+        />
+        <TextField
+          fullWidth
+          label="New Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          margin="normal"
+          disabled={loading}
+          type="password"
+          helperText="Leave empty to keep current password"
+        />
+        <TextField
+          fullWidth
+          label="Confirm New Password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          margin="normal"
+          disabled={loading}
+          type="password"
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>

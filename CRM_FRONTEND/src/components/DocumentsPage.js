@@ -8,6 +8,7 @@ import InvoicePreview from '../components/InvoicePreview';
 
 const DocumentsPage = () => {
     const { mode } = useColorMode();
+    const isDark = mode === 'dark';
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedDoc, setSelectedDoc] = useState(null);
@@ -81,9 +82,9 @@ const DocumentsPage = () => {
     });
 
     return (
-        <div style={{ padding: '20px', color: mode === 'light' ? '#0f172a' : '#f8fafc' }}>
-            <h2 style={{ fontSize: '2rem', marginBottom: '8px', color: '#111827' }}>Generated Documents</h2>
-            <p style={{ marginBottom: '16px', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>View and download all generated Invoices and Agreements</p>
+        <div style={{ padding: '20px', color: isDark ? '#f8fafc' : '#0f172a', maxWidth: '100%', overflowX: 'hidden' }}>
+            <h2 style={{ fontSize: 'clamp(1.35rem, 4vw, 2rem)', marginBottom: '8px', color: isDark ? '#f8fafc' : '#111827' }}>Generated Documents</h2>
+            <p style={{ marginBottom: '16px', color: isDark ? '#94a3b8' : '#64748b' }}>View and download all generated Invoices and Agreements</p>
 
             <div style={{ marginBottom: '24px' }}>
                 <input
@@ -94,9 +95,9 @@ const DocumentsPage = () => {
                         maxWidth: '500px',
                         padding: '10px 15px',
                         borderRadius: '8px',
-                        border: `1px solid ${mode === 'light' ? '#e2e8f0' : '#334155'}`,
-                        backgroundColor: mode === 'light' ? '#fff' : '#1e293b',
-                        color: mode === 'light' ? '#0f172a' : '#f8fafc',
+                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(148,163,184,0.35)'}`,
+                        backgroundColor: isDark ? '#0f172a' : '#fff',
+                        color: isDark ? '#f8fafc' : '#0f172a',
                         outline: 'none'
                     }}
                     value={searchTerm}
@@ -114,38 +115,46 @@ const DocumentsPage = () => {
                 <div style={{ display: 'grid', gap: '15px' }}>
                     {filteredDocuments.map((doc) => (
                         <div key={doc._id} style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '16px 20px', borderRadius: '8px',
-                            backgroundColor: mode === 'light' ? '#fff' : '#1e293b',
-                            border: `1px solid ${mode === 'light' ? '#e2e8f0' : '#334155'}`,
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
+                            justifyContent: 'space-between',
+                            gap: '12px',
+                            padding: '16px 18px',
+                            borderRadius: '12px',
+                            background: isDark
+                                ? 'linear-gradient(140deg, rgba(15,23,42,1) 0%, rgba(30,41,59,1) 100%)'
+                                : 'linear-gradient(140deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%)',
+                            border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(148,163,184,0.26)'}`,
+                            boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.35)' : '0 4px 12px rgba(15,23,42,0.08)'
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                <FileText color="#111827" size={28} />
-                                <div>
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{doc.title || `${doc.type} Document`}</h3>
-                                    <p style={{ fontSize: '0.85rem', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>
-                                        Type: <span style={{ fontWeight: '600', color: doc.type === 'Invoice' ? '#10b981' : '#f59e0b' }}>{doc.type}</span> |
-                                        Generated: {new Date(doc.createdAt).toLocaleDateString()} |
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                                <FileText color={isDark ? '#ff7a5f' : '#ff3b1f'} size={24} />
+                                <div style={{ minWidth: 0 }}>
+                                    <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: 6 }}>{doc.title || `${doc.type} Document`}</h3>
+                                    <p style={{ fontSize: '0.85rem', color: isDark ? '#94a3b8' : '#64748b', margin: 0, lineHeight: 1.5 }}>
+                                        Type: <span style={{ fontWeight: '600', color: doc.type === 'Invoice' ? '#22c55e' : '#f59e0b' }}>{doc.type}</span><br />
+                                        Generated: {new Date(doc.createdAt).toLocaleDateString()}<br />
                                         Client: {doc.bookingId?.company_name || doc.invoiceData?.clientCompanyName || 'N/A'}
                                     </p>
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
+
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 <button
                                     onClick={() => handlePreview(doc)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#e2e8f0', color: '#0f172a', fontWeight: '500' }}>
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: isDark ? 'rgba(255,255,255,0.14)' : '#e2e8f0', color: isDark ? '#f8fafc' : '#0f172a', fontWeight: '600' }}>
                                     <Eye size={16} /> View
                                 </button>
                                 <button
                                     onClick={() => handleDownload(doc)}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#111827', color: '#fff', fontWeight: '500' }}>
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#111827', color: '#fff', fontWeight: '600' }}>
                                     <Download size={16} /> Download
                                 </button>
                                 {isAdmin && (
                                     <button
                                         onClick={() => handleDelete(doc._id)}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#ef4444', color: '#fff', fontWeight: '500' }}>
+                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#ef4444', color: '#fff', fontWeight: '600' }}>
                                         <Trash2 size={16} /> Delete
                                     </button>
                                 )}
@@ -165,9 +174,9 @@ const DocumentsPage = () => {
 
             {selectedDoc && selectedDoc.type === 'Invoice' && (
                 <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', justifyContent: 'center', paddingTop: '50px', overflowY: 'auto' }}>
-                    <div style={{ position: 'relative', width: '100%', maxWidth: '900px' }}>
+                    <div style={{ position: 'relative', width: '100%', maxWidth: '900px', paddingInline: 10 }}>
                         <button onClick={closePreview} style={{ position: 'absolute', top: '10px', right: '10px', background: 'red', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px' }}>Close</button>
-                        <div style={{ padding: '20px', backgroundColor: '#fff', borderRadius: '8px' }}>
+                        <div style={{ padding: '20px', backgroundColor: isDark ? '#0f172a' : '#fff', borderRadius: '8px', overflowX: 'auto' }}>
                             <InvoicePreview invoice={selectedDoc.invoiceData} />
                         </div>
                     </div>

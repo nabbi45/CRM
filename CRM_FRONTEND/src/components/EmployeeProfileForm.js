@@ -21,12 +21,15 @@ import {
   FileText
 } from "lucide-react";
 import './CreateProfile.css';
+import { useColorMode } from "../context/AppThemeProvider";
 
 
 
 
 
 export const CreateProfile = ({ apiUrl, userSession }) => {
+  const { mode } = useColorMode();
+
   const [profileExists, setProfileExists] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -840,7 +843,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   };
 
   return (
-    <div className="create-profile-container">
+    <div className={`create-profile-container ${mode === "dark" ? "dark-mode" : ""}`}>
       <div className="create-profile-wrapper">
         <div className="profile-header">
           <div className="header-content">

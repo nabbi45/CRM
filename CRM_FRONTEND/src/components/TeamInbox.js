@@ -16,8 +16,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { apiUrl } from './LoginSignup';
 import { socket } from '../socket';
 
-const ACCENT = '#111827';
-const NAVY = '#1e293b';
+const ACCENT = '#ff3b1f';
 
 const playMessageSound = () => {
     try {
@@ -41,6 +40,7 @@ const TeamInbox = () => {
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
     const theme = useTheme();
     const isTabletOrBelow = useMediaQuery(theme.breakpoints.down('md'));
+    const isDark = theme.palette.mode === 'dark';
 
     const [users, setUsers] = useState([]);
     const [search, setSearch] = useState('');
@@ -382,7 +382,7 @@ const TeamInbox = () => {
                 </Box>
 
                 {/* Chat Messages Log */}
-                <Box sx={{ flex: 1, p: { xs: 1.5, sm: 2.5, md: 3 }, overflowY: 'auto', bgcolor: '#fafafa' }}>
+                <Box sx={{ flex: 1, p: { xs: 1.5, sm: 2.5, md: 3 }, overflowY: 'auto', bgcolor: isDark ? '#0b1220' : '#fafafa' }}>
                     {messages.map((m, i) => {
                         const isMe = m.sender_id === session.user_id;
                         const showName = activeChat.isGlobal && !isMe;
@@ -412,13 +412,13 @@ const TeamInbox = () => {
                                                 p: 1.5,
                                                 px: 2,
                                                 maxWidth: { xs: 260, sm: 360, md: 420 },
-                                                bgcolor: isMe ? '#111827' : '#ffffff',
-                                                color: isMe ? '#fff' : '#111827',
+                                                bgcolor: isMe ? '#ff3b1f' : (isDark ? '#1e293b' : '#ffffff'),
+                                                color: isMe ? '#fff' : (isDark ? '#f8fafc' : '#111827'),
                                                 borderRadius: 3,
                                                 borderTopRightRadius: isMe ? 0 : 12,
                                                 borderTopLeftRadius: !isMe ? 0 : 12,
-                                                border: isMe ? 'none' : '1px solid rgba(0,0,0,0.08)',
-                                                boxShadow: isMe ? '0 4px 12px rgba(17,24,39,0.2)' : '0 4px 12px rgba(0,0,0,0.04)'
+                                                border: isMe ? 'none' : (isDark ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(0,0,0,0.08)'),
+                                                boxShadow: isMe ? '0 4px 12px rgba(255,59,31,0.3)' : (isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.04)')
                                             }}
                                         >
                                         {m.attachment_url && (
@@ -458,17 +458,17 @@ const TeamInbox = () => {
                     <div ref={messagesEndRef} />
                 </Box>
 
-                <Box sx={{ p: { xs: 1.2, sm: 2 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: '#fff', position: 'relative' }}>
+                <Box sx={{ p: { xs: 1.2, sm: 2 }, borderTop: '1px solid', borderColor: 'divider', bgcolor: isDark ? '#0f172a' : '#fff', position: 'relative' }}>
 
                     {/* Emoji Picker Popover */}
                     {showEmojiPicker && (
                         <Box sx={{ position: 'absolute', bottom: '100%', left: 24, zIndex: 10 }}>
-                            <EmojiPicker onEmojiClick={handleEmojiClick} theme="light" />
+                            <EmojiPicker onEmojiClick={handleEmojiClick} theme={isDark ? "dark" : "light"} />
                         </Box>
                     )}
 
                     <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Paper elevation={0} sx={{ flex: 1, display: 'flex', alignItems: 'center', px: 1, py: 0.5, bgcolor: 'action.hover', borderRadius: 8 }}>
+                        <Paper elevation={0} sx={{ flex: 1, display: 'flex', alignItems: 'center', px: 1, py: 0.5, bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'action.hover', borderRadius: 8 }}>
                             <IconButton size="small" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
                                 <SentimentSatisfiedAltIcon />
                             </IconButton>
@@ -497,7 +497,7 @@ const TeamInbox = () => {
                         <IconButton
                             type="submit"
                             disabled={!inputMsg.trim()}
-                            sx={{ bgcolor: NAVY, color: '#fff', '&:hover': { bgcolor: '#0f172a' }, '&.Mui-disabled': { bgcolor: '#e0e0e0' } }}
+                            sx={{ bgcolor: ACCENT, color: '#fff', '&:hover': { bgcolor: '#e03118' }, '&.Mui-disabled': { bgcolor: '#e0e0e0' } }}
                         >
                             <SendIcon fontSize="small" />
                         </IconButton>

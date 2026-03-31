@@ -4,8 +4,11 @@ import { saveInvoiceToDatabase } from '../utils/invoiceService';
 import { format } from 'date-fns';
 
 import { apiUrl } from './LoginSignup';
+import { useColorMode } from '../context/AppThemeProvider';
 
 function InvoiceForm({ onPreview, onDownload }) {
+  const { mode } = useColorMode();
+  const isDark = mode === 'dark';
   const [clientCompanyName, setClientCompanyName] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -154,17 +157,17 @@ function InvoiceForm({ onPreview, onDownload }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className={`max-w-4xl mx-auto p-6 rounded-lg shadow-lg ${isDark ? 'bg-slate-900 border border-slate-700' : 'bg-white'}`}>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Proforma Invoice</h1>
-        <p className="text-gray-600">Generate professional invoices for {companyDetails.name}</p>
+        <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Create Proforma Invoice</h1>
+        <p className={`${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Generate professional invoices for {companyDetails.name}</p>
       </div>
 
       {/* Growthera Company Details Display (Read-only) */}
-      <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
+      <div className={`mb-8 p-6 rounded-lg border ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'}`}>
         <div className="flex items-center mb-4">
-          <Building2 className="w-5 h-5 text-blue-600 mr-2" />
-          <h2 className="text-xl font-semibold text-gray-900">Company Details</h2>
+          <Building2 className={`w-5 h-5 mr-2 ${isDark ? 'text-red-400' : 'text-blue-600'}`} />
+          <h2 className={`text-xl font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>Company Details</h2>
         </div>
 
         <div className="flex items-start space-x-6">
@@ -183,24 +186,24 @@ function InvoiceForm({ onPreview, onDownload }) {
           </div>
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Company Name</p>
-              <p className="font-semibold text-gray-900 text-sm">{companyDetails.name}</p>
+              <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Company Name</p>
+              <p className={`font-semibold text-sm ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{companyDetails.name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Contact</p>
-              <p className="font-semibold text-gray-900">{companyDetails.phone}</p>
+              <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Contact</p>
+              <p className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{companyDetails.phone}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Email</p>
-              <p className="font-semibold text-gray-900">{companyDetails.email}</p>
+              <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Email</p>
+              <p className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{companyDetails.email}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">GST/PAN</p>
-              <p className="font-semibold text-gray-900">{companyDetails.gstPan}</p>
+              <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>GST/PAN</p>
+              <p className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{companyDetails.gstPan}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Address</p>
-              <p className="font-semibold text-gray-900 text-sm">
+              <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>Address</p>
+              <p className={`font-semibold text-sm ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>
                 {companyDetails.streetAddress} {companyDetails.city && `, ${companyDetails.city}`}
               </p>
             </div>
@@ -344,11 +347,11 @@ function InvoiceForm({ onPreview, onDownload }) {
       </div>
 
       {/* Invoice Date Display (Read-only) */}
-      <div className="mb-8 bg-gray-50 p-4 rounded-lg">
+      <div className={`mb-8 p-4 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-gray-50'}`}>
         <div className="flex items-center">
-          <MapPin className="w-5 h-5 text-blue-600 mr-2" />
-          <span className="text-sm font-medium text-gray-700 mr-4">Invoice Date:</span>
-          <span className="font-semibold text-gray-900">{format(new Date(invoiceDate), 'dd/MM/yyyy')}</span>
+          <MapPin className={`w-5 h-5 mr-2 ${isDark ? 'text-red-400' : 'text-blue-600'}`} />
+          <span className={`text-sm font-medium mr-4 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Invoice Date:</span>
+          <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>{format(new Date(invoiceDate), 'dd/MM/yyyy')}</span>
         </div>
       </div>
 
@@ -475,19 +478,19 @@ function InvoiceForm({ onPreview, onDownload }) {
       </div>
 
       {/* Totals */}
-      <div className="mb-8 bg-gray-50 p-6 rounded-lg">
+      <div className={`mb-8 p-6 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-gray-50'}`}>
         <div className="space-y-2 max-w-md ml-auto">
           <div className="flex justify-between">
-            <span className="text-gray-600">Subtotal:</span>
-            <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
+            <span className={isDark ? 'text-slate-300' : 'text-gray-600'}>Subtotal:</span>
+            <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>₹{subtotal.toFixed(2)}</span>
           </div>
           {includeGst && (
             <div className="flex justify-between">
-              <span className="text-gray-600">GST ({gstRate}%):</span>
-              <span className="font-semibold">₹{gstAmount.toFixed(2)}</span>
+              <span className={isDark ? 'text-slate-300' : 'text-gray-600'}>GST ({gstRate}%):</span>
+              <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>₹{gstAmount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-lg font-bold border-t pt-2">
+          <div className={`flex justify-between text-lg font-bold border-t pt-2 ${isDark ? 'border-slate-600 text-slate-100' : ''}`}>
             <span>Total:</span>
             <span>₹{total.toFixed(2)}</span>
           </div>

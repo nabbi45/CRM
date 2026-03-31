@@ -202,8 +202,6 @@ const Sidebar = () => {
 
     if (hasProfile && canAccessFeature(userSession, 'my_profile')) {
       items.push({ text: 'My Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/my-profile' });
-    } else if (!hasProfile && canAccessFeature(userSession, 'create_profile')) {
-      items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile' });
     }
 
     if (canAccessFeature(userSession, 'trash')) {

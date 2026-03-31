@@ -480,16 +480,41 @@ const History = () => {
       minHeight: '100vh',
       transition: 'all 0.3s ease'
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <h2 className="history-header" style={{ color: mode === 'light' ? '#0f172a' : '#ffffff', margin: 0 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: { xs: 1.25, md: 0 },
+          mb: 2,
+        }}
+      >
+        <h2
+          className="history-header"
+          style={{
+            color: mode === 'light' ? '#0f172a' : '#ffffff',
+            margin: 0,
+            fontSize: 'clamp(1.15rem, 3.7vw, 1.8rem)',
+            lineHeight: 1.2,
+          }}
+        >
           {shareFilter === "SharedByMe" ? "Shared Bookings (By Me)" : shareFilter === "SharedWithMe" ? "Shared Bookings (With Me)" : "All Bookings"}
         </h2>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 0.8, flexWrap: 'wrap' }}>
           <Button
             variant={shareFilter === "All" ? "contained" : "outlined"}
             size="small"
             onClick={() => setShareFilter("All")}
-            sx={{ borderRadius: 8, textTransform: 'none' }}
+            sx={{
+              borderRadius: '999px',
+              textTransform: 'none',
+              minWidth: 0,
+              px: { xs: 1.15, md: 1.5 },
+              py: { xs: 0.3, md: 0.45 },
+              fontSize: { xs: '0.72rem', md: '0.78rem' },
+              lineHeight: 1.1,
+            }}
           >
             All Bookings
           </Button>
@@ -497,7 +522,15 @@ const History = () => {
             variant={shareFilter === "SharedByMe" ? "contained" : "outlined"}
             size="small"
             onClick={() => setShareFilter("SharedByMe")}
-            sx={{ borderRadius: 8, textTransform: 'none' }}
+            sx={{
+              borderRadius: '999px',
+              textTransform: 'none',
+              minWidth: 0,
+              px: { xs: 1.15, md: 1.5 },
+              py: { xs: 0.3, md: 0.45 },
+              fontSize: { xs: '0.72rem', md: '0.78rem' },
+              lineHeight: 1.1,
+            }}
           >
             Shared By Me
           </Button>
@@ -505,7 +538,15 @@ const History = () => {
             variant={shareFilter === "SharedWithMe" ? "contained" : "outlined"}
             size="small"
             onClick={() => setShareFilter("SharedWithMe")}
-            sx={{ borderRadius: 8, textTransform: 'none' }}
+            sx={{
+              borderRadius: '999px',
+              textTransform: 'none',
+              minWidth: 0,
+              px: { xs: 1.15, md: 1.5 },
+              py: { xs: 0.3, md: 0.45 },
+              fontSize: { xs: '0.72rem', md: '0.78rem' },
+              lineHeight: 1.1,
+            }}
           >
             Shared With Me
           </Button>

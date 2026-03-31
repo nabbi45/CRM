@@ -1,16 +1,23 @@
 import express from "express";
+import mongoose from "mongoose";
 import { upload } from "../middlewares/upload.js";
 import { EmployeeModel } from "../models/EmployeeProfile.js";
+import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
+
+const MANAGER_ROLES = ["hr", "admin", "senior admin", "super admin", "dev", "srdev"];
+const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
+
+const canManageEmployees = (req) => MANAGER_ROLES.includes(normalizeRole(req.user?.user_role));
 
 /**
  * Authorization middleware - Allow profile owner or HR
  */
 const authorizeSelfOrHR = (req, res, next) => {
   const requestedUserId = req.params.id;
-  if (req.user.userId !== requestedUserId && req.user.user_role !== "HR") {
+  if (req.user.userId !== requestedUserId && !canManageEmployees(req)) {
     return res.status(403).json({ 
       message: "Access denied. You can only access your own profile or need HR privileges." 
     });
@@ -22,10 +29,9 @@ const authorizeSelfOrHR = (req, res, next) => {
  * HR-only authorization
  */
 const authorizeHROnly = (req, res, next) => {
-  
-  if (req.user.user_role !== "HR") {
+  if (!canManageEmployees(req)) {
     return res.status(403).json({ 
-      message: "Access denied. Only HR personnel can perform this action." 
+      message: "Access denied. Only authorized managers can perform this action." 
     });
   }
   next();
@@ -45,7 +51,7 @@ const validateProfileData = (req, res, next) => {
   ];
 
   const missingFields = requiredFields.filter(field => !req.body[field]);
-  
+
   if (missingFields.length > 0) {
     return res.status(400).json({
       error: "Missing required fields",
@@ -53,26 +59,22 @@ const validateProfileData = (req, res, next) => {
     });
   }
 
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(req.body.personalEmailAddress) || !emailRegex.test(req.body.workEmail)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
-  // Phone validation
   const phoneRegex = /^\d{10}$/;
-  if (!phoneRegex.test(req.body.personalContactNumber.replace(/\D/g, '')) || 
+  if (!phoneRegex.test(req.body.personalContactNumber.replace(/\D/g, '')) ||
       !phoneRegex.test(req.body.workPhoneNumber.replace(/\D/g, ''))) {
     return res.status(400).json({ error: "Invalid phone number format" });
   }
 
-  // PAN validation
   const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
   if (!panRegex.test(req.body.panNumber.toUpperCase())) {
     return res.status(400).json({ error: "Invalid PAN number format" });
   }
 
-  // Aadhar validation
   const aadharRegex = /^\d{12}$/;
   if (!aadharRegex.test(req.body.aadharNumber.replace(/\D/g, ''))) {
     return res.status(400).json({ error: "Invalid Aadhar number format" });
@@ -142,6 +144,72 @@ router.get("/all", authorizeHROnly, async (req, res) => {
 });
 
 /**
+ * GET /overview - Get employee overview (HR only)
+ */
+router.get("/overview", authorizeHROnly, async (req, res) => {
+  try {
+    const [employees, bookingOverview] = await Promise.all([
+      EmployeeModel.find({ isActive: true })
+        .select("userId employeeFullName department employeeId baseSalary monthlyBonus incentives leaveBalance leavesTaken offeredSalary")
+        .lean(),
+      BookingModel.aggregate([
+        { $match: { isDeleted: { $ne: true } } },
+        {
+          $group: {
+            _id: "$user_id",
+            totalSales: { $sum: "$total_amount" },
+            totalBookings: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
+
+    const bookingMap = bookingOverview.reduce((acc, item) => {
+      acc[item._id] = {
+        totalSales: item.totalSales || 0,
+        totalBookings: item.totalBookings || 0,
+      };
+      return acc;
+    }, {});
+
+    const employeesWithOverview = employees.map((emp) => ({
+      ...emp,
+      totalSales: bookingMap[emp.userId]?.totalSales || 0,
+      totalBookings: bookingMap[emp.userId]?.totalBookings || 0,
+    }));
+
+    const totals = employeesWithOverview.reduce(
+      (acc, emp) => {
+        acc.totalEmployees += 1;
+        acc.totalSales += Number(emp.totalSales || 0);
+        acc.totalBookings += Number(emp.totalBookings || 0);
+        acc.totalBaseSalary += Number(emp.baseSalary || 0);
+        acc.totalBonus += Number(emp.monthlyBonus || 0);
+        acc.totalIncentives += Number(emp.incentives || 0);
+        acc.totalLeaveBalance += Number(emp.leaveBalance || 0);
+        acc.totalLeavesTaken += Number(emp.leavesTaken || 0);
+        return acc;
+      },
+      {
+        totalEmployees: 0,
+        totalSales: 0,
+        totalBookings: 0,
+        totalBaseSalary: 0,
+        totalBonus: 0,
+        totalIncentives: 0,
+        totalLeaveBalance: 0,
+        totalLeavesTaken: 0,
+      }
+    );
+
+    res.json({ totals, employees: employeesWithOverview });
+  } catch (err) {
+    console.error("GET /overview error:", err);
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+/**
  * GET /profile/:id - Get specific employee profile
  */
 router.get("/profile/:id", authorizeSelfOrHR, async (req, res) => {
@@ -173,9 +241,10 @@ router.post("/profile",
   validateProfileData,
   async (req, res) => {
     try {
+      const targetUserId = canManageEmployees(req) && req.body.userId ? req.body.userId : req.user.userId;
       // Check if profile already exists
       const existingProfile = await EmployeeModel.findOne({ 
-        userId: req.user.userId 
+        userId: targetUserId 
       });
       
       if (existingProfile) {
@@ -207,11 +276,16 @@ router.post("/profile",
 
       // Create new profile
       const profileData = {
-        userId: req.user.userId,
+        userId: targetUserId,
         ...req.body,
         personalEmailAddress: req.body.personalEmailAddress.toLowerCase(),
         workEmail: req.body.workEmail.toLowerCase(),
         panNumber: req.body.panNumber.toUpperCase(),
+        baseSalary: Number(req.body.baseSalary || 0),
+        monthlyBonus: Number(req.body.monthlyBonus || 0),
+        incentives: Number(req.body.incentives || 0),
+        leaveBalance: Number(req.body.leaveBalance || 0),
+        leavesTaken: Number(req.body.leavesTaken || 0),
         employeePhoto: req.files.employeePhoto[0].path,
         aadhaarCardPhoto: req.files.aadhaarCardPhoto[0].path,
         createdBy: req.user.userId
@@ -255,9 +329,13 @@ router.post("/profile",
  */
 router.put("/update/:id", authorizeHROnly, async (req, res) => {
   try {
-    const profile = await EmployeeModel.findOne({ 
-      userId: req.params.id,
-      isActive: true 
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+    const profile = await EmployeeModel.findOne({
+      isActive: true,
+      $or: [
+        { userId: req.params.id },
+        ...(isObjectId ? [{ _id: req.params.id }] : [])
+      ]
     });
 
     if (!profile) {
@@ -273,7 +351,8 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
       'emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelationship',
       'dateOfJoining', 'reportingManager', 'dateOfLastPromotion',
       'educationQualification', 'previousEmployer', 'totalWorkExperience',
-      'accountNumber', 'bankName', 'ifscCode', 'panNumber', 'aadharNumber'
+      'accountNumber', 'bankName', 'ifscCode', 'panNumber', 'aadharNumber',
+      'offeredSalary', 'baseSalary', 'monthlyBonus', 'incentives', 'leaveBalance', 'leavesTaken'
     ];
 
     // Build update object and track changes
@@ -320,7 +399,12 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
     };
 
     const updatedProfile = await EmployeeModel.findOneAndUpdate(
-      { userId: req.params.id },
+      {
+        $or: [
+          { userId: req.params.id },
+          ...(isObjectId ? [{ _id: req.params.id }] : [])
+        ]
+      },
       updates,
       { new: true, runValidators: true }
     ).select('-updateHistory -__v');
@@ -348,14 +432,20 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
   }
 });
 
-
 /**
  * DELETE /delete/:id - Soft delete employee profile (HR only)
  */
 router.delete("/delete/:id", authorizeHROnly, async (req, res) => {
   try {
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
     const profile = await EmployeeModel.findOneAndUpdate(
-      { userId: req.params.id, isActive: true },
+      {
+        isActive: true,
+        $or: [
+          { userId: req.params.id },
+          ...(isObjectId ? [{ _id: req.params.id }] : [])
+        ]
+      },
       { 
         isActive: false,
         updatedBy: req.user.userId,
