@@ -29,6 +29,34 @@ import NotificationBell from '../components/NotificationBell';
 import DynamicHead from '../components/DynamicHead';
 import TeamInbox from '../components/TeamInbox';
 import ChatFAB from '../components/ChatFAB';
+import { canAccessFeature } from '../utils/featureAccess';
+
+const FeatureGuard = ({ userSession, feature, children }) => {
+  if (canAccessFeature(userSession, feature)) return children;
+
+  return (
+    <Box
+      sx={{
+        minHeight: 300,
+        display: 'grid',
+        placeItems: 'center',
+        borderRadius: 3,
+        border: '1px dashed',
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
+        p: 3,
+      }}
+    >
+      <Box sx={{ textAlign: 'center' }}>
+        <Box sx={{ fontSize: 32, mb: 1 }}>🔒</Box>
+        <Box sx={{ fontWeight: 700, color: 'text.primary' }}>Access restricted</Box>
+        <Box sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
+          Your role does not currently have permission for this feature.
+        </Box>
+      </Box>
+    </Box>
+  );
+};
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -91,23 +119,23 @@ const Dashboard = () => {
         {isTabletOrBelow && <Toolbar />}
 
         <Routes>
-          <Route path="/" element={<DashboardContent />} />
-          <Route path="new-booking" element={<AddBooking />} />
-          <Route path="history" element={<History />} />
-          <Route path="adduser" element={<AddUser />} />
-          <Route path="removeuser" element={<RemoveUser />} />
-          <Route path="scorecard" element={<Scorecard />} />
-          <Route path="addservices" element={<ServicesComponent />} />
-          <Route path="trash" element={<Trash />} />
-          <Route path="Proformainvoice" element={<Proformainvoice />} />
-          <Route path="Agreementsgenerator" element={<AgreementGeneratorPage />} />
-          <Route path="create-profile" element={<CreateProfile apiUrl={apiUrl} userSession={userSession} />} />
-          <Route path="my-profile" element={<MyProfile apiUrl={apiUrl} userSession={userSession} />} />
-          <Route path="manage-employees" element={<EmployeeManagement apiUrl={apiUrl} userSession={userSession} />} />
-          <Route path="company-profile" element={<CompanyProfile />} />
-          <Route path="generated-documents" element={<DocumentsPage />} />
-          <Route path="leave-management" element={<LeaveManagement />} />
-          <Route path="communication" element={<TeamInbox />} />
+          <Route path="/" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><DashboardContent /></FeatureGuard>} />
+          <Route path="new-booking" element={<FeatureGuard userSession={userSession} feature="new_booking"><AddBooking /></FeatureGuard>} />
+          <Route path="history" element={<FeatureGuard userSession={userSession} feature="all_bookings"><History /></FeatureGuard>} />
+          <Route path="adduser" element={<FeatureGuard userSession={userSession} feature="manage_users"><AddUser /></FeatureGuard>} />
+          <Route path="removeuser" element={<FeatureGuard userSession={userSession} feature="manage_users"><RemoveUser /></FeatureGuard>} />
+          <Route path="scorecard" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><Scorecard /></FeatureGuard>} />
+          <Route path="addservices" element={<FeatureGuard userSession={userSession} feature="manage_services"><ServicesComponent /></FeatureGuard>} />
+          <Route path="trash" element={<FeatureGuard userSession={userSession} feature="trash"><Trash /></FeatureGuard>} />
+          <Route path="Proformainvoice" element={<FeatureGuard userSession={userSession} feature="proforma_invoice"><Proformainvoice /></FeatureGuard>} />
+          <Route path="Agreementsgenerator" element={<FeatureGuard userSession={userSession} feature="agreements_generator"><AgreementGeneratorPage /></FeatureGuard>} />
+          <Route path="create-profile" element={<FeatureGuard userSession={userSession} feature="create_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route path="my-profile" element={<FeatureGuard userSession={userSession} feature="my_profile"><MyProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route path="manage-employees" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
+          <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
+          <Route path="leave-management" element={<FeatureGuard userSession={userSession} feature="leave_management"><LeaveManagement /></FeatureGuard>} />
+          <Route path="communication" element={<FeatureGuard userSession={userSession} feature="communication"><TeamInbox /></FeatureGuard>} />
         </Routes>
       </Box>
     </Box>

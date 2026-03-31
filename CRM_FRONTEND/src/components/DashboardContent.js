@@ -27,8 +27,10 @@ import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
 
-const ACCENT = "#111827";
-const ACCENT_LIGHT = "rgba(232,124,42,0.12)";
+const ACCENT = "#ff3b1f";
+const ACCENT_DARK = "#e03118";
+const ACCENT_LIGHT = "rgba(255,59,31,0.14)";
+const ACCENT_SOFT = "rgba(255,59,31,0.08)";
 
 const DashboardContent = () => {
   const userSession = JSON.parse(localStorage.getItem("userSession"));
@@ -69,6 +71,12 @@ const DashboardContent = () => {
     const ctx = chartRef.current.getContext("2d");
     if (chartInstance.current) chartInstance.current.destroy();
 
+    const isDark = theme.palette.mode === "dark";
+    const tickColor = isDark ? "#cbd5e1" : "#475569";
+    const gridColor = isDark
+      ? "rgba(255,255,255,0.14)"
+      : "rgba(148,163,184,0.22)";
+
     chartInstance.current = new Chart(ctx, {
       type: "bar",
       data: {
@@ -77,7 +85,11 @@ const DashboardContent = () => {
           {
             label: "Revenue (₹)",
             data: monthlyRevData.values,
-            backgroundColor: ACCENT,
+            backgroundColor: monthlyRevData.values.map((_, idx, arr) =>
+              idx === arr.length - 1 ? ACCENT : "rgba(255,90,31,0.78)"
+            ),
+            borderColor: ACCENT_DARK,
+            borderWidth: 1,
             borderRadius: 6,
             barPercentage: 0.55,
           },
@@ -89,6 +101,12 @@ const DashboardContent = () => {
         plugins: {
           legend: { display: false },
           tooltip: {
+            backgroundColor: isDark ? "#111827" : "#ffffff",
+            borderColor: isDark ? "rgba(255,255,255,0.14)" : "rgba(255,59,31,0.25)",
+            borderWidth: 1,
+            titleColor: isDark ? "#f8fafc" : "#0f172a",
+            bodyColor: isDark ? "#e2e8f0" : "#0f172a",
+            displayColors: false,
             callbacks: {
               label: (ctx) => `₹${ctx.raw.toLocaleString()}`,
             },
@@ -97,15 +115,16 @@ const DashboardContent = () => {
         scales: {
           x: {
             grid: { display: false },
-            ticks: { font: { size: 11 } },
+            ticks: { font: { size: 11 }, color: tickColor },
           },
           y: {
             beginAtZero: true,
             ticks: {
               callback: (v) => `₹${(v / 1000).toFixed(0)}k`,
               font: { size: 11 },
+              color: tickColor,
             },
-            grid: { color: "rgba(148,163,184,0.15)" },
+            grid: { color: gridColor },
           },
         },
       },
@@ -115,7 +134,7 @@ const DashboardContent = () => {
       if (chartInstance.current) chartInstance.current.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthlyRevData]);
+  }, [monthlyRevData, theme.palette.mode]);
 
   const fetchDashboardData = async (session) => {
     try {
@@ -287,7 +306,7 @@ const DashboardContent = () => {
             value: totalBookings,
             sub: isAdmin ? "Total Bookings" : "Your Bookings",
             icon: <BookOnlineOutlinedIcon />,
-            color: "#3b82f6",
+            color: ACCENT,
           },
           ...(isAdmin
             ? [
@@ -296,7 +315,7 @@ const DashboardContent = () => {
                 value: totalUsers,
                 sub: "CRM users",
                 icon: <PeopleAltOutlinedIcon />,
-                color: "#8b5cf6",
+                color: "#ff5a1f",
               },
             ]
             : []),
@@ -314,7 +333,7 @@ const DashboardContent = () => {
             value: `₹${todayRevenue.toLocaleString()}`,
             sub: "From today's bookings",
             icon: <TodayOutlinedIcon />,
-            color: "#10b981",
+            color: "#ff7a1f",
           },
         ].map((c, i) => (
           <Grid item xs={12} sm={6} md={isAdmin ? 3 : 4} key={i}>
@@ -322,7 +341,30 @@ const DashboardContent = () => {
               sx={{
                 position: "relative",
                 overflow: "visible",
-                "&:hover": { transform: "translateY(-2px)" },
+                border: "1px solid",
+                borderColor: "divider",
+                background:
+                  theme.palette.mode === "light"
+                    ? "linear-gradient(160deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%)"
+                    : "linear-gradient(160deg, rgba(18,23,34,1) 0%, rgba(31,17,14,1) 100%)",
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: "100%",
+                  height: 3,
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  background: `linear-gradient(90deg, ${c.color} 0%, ${ACCENT_DARK} 100%)`,
+                },
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow:
+                    theme.palette.mode === "light"
+                      ? "0 12px 24px rgba(255,59,31,0.14)"
+                      : "0 12px 24px rgba(255,59,31,0.2)",
+                },
               }}
             >
               <CardContent sx={{ pb: '16px !important' }}>
@@ -428,7 +470,8 @@ const DashboardContent = () => {
                     sx={{
                       ml: "auto",
                       bgcolor: ACCENT_LIGHT,
-                      color: ACCENT,
+                      color: ACCENT_DARK,
+                      border: "1px solid rgba(255,59,31,0.35)",
                       fontWeight: 600,
                       fontSize: "0.7rem",
                     }}
@@ -459,7 +502,7 @@ const DashboardContent = () => {
                           key={entry.name}
                           sx={{
                             bgcolor:
-                              idx === 0 ? "rgba(232,124,42,0.06)" : "inherit",
+                              idx === 0 ? ACCENT_SOFT : "inherit",
                           }}
                         >
                           <TableCell sx={{ fontWeight: 700 }}>
@@ -477,7 +520,9 @@ const DashboardContent = () => {
                           </TableCell>
                           <TableCell align="right">{entry.count}</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 600 }}>
-                            ₹{entry.revenue.toLocaleString()}
+                            <Box component="span" sx={{ color: ACCENT_DARK }}>
+                              ₹{entry.revenue.toLocaleString()}
+                            </Box>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -518,12 +563,14 @@ const DashboardContent = () => {
                     {new Date(booking.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>
-                    ₹
-                    {(
-                      (booking.term_1 || 0) +
-                      (booking.term_2 || 0) +
-                      (booking.term_3 || 0)
-                    ).toLocaleString()}
+                    <Box component="span" sx={{ color: ACCENT_DARK }}>
+                      ₹
+                      {(
+                        (booking.term_1 || 0) +
+                        (booking.term_2 || 0) +
+                        (booking.term_3 || 0)
+                      ).toLocaleString()}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}

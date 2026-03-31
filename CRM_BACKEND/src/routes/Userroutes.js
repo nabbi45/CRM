@@ -10,12 +10,93 @@ import { authenticateUser, authorizeDevRole } from '../middlewares/authMiddlewar
 dotenv.config()
 const saltRounds = 5;
 
+const FEATURE_KEYS = [
+  'dashboard_overview',
+  'new_booking',
+  'all_bookings',
+  'proforma_invoice',
+  'agreements_generator',
+  'generated_documents',
+  'manage_users',
+  'manage_services',
+  'company_profile',
+  'manage_employees',
+  'leave_management',
+  'communication',
+  'my_profile',
+  'create_profile',
+  'trash',
+];
+
+const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
+
+const DEFAULT_ROLE_PERMISSIONS = {
+  dev: FEATURE_KEYS,
+  srdev: FEATURE_KEYS,
+  'super admin': FEATURE_KEYS,
+  admin: [
+    'dashboard_overview',
+    'new_booking',
+    'all_bookings',
+    'proforma_invoice',
+    'agreements_generator',
+    'generated_documents',
+    'manage_users',
+    'manage_services',
+    'company_profile',
+    'leave_management',
+    'communication',
+    'my_profile',
+    'create_profile',
+  ],
+  'senior admin': [
+    'dashboard_overview',
+    'new_booking',
+    'all_bookings',
+    'proforma_invoice',
+    'agreements_generator',
+    'generated_documents',
+    'manage_users',
+    'manage_services',
+    'company_profile',
+    'leave_management',
+    'communication',
+    'my_profile',
+    'create_profile',
+  ],
+  hr: ['manage_employees', 'leave_management', 'communication', 'my_profile', 'create_profile'],
+  bdm: [
+    'dashboard_overview',
+    'new_booking',
+    'all_bookings',
+    'proforma_invoice',
+    'generated_documents',
+    'leave_management',
+    'communication',
+    'my_profile',
+    'create_profile',
+  ],
+};
+
+const sanitizeFeaturePermissions = (permissions = []) => {
+  if (!Array.isArray(permissions)) return [];
+  return [...new Set(permissions.filter((key) => FEATURE_KEYS.includes(key)))];
+};
+
+const getDefaultFeaturePermissionsForRole = (role) => {
+  const normalized = normalizeRole(role);
+  const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
+  if (defaults?.length) return defaults;
+  return ['dashboard_overview', 'leave_management', 'communication', 'my_profile', 'create_profile'];
+};
+
 const UserRoutes = express.Router();
 
 //Creating User
 UserRoutes.post("/adduser", authenticateUser, authorizeDevRole, async (req, res) => {
   try {
-    const { name, email, password, user_role } = req.body;
+    const { name, email, password, user_role, feature_permissions } = req.body;
+
     // Check if all required fields are provided
     if (!name || !email || !password) {
       return res.status(400).send({
@@ -40,7 +121,10 @@ UserRoutes.post("/adduser", authenticateUser, authorizeDevRole, async (req, res)
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      user_role
+      user_role,
+      feature_permissions: sanitizeFeaturePermissions(feature_permissions).length
+        ? sanitizeFeaturePermissions(feature_permissions)
+        : getDefaultFeaturePermissionsForRole(user_role),
     };
 
     const User = await UserModel.create(new_user);
@@ -53,7 +137,7 @@ UserRoutes.post("/adduser", authenticateUser, authorizeDevRole, async (req, res)
 });
 
 //edit user
-UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole,async (req, res) => {
+UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -61,6 +145,14 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole,async (req,
     // Ensure there are fields to update
     if (!updates || Object.keys(updates).length === 0) {
       return res.status(400).send({ message: 'No fields provided for update' });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'feature_permissions')) {
+      updates.feature_permissions = sanitizeFeaturePermissions(updates.feature_permissions);
+    }
+
+    if (updates.user_role && !Object.prototype.hasOwnProperty.call(updates, 'feature_permissions')) {
+      updates.feature_permissions = getDefaultFeaturePermissionsForRole(updates.user_role);
     }
 
     // Normalize email if it's being updated

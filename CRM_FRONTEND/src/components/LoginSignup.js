@@ -9,6 +9,7 @@ import {
   Snackbar,
   Alert,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
@@ -32,6 +33,7 @@ const LoginSignup = ({ onLoginSuccess }) => {
   const [formErrors, setFormErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const theme = useTheme();
+  const isLaptopUp = useMediaQuery(theme.breakpoints.up("lg"));
   const { mode, toggleColorMode } = useColorMode();
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -178,6 +180,7 @@ const LoginSignup = ({ onLoginSuccess }) => {
             name: user.name,
             email: user.email,
             user_role: user.user_role,
+            feature_permissions: Array.isArray(user.feature_permissions) ? user.feature_permissions : [],
             profilePicture: user.profilePicture || "",
             loginTime: Date.now(),
           })
@@ -253,8 +256,52 @@ const LoginSignup = ({ onLoginSuccess }) => {
           justifyContent: "center",
           backgroundColor: theme.palette.mode === "light" ? "#f5f5f0" : "#0a0a0a",
           padding: 2,
+          gap: 3,
         }}
       >
+        {isLaptopUp && (
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 520,
+              minHeight: 640,
+              borderRadius: 4,
+              position: "relative",
+              overflow: "hidden",
+              boxShadow: "0 20px 48px rgba(0,0,0,0.35)",
+              background: "linear-gradient(135deg, #050505 0%, #130202 35%, #1d0303 100%)",
+              display: "flex",
+              alignItems: "flex-start",
+              p: 4,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                inset: 0,
+                background: 'repeating-linear-gradient(100deg, rgba(255,44,20,0.95) 0px, rgba(255,44,20,0.95) 6px, rgba(0,0,0,0) 22px, rgba(0,0,0,0) 58px)',
+                opacity: 0.9,
+                pointerEvents: 'none',
+                mixBlendMode: 'screen',
+              },
+            }}
+          >
+            <Box sx={{ position: "relative", zIndex: 1 }}>
+              {companyLogo && (
+                <img
+                  src={companyLogo}
+                  alt="Company Logo"
+                  style={{ height: 56, objectFit: "contain", marginBottom: 10 }}
+                />
+              )}
+              <Typography sx={{ color: "rgba(255,255,255,0.92)", fontWeight: 700, fontSize: "1.2rem" }}>
+                Welcome back
+              </Typography>
+              <Typography sx={{ color: "rgba(255,255,255,0.7)", mt: 0.5, maxWidth: 340 }}>
+                Access your CRM workspace and continue managing your business operations.
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
         <Box
           sx={{
             width: "100%",

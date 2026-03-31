@@ -26,6 +26,13 @@ import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { apiUrl } from "./LoginSignup";
 import AddUser from "./AddUser";
+import {
+  FEATURE_KEYS,
+  FEATURE_LABELS,
+  ROLE_TEMPLATE_OPTIONS,
+  applyRoleTemplate,
+  getDefaultFeaturePermissionsForRole,
+} from "../utils/featureAccess";
 
 const RemoveUser = () => {
   const [searchTerm, setSearchTerm] = useState(""); // State for search term
@@ -37,6 +44,7 @@ const RemoveUser = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [featurePermissions, setFeaturePermissions] = useState([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [Token, setToken] = useState("");
@@ -82,11 +90,31 @@ const RemoveUser = () => {
     setEmail(user.email);
     setUserRole(user.user_role);
     setPassword("");
+    setFeaturePermissions(Array.isArray(user.feature_permissions) ? user.feature_permissions : getDefaultFeaturePermissionsForRole(user.user_role));
+  };
+
+  const handleEditRoleChange = (value) => {
+    setUserRole(value);
+    setFeaturePermissions(getDefaultFeaturePermissionsForRole(value));
+  };
+
+  const applyEditPresetRole = (roleKey) => {
+    const preset = applyRoleTemplate(roleKey);
+    setUserRole(preset.role);
+    setFeaturePermissions(preset.permissions);
+  };
+
+  const toggleFeaturePermission = (featureKey) => {
+    setFeaturePermissions((prev) =>
+      prev.includes(featureKey)
+        ? prev.filter((key) => key !== featureKey)
+        : [...prev, featureKey]
+    );
   };
 
   const handleSave = async () => {
     try {
-      const body = { name, email, user_role: userRole };
+      const body = { name, email, user_role: userRole, feature_permissions: featurePermissions };
       if (password.trim()) body.password = password;
 
       await axios.patch(
@@ -265,8 +293,42 @@ const RemoveUser = () => {
                 label="Role"
                 fullWidth
                 value={userRole}
-                onChange={(e) => setUserRole(e.target.value)}
+                onChange={(e) => handleEditRoleChange(e.target.value)}
               />
+            </Grid>
+            <Grid item xs={12}>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {ROLE_TEMPLATE_OPTIONS.map((template) => {
+                  const isActive = userRole.toLowerCase() === template.key;
+                  return (
+                    <Button
+                      key={template.key}
+                      type="button"
+                      size="small"
+                      variant={isActive ? "contained" : "outlined"}
+                      onClick={() => applyEditPresetRole(template.key)}
+                      sx={{
+                        borderRadius: "999px",
+                        px: 1.4,
+                        py: 0.45,
+                        fontSize: "0.72rem",
+                        minWidth: 0,
+                        ...(isActive
+                          ? {
+                            backgroundColor: "#ff3b1f",
+                            '&:hover': { backgroundColor: "#e03118" },
+                          }
+                          : {
+                            borderColor: "rgba(148,163,184,0.5)",
+                            color: "text.secondary",
+                          }),
+                      }}
+                    >
+                      {template.label}
+                    </Button>
+                  );
+                })}
+              </Box>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -276,6 +338,36 @@ const RemoveUser = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+            </Grid>
+            <Grid item xs={12}>
+              <Box
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  p: 1.5,
+                  maxHeight: 230,
+                  overflowY: "auto",
+                  backgroundColor: "background.default",
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Tab permissions</Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
+                  {FEATURE_KEYS.map((featureKey) => (
+                    <label
+                      key={featureKey}
+                      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem" }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={featurePermissions.includes(featureKey)}
+                        onChange={() => toggleFeaturePermission(featureKey)}
+                      />
+                      {FEATURE_LABELS[featureKey] || featureKey}
+                    </label>
+                  ))}
+                </Box>
+              </Box>
             </Grid>
           </Grid>
         </DialogContent>

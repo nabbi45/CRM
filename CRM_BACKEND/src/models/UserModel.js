@@ -6,6 +6,7 @@ const userSchema = mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     user_role: { type: String, required: true },
+    feature_permissions: { type: [String], default: [] },
     profilePicture: { type: String, default: "" }, // Add profile picture field
     isActive: { type: Boolean, default: false },
     resetPasswordToken: { type: String },

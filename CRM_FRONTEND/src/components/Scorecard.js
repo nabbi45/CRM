@@ -78,8 +78,8 @@ const Scorecard = () => {
     datasets: [
       {
         data: [netAmount, target - netAmount], // Net amount is filled portion, rest is the remaining target
-        backgroundColor: ['#4CAF50', '#ddd'],
-        hoverBackgroundColor: ['#4CAF50', '#ddd'],
+        backgroundColor: ['#ff3b1f', '#e5e7eb'],
+        hoverBackgroundColor: ['#e03118', '#d1d5db'],
       },
     ],
   };

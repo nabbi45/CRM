@@ -13,9 +13,9 @@ const createAppTheme = (mode) =>
     palette: {
       mode,
       primary: {
-        main: mode === 'light' ? '#f2542d' : '#f97316',
-        dark: mode === 'light' ? '#cc3f1e' : '#ea580c',
-        light: mode === 'light' ? '#fd8a71' : '#fb923c',
+        main: mode === 'light' ? '#ff3b1f' : '#ff4a2a',
+        dark: mode === 'light' ? '#e03118' : '#ff3b1f',
+        light: mode === 'light' ? '#ff6b52' : '#ff7a5f',
       },
       secondary: {
         main: mode === 'light' ? '#111827' : '#e2e8f0',
@@ -23,12 +23,12 @@ const createAppTheme = (mode) =>
         light: mode === 'light' ? '#374151' : '#ffffff',
       },
       background: {
-        default: mode === 'light' ? '#f3f4f6' : '#020617',
-        paper: mode === 'light' ? '#ffffff' : '#0f172a',
+        default: mode === 'light' ? '#f4f5f7' : '#06080d',
+        paper: mode === 'light' ? '#ffffff' : '#121722',
       },
       text: {
-        primary: mode === 'light' ? '#111827' : '#f8fafc',
-        secondary: mode === 'light' ? '#475569' : '#94a3b8',
+        primary: mode === 'light' ? '#111827' : '#f5f7fb',
+        secondary: mode === 'light' ? '#475569' : '#b7c1d3',
       },
       success: { main: '#16a34a' },
       warning: { main: '#f59e0b' },
@@ -70,13 +70,33 @@ const createAppTheme = (mode) =>
             boxShadow: 'none',
             transition: 'all 220ms ease',
           },
+          contained: {
+            '&:hover': {
+              boxShadow: mode === 'light'
+                ? '0 10px 22px rgba(255,59,31,0.28)'
+                : '0 10px 24px rgba(255,74,42,0.34)',
+            },
+          },
           containedPrimary: {
-            backgroundColor: mode === 'light' ? '#f2542d' : '#f97316',
+            backgroundColor: mode === 'light' ? '#ff3b1f' : '#ff4a2a',
             color: '#ffffff',
             '&:hover': {
-              backgroundColor: mode === 'light' ? '#e24a23' : '#ea580c',
+              backgroundColor: mode === 'light' ? '#e03118' : '#ff3b1f',
               transform: 'translateY(-1px)',
-              boxShadow: mode === 'light' ? '0 10px 20px rgba(242,84,45,0.2)' : '0 10px 20px rgba(249,115,22,0.25)',
+              boxShadow: mode === 'light' ? '0 10px 20px rgba(255,59,31,0.3)' : '0 10px 20px rgba(255,74,42,0.35)',
+            },
+          },
+          outlined: {
+            borderColor: mode === 'light' ? 'rgba(255,59,31,0.42)' : 'rgba(255,122,95,0.55)',
+            color: mode === 'light' ? '#c72e16' : '#ffb4a6',
+            '&:hover': {
+              borderColor: mode === 'light' ? '#ff3b1f' : '#ff7a5f',
+              backgroundColor: mode === 'light' ? 'rgba(255,59,31,0.06)' : 'rgba(255,74,42,0.14)',
+            },
+          },
+          text: {
+            '&:hover': {
+              backgroundColor: mode === 'light' ? 'rgba(255,59,31,0.08)' : 'rgba(255,74,42,0.2)',
             },
           },
         },
@@ -86,13 +106,13 @@ const createAppTheme = (mode) =>
           root: {
             borderRadius: 16,
             backgroundImage: 'none',
-            backgroundColor: mode === 'light' ? '#ffffff' : '#0f172a',
+            backgroundColor: mode === 'light' ? '#ffffff' : '#121722',
             border: mode === 'light'
                 ? '1px solid rgba(17,24,39,0.06)'
-                : '1px solid rgba(255,255,255,0.1)',
+                : '1px solid rgba(255,255,255,0.12)',
             boxShadow: mode === 'light'
               ? '0 8px 28px rgba(15,23,42,0.06)'
-              : '0 4px 24px rgba(0,0,0,0.4)',
+              : '0 8px 30px rgba(0,0,0,0.45)',
             transition: 'box-shadow 220ms ease, transform 220ms ease',
           },
         },
@@ -101,8 +121,8 @@ const createAppTheme = (mode) =>
         styleOverrides: {
           paper: {
             borderRight: 'none',
-            backgroundColor: mode === 'light' ? '#ffffff' : '#111111',
-            color: mode === 'light' ? '#111827' : '#f8fafc',
+            backgroundColor: mode === 'light' ? '#ffffff' : '#0f141f',
+            color: mode === 'light' ? '#111827' : '#f5f7fb',
           },
         },
       },

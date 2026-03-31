@@ -23,10 +23,13 @@ export const authenticateUser = async (req, res, next) => {
 };
 
 export const authorizeDevRole = (req, res, next) => {
-  if (req.user?.user_role !== 'srdev' && req.user?.user_role !== 'dev') {
-    return res.status(403).send({ message: 'Access denied. Only devs can access this route.' });
+  const normalizedRole = (req.user?.user_role || '').toString().trim().toLowerCase();
+  const allowedRoles = ['srdev', 'dev', 'admin', 'senior admin', 'super admin'];
+
+  if (!allowedRoles.includes(normalizedRole)) {
+    return res.status(403).send({ message: 'Access denied. Only authorized admins/devs can access this route.' });
   }
-  next(); // Proceed if the user has the 'dev' or 'srdev' role
+  next();
 };
 
 

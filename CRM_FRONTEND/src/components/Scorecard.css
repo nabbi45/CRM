@@ -5,6 +5,9 @@
     padding: 20px;
     max-width: 100%;
     margin: 0 auto;
+    background: linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%);
+    border: 1px solid rgba(255,59,31,0.12);
+    border-radius: 16px;
   }
   
   .scorecard-stats {
@@ -26,10 +29,12 @@
   
   .scorecard-stats th {
     font-weight: bold;
+    color: #b42318;
+    border-bottom: 1px solid rgba(255,59,31,0.18);
   }
   
   .scorecard-stats td {
-    color: #333;
+    color: #334155;
   }
   
   .scorecard-chart {
@@ -50,11 +55,11 @@
   .chart-percentage h3 {
     font-size: 32px;
     margin: 0;
+    color: #ff3b1f;
   }
   
   .chart-percentage p {
     margin: 0;
     font-size: 16px;
-    color: #666;
+    color: #64748b;
   }
-  

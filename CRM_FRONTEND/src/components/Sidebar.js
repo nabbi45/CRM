@@ -37,17 +37,15 @@ import { socket } from '../socket';
 import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
 import { useColorMode } from '../context/AppThemeProvider';
+import { canAccessFeature } from '../utils/featureAccess';
 import UserEditModal from './UserEditModal';
 import axios from 'axios';
 
 /* ──────────────────── colour tokens ──────────────────── */
-const SIDEBAR_BG = '#0f172a';
 const SIDEBAR_HEADER = '#0b1120';
 const TEXT_DIM = '#94a3b8';
 const TEXT_BRIGHT = '#f1f5f9';
-const ACCENT = '#111827';
-const HOVER_BG = 'rgba(15,23,42,0.06)';
-const ACTIVE_BG = 'rgba(15,23,42,0.1)';
+const ACCENT = '#ff3b1f';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -157,97 +155,63 @@ const Sidebar = () => {
   const menuItems = useMemo(() => {
     const items = [];
 
-    // only add base menu if not HR
-    if (userSession?.user_role !== 'HR') {
-      items.push(
-        { text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard' },
-        { text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking' },
-        { text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history' },
-        { text: 'Proforma Invoice', icon: <ReceiptLongOutlinedIcon />, path: '/dashboard/ProformaInvoice' },
-        { text: 'Agreements Generator', icon: <DescriptionOutlinedIcon />, path: '/dashboard/Agreementsgenerator' },
-        { text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents' }
-      );
+    if (canAccessFeature(userSession, 'dashboard_overview')) {
+      items.push({ text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard' });
     }
-
-    // Role-specific menu items
-    if (userSession?.user_role === 'dev') {
-      items.push(
-        {
-          text: 'Manage User',
-          icon: <PeopleAltOutlinedIcon />,
-          path: '/dashboard/removeuser',
-        },
-        {
-          text: 'Manage Services',
-          icon: <MiscellaneousServicesOutlinedIcon />,
-          path: '/dashboard/addservices',
-        },
-        {
-          text: 'Company Profile',
-          icon: <BusinessOutlinedIcon />,
-          path: '/dashboard/company-profile',
-        },
-      );
-    } else if (userSession?.user_role === 'srdev') {
-      items.push(
-        {
-          text: 'Manage User',
-          icon: <PeopleAltOutlinedIcon />,
-          path: '/dashboard/removeuser',
-        },
-        {
-          text: 'Manage Services',
-          icon: <MiscellaneousServicesOutlinedIcon />,
-          path: '/dashboard/addservices',
-        },
-        {
-          text: 'Company Profile',
-          icon: <BusinessOutlinedIcon />,
-          path: '/dashboard/company-profile',
-        },
-      );
-    } else if (userSession?.user_role === 'HR') {
-      items.push(
-        {
-          text: 'Manage Employees',
-          icon: <PeopleAltOutlinedIcon />,
-          path: '/dashboard/manage-employees',
-        },
-      );
+    if (canAccessFeature(userSession, 'new_booking')) {
+      items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking' });
     }
-
-    // Leave Management — available to all users
-    items.push(
-      { text: 'Leave Management', icon: <EventNoteOutlinedIcon />, path: '/dashboard/leave-management' }
-    );
-
-    // Communication — available to all users
-    items.push(
-      {
+    if (canAccessFeature(userSession, 'all_bookings')) {
+      items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history' });
+    }
+    if (canAccessFeature(userSession, 'proforma_invoice')) {
+      items.push({ text: 'Proforma Invoice', icon: <ReceiptLongOutlinedIcon />, path: '/dashboard/ProformaInvoice' });
+    }
+    if (canAccessFeature(userSession, 'agreements_generator')) {
+      items.push({ text: 'Agreements Generator', icon: <DescriptionOutlinedIcon />, path: '/dashboard/Agreementsgenerator' });
+    }
+    if (canAccessFeature(userSession, 'generated_documents')) {
+      items.push({ text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents' });
+    }
+    if (canAccessFeature(userSession, 'manage_users')) {
+      items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser' });
+    }
+    if (canAccessFeature(userSession, 'manage_services')) {
+      items.push({ text: 'Manage Services', icon: <MiscellaneousServicesOutlinedIcon />, path: '/dashboard/addservices' });
+    }
+    if (canAccessFeature(userSession, 'company_profile')) {
+      items.push({ text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile' });
+    }
+    if (canAccessFeature(userSession, 'manage_employees')) {
+      items.push({ text: 'Manage Employees', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/manage-employees' });
+    }
+    if (canAccessFeature(userSession, 'leave_management')) {
+      items.push({ text: 'Leave Management', icon: <EventNoteOutlinedIcon />, path: '/dashboard/leave-management' });
+    }
+    if (canAccessFeature(userSession, 'communication')) {
+      items.push({
         text: 'Communication',
         icon: (
           <Badge badgeContent={unreads} color="error" max={99}>
             <ChatBubbleOutlineIcon />
           </Badge>
         ),
-        path: '/dashboard/communication'
-      }
-    );
+        path: '/dashboard/communication',
+      });
+    }
 
-    // Profile menu item
-    if (hasProfile) {
+    if (hasProfile && canAccessFeature(userSession, 'my_profile')) {
       items.push({ text: 'My Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/my-profile' });
-    } else if (['HR', 'admin', 'dev', 'srdev'].includes(userSession?.user_role)) {
+    } else if (!hasProfile && canAccessFeature(userSession, 'create_profile')) {
       items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile' });
     }
 
-    // Trash at the very bottom (dev/srdev only)
-    if (userSession?.user_role === 'dev' || userSession?.user_role === 'srdev') {
+    if (canAccessFeature(userSession, 'trash')) {
       items.push({ text: 'Trash', icon: <DeleteOutlineIcon />, path: '/dashboard/trash' });
     }
 
     return items;
-  }, [userSession?.user_role, hasProfile, unreads]);
+  }, [userSession, hasProfile, unreads]);
 
   const drawerPaperSx = {
     width: 250,
@@ -255,7 +219,7 @@ const Sidebar = () => {
     backgroundColor: theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(15, 23, 42, 0.65)',
     backdropFilter: 'blur(16px)',
     borderRight: theme.palette.mode === 'light' ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)',
-    color: theme.palette.mode === 'light' ? '#0f172a' : TEXT_DIM,
+    color: theme.palette.mode === 'light' ? '#0f172a' : '#e2e8f0',
     boxShadow: theme.palette.mode === 'light' ? '0 12px 40px rgba(0,0,0,0.04)' : '0 12px 40px rgba(0,0,0,0.3)',
     transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
   };
@@ -332,6 +296,9 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
   const initials = (userSession?.name || 'U').charAt(0).toUpperCase();
 
   const isLight = theme.palette.mode === 'light';
+  const navTextColor = isLight ? '#475569' : '#cbd5e1';
+  const navHoverBg = isLight ? 'rgba(255,59,31,0.11)' : 'rgba(255,90,31,0.18)';
+  const activeTabBg = 'linear-gradient(120deg, #ff3b1f 0%, #ff5a1f 100%)';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -422,14 +389,13 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
                   py: 0.8,
                   px: 1.5,
                   transition: 'all 0.15s ease',
-                  color: isActive ? (isLight ? '#0f172a' : ACCENT) : (isLight ? '#64748b' : TEXT_DIM),
-                  backgroundColor: isActive ? ACTIVE_BG : 'transparent',
-                  borderLeft: isActive
-                    ? `3px solid ${isLight ? '#0f172a' : ACCENT}`
-                    : '3px solid transparent',
+                  color: isActive ? '#ffffff' : navTextColor,
+                  background: isActive ? activeTabBg : 'transparent',
+                  borderLeft: '3px solid transparent',
+                  boxShadow: isActive ? '0 10px 22px rgba(255,59,31,0.4)' : 'none',
                   '&:hover': {
-                    backgroundColor: isActive ? ACTIVE_BG : HOVER_BG,
-                    color: isLight ? '#0f172a' : TEXT_BRIGHT,
+                    background: isActive ? activeTabBg : navHoverBg,
+                    color: isActive ? '#ffffff' : (isLight ? '#0f172a' : '#f8fafc'),
                   },
                 }}
               >
@@ -475,13 +441,15 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
           }
           sx={{
             borderRadius: 2,
-            color: TEXT_DIM,
+            color: isLight ? '#334155' : '#e2e8f0',
             fontSize: '0.8rem',
             justifyContent: 'flex-start',
             pl: 2,
+            border: isLight ? '1px solid rgba(148,163,184,0.45)' : '1px solid rgba(255,255,255,0.15)',
+            backgroundColor: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
             '&:hover': {
-              backgroundColor: HOVER_BG,
-              color: TEXT_BRIGHT,
+              backgroundColor: isLight ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.16)',
+              color: isLight ? '#0f172a' : '#ffffff',
             },
           }}
           fullWidth
@@ -492,12 +460,12 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         <Button
           variant="contained"
           sx={{
-            backgroundColor: isLight ? '#0f172a' : ACCENT,
+            backgroundColor: ACCENT,
             color: '#fff',
             borderRadius: 2,
             fontSize: '0.8rem',
             '&:hover': {
-              backgroundColor: '#000000',
+              backgroundColor: '#d93025',
             },
           }}
           startIcon={<LogoutRoundedIcon />}
