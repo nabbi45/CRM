@@ -161,7 +161,7 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'new_booking')) {
       items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking' });
     }
-    if (canAccessFeature(userSession, 'all_bookings') || canAccessFeature(userSession, 'my_bookings')) {
+    if (canAccessFeature(userSession, 'all_bookings')) {
       items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history' });
     }
     if (canAccessFeature(userSession, 'proforma_invoice')) {
@@ -203,7 +203,7 @@ const Sidebar = () => {
       items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile' });
     }
 
-    if (canAccessFeature(userSession, 'all_trash') || canAccessFeature(userSession, 'my_trash')) {
+    if (canAccessFeature(userSession, 'trash')) {
       items.push({ text: 'Trash', icon: <DeleteOutlineIcon />, path: '/dashboard/trash' });
     }
 

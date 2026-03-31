@@ -33,11 +33,7 @@ import ChatFAB from '../components/ChatFAB';
 import { canAccessFeature } from '../utils/featureAccess';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
-  const isAllowed = Array.isArray(feature)
-    ? feature.some(f => canAccessFeature(userSession, f))
-    : canAccessFeature(userSession, feature);
-
-  if (isAllowed) return children;
+  if (canAccessFeature(userSession, feature)) return children;
 
   return (
     <Box
@@ -211,12 +207,12 @@ const Dashboard = () => {
         <Routes>
           <Route path="/" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><DashboardContent /></FeatureGuard>} />
           <Route path="new-booking" element={<FeatureGuard userSession={userSession} feature="new_booking"><AddBooking /></FeatureGuard>} />
-          <Route path="history" element={<FeatureGuard userSession={userSession} feature={["all_bookings", "my_bookings"]}><History /></FeatureGuard>} />
+          <Route path="history" element={<FeatureGuard userSession={userSession} feature="all_bookings"><History /></FeatureGuard>} />
           <Route path="adduser" element={<FeatureGuard userSession={userSession} feature="manage_users"><AddUser /></FeatureGuard>} />
           <Route path="removeuser" element={<FeatureGuard userSession={userSession} feature="manage_users"><RemoveUser /></FeatureGuard>} />
           <Route path="scorecard" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><Scorecard /></FeatureGuard>} />
           <Route path="addservices" element={<FeatureGuard userSession={userSession} feature="manage_services"><ServicesComponent /></FeatureGuard>} />
-          <Route path="trash" element={<FeatureGuard userSession={userSession} feature={["all_trash", "my_trash"]}><Trash /></FeatureGuard>} />
+          <Route path="trash" element={<FeatureGuard userSession={userSession} feature="trash"><Trash /></FeatureGuard>} />
           <Route path="Proformainvoice" element={<FeatureGuard userSession={userSession} feature="proforma_invoice"><Proformainvoice /></FeatureGuard>} />
           <Route path="Agreementsgenerator" element={<FeatureGuard userSession={userSession} feature="agreements_generator"><AgreementGeneratorPage /></FeatureGuard>} />
           <Route path="create-profile" element={<FeatureGuard userSession={userSession} feature="create_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />

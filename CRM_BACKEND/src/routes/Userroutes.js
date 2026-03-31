@@ -14,7 +14,6 @@ const FEATURE_KEYS = [
   'dashboard_overview',
   'new_booking',
   'all_bookings',
-  'my_bookings',
   'proforma_invoice',
   'agreements_generator',
   'generated_documents',
@@ -26,8 +25,7 @@ const FEATURE_KEYS = [
   'communication',
   'my_profile',
   'create_profile',
-  'all_trash',
-  'my_trash',
+  'trash',
 ];
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
@@ -50,7 +48,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'communication',
     'my_profile',
     'create_profile',
-    'all_trash',
   ],
   'senior admin': [
     'dashboard_overview',
@@ -66,20 +63,18 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'communication',
     'my_profile',
     'create_profile',
-    'all_trash',
   ],
   hr: ['manage_employees', 'leave_management', 'communication', 'my_profile', 'create_profile'],
   bdm: [
     'dashboard_overview',
     'new_booking',
-    'my_bookings',
+    'all_bookings',
     'proforma_invoice',
     'generated_documents',
     'leave_management',
     'communication',
     'my_profile',
     'create_profile',
-    'my_trash',
   ],
 };
 

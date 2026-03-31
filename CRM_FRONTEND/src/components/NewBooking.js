@@ -520,21 +520,14 @@ const AddBooking = ({ onClose }) => {
 
           <Grid item xs={12} sm={6}>
             <TextField
-              select
               fullWidth
-              label="Lead Closed By"
+              label="Closed By"
               name="closed"
-              value={formData.closed || ""}
+              value={formData.closed}
               onChange={handleChange}
+              placeholder="Lead closed by"
               variant="outlined"
-            >
-              <MenuItem value=""><em>None</em></MenuItem>
-              {users.map((u) => (
-                <MenuItem key={u._id} value={u.name}>
-                  {u.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </Grid>
 
           <Grid item xs={12} sm={6}>
