@@ -182,9 +182,6 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'company_profile')) {
       items.push({ text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile' });
     }
-    if (canAccessFeature(userSession, 'manage_employees')) {
-      items.push({ text: 'Manage Employees', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/manage-employees' });
-    }
     if (canAccessFeature(userSession, 'leave_management')) {
       items.push({ text: 'Leave Management', icon: <EventNoteOutlinedIcon />, path: '/dashboard/leave-management' });
     }
@@ -202,6 +199,8 @@ const Sidebar = () => {
 
     if (hasProfile && canAccessFeature(userSession, 'my_profile')) {
       items.push({ text: 'My Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/my-profile' });
+    } else if (!hasProfile && canAccessFeature(userSession, 'create_profile')) {
+      items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile' });
     }
 
     if (canAccessFeature(userSession, 'trash')) {

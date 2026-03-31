@@ -58,11 +58,95 @@ const FeatureGuard = ({ userSession, feature, children }) => {
   );
 };
 
+const InitialLoader = ({ theme }) => {
+  const [progress, setProgress] = useState(0);
+  const [companyLogo, setCompanyLogo] = useState(null);
+
+  useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/company/public`);
+        const data = await res.json();
+        if (res.ok && data.logo_url) setCompanyLogo(data.logo_url);
+      } catch (e) {}
+    };
+    fetchBranding();
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress((oldProgress) => {
+        if (oldProgress >= 100) {
+          clearInterval(timer);
+          return 100;
+        }
+        const diff = Math.random() * 20;
+        return Math.min(oldProgress + diff, 100);
+      });
+    }, 150);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+
+  const isLight = theme.palette.mode === 'light';
+
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: isLight ? '#ffffff' : '#0a0a0a',
+        color: isLight ? '#0f172a' : '#ffffff'
+      }}
+    >
+      <Box 
+        sx={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}
+      >
+        {companyLogo && (
+          <img src={companyLogo} alt="Loading Logo" style={{ height: 60, objectFit: 'contain', marginBottom: 24 }} />
+        )}
+        <Box sx={{ width: 240, height: 4, bgcolor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', mb: 1 }}>
+          <Box sx={{ width: `${progress}%`, height: '100%', bgcolor: '#ff3b1f', transition: 'width 0.15s linear' }} />
+        </Box>
+        <Typography variant="caption" sx={{ fontWeight: 600, color: isLight ? '#64748b' : '#9ca3af' }}>
+          {Math.floor(progress)}% Loading...
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const theme = useTheme();
   const isTabletOrBelow = useMediaQuery(theme.breakpoints.down('md'));
   const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
+
+  const [showInitialLoader, setShowInitialLoader] = useState(() => {
+    return !sessionStorage.getItem('crm_initial_load');
+  });
+
+  useEffect(() => {
+    if (showInitialLoader) {
+      // simulate 1.5s loading time for 100% animation
+      const timer = setTimeout(() => {
+        setShowInitialLoader(false);
+        sessionStorage.setItem('crm_initial_load', 'true');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [showInitialLoader]);
 
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
@@ -84,6 +168,7 @@ const Dashboard = () => {
         backgroundColor: 'background.default',
       }}
     >
+      {showInitialLoader && <InitialLoader theme={theme} />}
       <CssBaseline />
       <DynamicHead />
 

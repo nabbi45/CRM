@@ -16,7 +16,7 @@ const employeeProfileSchema = mongoose.Schema(
     branch: { 
       type: String, 
       required: true,
-      enum: ["1206", "808", "1512", "Admin", "Digital", "407 AMD", "408 AMD", "906", "Main Branch"]
+      enum: ["Main Branch"]
     },
     gender: { 
       type: String, 
@@ -64,11 +64,6 @@ const employeeProfileSchema = mongoose.Schema(
     reportingManager: { type: String, required: true },
     offeredSalary: { type: String, required: true },
     dateOfLastPromotion: { type: Date },
-    baseSalary: { type: Number, default: 0 },
-    monthlyBonus: { type: Number, default: 0 },
-    incentives: { type: Number, default: 0 },
-    leaveBalance: { type: Number, default: 0 },
-    leavesTaken: { type: Number, default: 0 },
     
     // Education & Experience
     educationQualification: { type: String, required: true },

@@ -9,15 +9,54 @@ import {
   Snackbar,
   Alert,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import { useNavigate } from "react-router-dom";
 // Static logo imports removed to prevent cross-company branding leakage
 import { useColorMode } from "../context/AppThemeProvider";
-
 export const apiUrl =
   process.env.REACT_APP_API_URL || "https://crm-backend-3026.onrender.com";
+
+const TypewriterText = ({ words }) => {
+  const [text, setText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [loopNum, setLoopNum] = useState(0);
+  const [typingSpeed, setTypingSpeed] = useState(150);
+
+  useEffect(() => {
+    let timer = setTimeout(() => {
+      const i = loopNum % words.length;
+      const fullText = words[i];
+
+      setText(
+        isDeleting
+          ? fullText.substring(0, text.length - 1)
+          : fullText.substring(0, text.length + 1)
+      );
+
+      if (!isDeleting && text === fullText) {
+        setTypingSpeed(1500);
+        setIsDeleting(true);
+      } else if (isDeleting && text === "") {
+        setIsDeleting(false);
+        setLoopNum(loopNum + 1);
+        setTypingSpeed(100);
+      } else {
+        setTypingSpeed(isDeleting ? 50 : 100);
+      }
+    }, typingSpeed);
+
+    return () => clearTimeout(timer);
+  }, [text, isDeleting, loopNum, typingSpeed, words]);
+
+  return (
+    <span style={{ color: "#ff3b1f", borderRight: "4px solid #ff3b1f", paddingRight: "4px", whiteSpace: "nowrap" }}>
+      {text}
+    </span>
+  );
+};
 
 const LoginSignup = ({ onLoginSuccess }) => {
   const [isActive, setIsActive] = useState(false);
@@ -28,11 +67,11 @@ const LoginSignup = ({ onLoginSuccess }) => {
     userrole: "",
   });
   const [companyLogo, setCompanyLogo] = useState(null);
-  const headlineWords = ["innovation", "growth", "progress", "impact"];
 
   const [formErrors, setFormErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const theme = useTheme();
+  const isLaptopUp = useMediaQuery(theme.breakpoints.up("lg"));
   const { mode, toggleColorMode } = useColorMode();
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -219,32 +258,6 @@ const LoginSignup = ({ onLoginSuccess }) => {
     name: "", mobile: "", email: "", address: "", companyName: "", location: "", noOfEmails: "", companyDomain: ""
   });
   const [salesLoading, setSalesLoading] = useState(false);
-  const [typedWord, setTypedWord] = useState("");
-  const [wordIndex, setWordIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
-  const [isDeletingWord, setIsDeletingWord] = useState(false);
-
-  useEffect(() => {
-    const currentWord = headlineWords[wordIndex % headlineWords.length];
-    const typingSpeed = isDeletingWord ? 45 : 90;
-
-    const timer = setTimeout(() => {
-      if (!isDeletingWord && charIndex < currentWord.length) {
-        setTypedWord(currentWord.slice(0, charIndex + 1));
-        setCharIndex((prev) => prev + 1);
-      } else if (!isDeletingWord && charIndex === currentWord.length) {
-        setTimeout(() => setIsDeletingWord(true), 850);
-      } else if (isDeletingWord && charIndex > 0) {
-        setTypedWord(currentWord.slice(0, charIndex - 1));
-        setCharIndex((prev) => prev - 1);
-      } else {
-        setIsDeletingWord(false);
-        setWordIndex((prev) => prev + 1);
-      }
-    }, typingSpeed);
-
-    return () => clearTimeout(timer);
-  }, [charIndex, isDeletingWord, wordIndex]);
 
   const handleSalesChange = (e) => setSalesForm({ ...salesForm, [e.target.name]: e.target.value });
 
@@ -275,40 +288,45 @@ const LoginSignup = ({ onLoginSuccess }) => {
     <>
       <Box
         sx={{
-          display: "grid",
+          display: "flex",
           minHeight: "100vh",
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: theme.palette.mode === "light" ? "#f5f5f0" : "#0a0a0a",
           padding: 2,
-          gap: 2,
+          gap: 3,
         }}
       >
-        <Box sx={{ textAlign: "center", mb: 1 }}>
-          <Typography
+        {isLaptopUp && (
+          <Box
             sx={{
-              fontSize: { xs: "1.35rem", sm: "1.75rem", md: "2.15rem" },
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: mode === "dark" ? "#f8fafc" : "#111827",
+              width: "100%",
+              maxWidth: 520,
+              minHeight: 640,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              p: 4,
             }}
           >
-            Innovation starts with {" "}
-            <Box
-              component="span"
-              sx={{
-                color: "#ff3b1f",
-                borderRight: `2px solid ${mode === "dark" ? "#f8fafc" : "#111827"}`,
-                pr: 0.5,
-                minWidth: { xs: 100, md: 135 },
-                display: "inline-block",
-                textAlign: "left",
+            <Typography 
+              variant="h2" 
+              sx={{ 
+                fontWeight: 900, 
+                color: theme.palette.mode === "light" ? "#111827" : "#ffffff",
+                lineHeight: 1.2,
+                mb: 2,
+                fontSize: { xs: '3rem', lg: '3.5rem' }
               }}
             >
-              {typedWord}
-            </Box>
-          </Typography>
-        </Box>
+              Innovation starts with <br />
+              <TypewriterText words={["creativity.", "passion.", "excellence.", "growth."]} />
+            </Typography>
+            <Typography variant="h6" sx={{ color: theme.palette.mode === "light" ? "#4b5563" : "#9ca3af", fontWeight: 400, mt: 2, maxWidth: 400 }}>
+              Join us to transform your business operations and elevate your workflow exactly how you need it.
+            </Typography>
+          </Box>
+        )}
 
         <Box
           sx={{
