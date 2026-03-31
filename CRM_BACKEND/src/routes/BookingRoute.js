@@ -1,5 +1,6 @@
 import express from "express";
 import { BookingModel } from "../models/bookingModel.js";
+import { UserModel } from "../models/UserModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const BookingRoutes = express.Router();
@@ -209,14 +210,26 @@ BookingRoutes.patch("/trash/:id", authenticateUser, async (req, res) => {
 
 // to fetch from the trash
 BookingRoutes.get("/trash", authenticateUser, async (req, res) => {
-  const userRole = req.headers["user-role"];
-
-  if (!userRole || !["srdev", "dev", "senior admin", "admin"].includes(userRole)) {
-    return res.status(403).send({ message: "Only admins or devs can view trash." });
-  }
-
   try {
-    const trashedBookings = await BookingModel.find({ isDeleted: true }).sort({ deletedAt: -1 });
+    const userRole = req.headers["user-role"] || req.user?.user_role;
+    const userId = req.user?.userId || req.user?._id;
+
+    const currentUser = await UserModel.findById(userId);
+    const perms = currentUser?.feature_permissions || [];
+    const isAdmin = ["srdev", "dev", "senior admin", "super admin", "admin"].includes(userRole);
+
+    const hasAllTrash = isAdmin || perms.includes("all_trash");
+    
+    let query = { isDeleted: true };
+    if (!hasAllTrash) {
+      if (perms.includes("my_trash")) {
+        query.user_id = userId;
+      } else {
+        return res.status(403).send({ message: "You do not have permission to view trash." });
+      }
+    }
+
+    const trashedBookings = await BookingModel.find(query).sort({ deletedAt: -1 });
     res.status(200).send(trashedBookings);
   } catch (err) {
     res.status(500).send({ message: err.message });
@@ -301,7 +314,25 @@ BookingRoutes.delete("/emptytrash", authenticateUser, async (req, res) => {
 //Getting all bookings
 BookingRoutes.get("/all", authenticateUser, async (req, res) => {
   try {
-    const Allbookings = await BookingModel.find({ isDeleted: false }).sort({ createdAt: -1 });
+    const userRole = req.headers["user-role"] || req.user?.user_role;
+    const userId = req.user?.userId || req.user?._id;
+
+    const currentUser = await UserModel.findById(userId);
+    const perms = currentUser?.feature_permissions || [];
+    const isAdmin = ["srdev", "dev", "senior admin", "super admin", "admin"].includes(userRole);
+
+    const hasAllBookings = isAdmin || perms.includes("all_bookings");
+    
+    let query = { isDeleted: false };
+    if (!hasAllBookings) {
+      if (perms.includes("my_bookings")) {
+        query.$or = [{ user_id: userId }, { shared_with: userId }];
+      } else {
+        return res.status(403).send({ message: "You do not have permission to view bookings." });
+      }
+    }
+
+    const Allbookings = await BookingModel.find(query).sort({ createdAt: -1 });
 
     if (!Allbookings.length) {
       return res.status(200).send({ message: "No Bookings Found", Allbookings: [] });

@@ -83,6 +83,23 @@ const DocumentsPage = () => {
 
     return (
         <div style={{ padding: '20px', color: isDark ? '#f8fafc' : '#0f172a', maxWidth: '100%', overflowX: 'hidden' }}>
+            <style>{`
+                .doc-card {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    justify-content: space-between;
+                    gap: 12px;
+                    padding: 16px 18px;
+                    border-radius: 12px;
+                }
+                @media (min-width: 768px) {
+                    .doc-card {
+                        flex-direction: row;
+                        align-items: center;
+                    }
+                }
+            `}</style>
             <h2 style={{ fontSize: 'clamp(1.35rem, 4vw, 2rem)', marginBottom: '8px', color: isDark ? '#f8fafc' : '#111827' }}>Generated Documents</h2>
             <p style={{ marginBottom: '16px', color: isDark ? '#94a3b8' : '#64748b' }}>View and download all generated Invoices and Agreements</p>
 
@@ -114,14 +131,7 @@ const DocumentsPage = () => {
             ) : (
                 <div style={{ display: 'grid', gap: '15px' }}>
                     {filteredDocuments.map((doc) => (
-                        <div key={doc._id} style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'stretch',
-                            justifyContent: 'space-between',
-                            gap: '12px',
-                            padding: '16px 18px',
-                            borderRadius: '12px',
+                        <div key={doc._id} className="doc-card" style={{
                             background: isDark
                                 ? 'linear-gradient(140deg, rgba(15,23,42,1) 0%, rgba(30,41,59,1) 100%)'
                                 : 'linear-gradient(140deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%)',

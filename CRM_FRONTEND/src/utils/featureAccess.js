@@ -2,6 +2,7 @@ export const FEATURE_KEYS = [
   'dashboard_overview',
   'new_booking',
   'all_bookings',
+  'my_bookings',
   'proforma_invoice',
   'agreements_generator',
   'generated_documents',
@@ -13,13 +14,15 @@ export const FEATURE_KEYS = [
   'communication',
   'my_profile',
   'create_profile',
-  'trash',
+  'all_trash',
+  'my_trash',
 ];
 
 export const FEATURE_LABELS = {
   dashboard_overview: 'Dashboard',
   new_booking: 'New Booking',
   all_bookings: 'All Booking',
+  my_bookings: 'My Booking',
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
   generated_documents: 'Generated Documents',
@@ -31,7 +34,8 @@ export const FEATURE_LABELS = {
   communication: 'Communication',
   my_profile: 'My Profile',
   create_profile: 'Create Profile',
-  trash: 'Trash',
+  all_trash: 'All Trash',
+  my_trash: 'My Trash',
 };
 
 export const ROLE_TEMPLATE_OPTIONS = [
@@ -64,6 +68,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'communication',
     'my_profile',
     'create_profile',
+    'all_trash',
   ],
   'senior admin': [
     'dashboard_overview',
@@ -79,18 +84,20 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'communication',
     'my_profile',
     'create_profile',
+    'all_trash',
   ],
   hr: ['manage_employees', 'leave_management', 'communication', 'my_profile', 'create_profile'],
   bdm: [
     'dashboard_overview',
     'new_booking',
-    'all_bookings',
+    'my_bookings',
     'proforma_invoice',
     'generated_documents',
     'leave_management',
     'communication',
     'my_profile',
     'create_profile',
+    'my_trash',
   ],
 };
 
