@@ -17,39 +17,18 @@ export const generatePDF = async (htmlContent, filename = 'agreement') => {
     // Wait for any fonts to load
     await document.fonts.ready;
 
-    // Pre-convert all cross-origin images to base64 data URLs (fixes CORS + stretching)
+    // Wait for all images to load fully before capturing
     const images = Array.from(tempDiv.querySelectorAll('img'));
-    await Promise.all(images.map(async (img) => {
-      if (!img.src || img.src.startsWith('data:')) return;
-      await new Promise((resolve) => {
-        const tempImg = new Image();
-        tempImg.crossOrigin = 'anonymous';
-        tempImg.onload = () => {
-          const c = document.createElement('canvas');
-          c.width = tempImg.naturalWidth;
-          c.height = tempImg.naturalHeight;
-          c.getContext('2d').drawImage(tempImg, 0, 0);
-          try {
-            img.src = c.toDataURL('image/png');
-            // Fix dimensions to natural aspect ratio
-            const ratio = tempImg.naturalWidth / tempImg.naturalHeight;
-            const maxW = 200, maxH = 80;
-            if (ratio > maxW / maxH) {
-              img.style.width = maxW + 'px';
-              img.style.height = (maxW / ratio) + 'px';
-            } else {
-              img.style.height = maxH + 'px';
-              img.style.width = (maxH * ratio) + 'px';
-            }
-          } catch (e) { /* tainted, skip */ }
+    await Promise.all(images.map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = () => {
+          console.warn('Image failed to load for PDF rendering:', img.src);
           resolve();
         };
-        tempImg.onerror = resolve;
-        tempImg.src = img.src.includes('?') ? `${img.src}&_cb=${Date.now()}` : `${img.src}?_cb=${Date.now()}`;
       });
     }));
-
-    await new Promise(r => setTimeout(r, 100)); // Let DOM settle
 
     // Generate canvas from HTML
     const canvas = await html2canvas(tempDiv, {

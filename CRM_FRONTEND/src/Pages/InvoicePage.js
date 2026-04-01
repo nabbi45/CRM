@@ -19,9 +19,18 @@ function InvoicePage() {
 
   const handleDownload = async (data) => {
     try {
-      const filename = `Proforma_Invoice_${data.invoiceNumber}.pdf`;
-      // Pass null for elementId — our new generator builds from invoiceData directly
-      await downloadInvoiceAsPDF(null, filename, data);
+      // Store data and switch to preview — the invoice-preview DOM element must exist
+      setInvoiceData(data);
+      setCurrentStep('preview');
+      // Wait for the preview to render before auto-downloading
+      setTimeout(async () => {
+        try {
+          const filename = `Proforma_Invoice_${data.invoiceNumber}.pdf`;
+          await downloadInvoiceAsPDF('invoice-preview', filename);
+        } catch (error) {
+          console.error('Auto-download failed:', error);
+        }
+      }, 600);
     } catch (error) {
       console.error('Error downloading invoice:', error);
       alert('Error downloading invoice. Please try again.');

@@ -4,7 +4,6 @@ import { useColorMode } from '../context/AppThemeProvider';
 import { FileText, Download, Eye, Loader, Trash2 } from 'lucide-react';
 import { generatePDF } from '../utils/pdfGenerator';
 import AgreementPreview from '../components/AgreementPreview';
-import InvoicePreview from '../components/InvoicePreview';
 
 const DocumentsPage = () => {
     const { mode } = useColorMode();

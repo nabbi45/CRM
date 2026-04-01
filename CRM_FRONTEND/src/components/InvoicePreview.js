@@ -31,8 +31,8 @@ function InvoicePreview({ invoice }) {
         />
 
         <div className="relative z-20 h-full flex flex-col">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', paddingBottom: '16px', borderBottom: '2px solid #2563eb' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-blue-600">
+            <div className="flex items-center space-x-4">
               <img
                 src={invoice.companyDetails.logo}
                 alt="Company Logo"

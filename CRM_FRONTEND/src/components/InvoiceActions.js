@@ -18,8 +18,7 @@ function InvoiceActions({ invoice, onBack }) {
     setDownloading(true);
     try {
       const filename = `Proforma_Invoice_${invoice.invoiceNumber}.pdf`;
-      // New jsPDF-based generator — no html2canvas, no logo stretching
-      await downloadInvoiceAsPDF(null, filename, invoice);
+      await downloadInvoiceAsPDF('invoice-preview', filename);
 
       // Auto-save to database when downloading
       if (!saved) {
