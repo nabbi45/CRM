@@ -1,5 +1,5 @@
 import express from "express";
-import { BookingModel } from "../models/BookingModel.js";
+import { BookingModel } from "../models/bookingModel.js";
 import { CompanyProfileModel } from "../models/CompanyProfileModel.js";
 import { DocumentModel } from "../models/DocumentModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
