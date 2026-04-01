@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export const generateInvoiceNumber = () => {
   const now = new Date();
@@ -10,139 +9,247 @@ export const generateInvoiceNumber = () => {
   return `PI-${year}${month}${day}-${time}`;
 };
 
-export const calculateGST = (serviceFee, gstPercent) => {
-  return (serviceFee * gstPercent) / 100;
-};
-
-export const calculateTotal = (serviceFee, gstAmount) => {
-  return serviceFee + gstAmount;
-};
+export const calculateGST = (serviceFee, gstPercent) => (serviceFee * gstPercent) / 100;
+export const calculateTotal = (serviceFee, gstAmount) => serviceFee + gstAmount;
 
 /**
- * Converts a remote image URL to a base64 data URL.
- * This bypasses CORS restrictions by drawing the image into a canvas.
+ * Fetch any image URL as a base64 data URL via the Fetch API.
+ * Using fetch avoids the canvas taint (CORS) problem.
+ * Returns { dataUrl, naturalWidth, naturalHeight } or null.
  */
-const toDataUrl = (url) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      try {
-        resolve({ dataUrl: canvas.toDataURL('image/png'), naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight });
-      } catch (e) {
-        resolve(null); // tainted canvas — skip
-      }
-    };
-    img.onerror = () => resolve(null);
-    // Cache-bust to force fresh CORS fetch
-    img.src = url.includes('?') ? `${url}&_cb=${Date.now()}` : `${url}?_cb=${Date.now()}`;
-  });
-};
-
-/**
- * Downloads an invoice DOM element as a PDF.
- * Fixes:
- * 1. CORS error: pre-converts all external images to base64 data URLs
- * 2. Logo stretching: sets explicit pixel dimensions based on natural image aspect ratio
- */
-export const downloadInvoiceAsPDF = async (elementId, filename) => {
-  const element = document.getElementById(elementId);
-  if (!element) {
-    throw new Error('Invoice element not found. Please wait for the preview to load.');
-  }
-
-  // Step 1: Pre-process all <img> tags — replace src with base64 and fix dimensions
-  const images = Array.from(element.querySelectorAll('img'));
-  const originals = images.map(img => ({ src: img.src, style: img.getAttribute('style') || '' }));
-
-  await Promise.all(images.map(async (img) => {
-    if (!img.src || img.src.startsWith('data:')) return;
-
-    const result = await toDataUrl(img.src);
-    if (!result) return;
-
-    const { dataUrl, naturalWidth, naturalHeight } = result;
-
-    // Replace with data URL so html2canvas can render it
-    img.src = dataUrl;
-
-    // Compute proper display size respecting aspect ratio
-    const maxW = 200;
-    const maxH = 80;
-    const ratio = naturalWidth / naturalHeight;
-    let displayW, displayH;
-    if (ratio > maxW / maxH) {
-      displayW = maxW;
-      displayH = maxW / ratio;
-    } else {
-      displayH = maxH;
-      displayW = maxH * ratio;
-    }
-
-    img.style.cssText = `width:${displayW}px;height:${displayH}px;object-fit:contain;display:block;`;
-  }));
-
-  // Small wait for DOM to settle after src changes
-  await new Promise(r => setTimeout(r, 100));
-
+const fetchImageInfo = async (url) => {
   try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: '#ffffff',
-      width: element.scrollWidth,
-      height: element.scrollHeight,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
+    const response = await fetch(url, { mode: 'cors', cache: 'no-cache' });
+    if (!response.ok) throw new Error('fetch failed');
+    const blob = await response.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
-
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = 210;
-    const pdfHeight = 297;
-    const imgWidth = pdfWidth;
-    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-    if (imgHeight > pdfHeight) {
-      // Multi-page: slice into pages
-      const pageCanvasHeight = Math.floor(pdfHeight * (canvas.width / pdfWidth));
-      const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) pdf.addPage();
-        const srcY = page * pageCanvasHeight;
-        const srcH = Math.min(pageCanvasHeight, canvas.height - srcY);
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = srcH;
-        const ctx = pageCanvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-        const pageImg = pageCanvas.toDataURL('image/png');
-        const sliceH = (srcH * pdfWidth) / canvas.width;
-        pdf.addImage(pageImg, 'PNG', 0, 0, pdfWidth, sliceH);
-      }
-    } else {
-      const yOffset = (pdfHeight - imgHeight) / 2;
-      pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
-    }
-
-    pdf.save(filename);
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    throw new Error('Failed to generate PDF. Please try again.');
-  } finally {
-    // Restore original img src and styles
-    images.forEach((img, i) => {
-      img.src = originals[i].src;
-      img.setAttribute('style', originals[i].style);
+    // Now get natural dimensions
+    const dims = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => resolve({ w: 100, h: 100 });
+      img.src = dataUrl;
     });
+    return { dataUrl, naturalWidth: dims.w, naturalHeight: dims.h };
+  } catch (e) {
+    return null;
   }
+};
+
+/**
+ * Compute display dimensions in mm that fit within maxW x maxH while keeping aspect ratio.
+ */
+const fitDimensions = (naturalW, naturalH, maxW, maxH) => {
+  const ratio = naturalW / naturalH;
+  if (ratio > maxW / maxH) {
+    return { w: maxW, h: maxW / ratio };
+  }
+  return { w: maxH * ratio, h: maxH };
+};
+
+/**
+ * Builds and downloads a proforma invoice as a well-formatted PDF
+ * using jsPDF directly — no html2canvas, no logo stretching.
+ */
+export const downloadInvoiceAsPDF = async (_, filename, invoiceData) => {
+  // NOTE: first arg (elementId) is ignored. We build from invoiceData.
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = 210;
+  const marginL = 15;
+  const marginR = 15;
+  const contentW = pageW - marginL - marginR;
+  let y = 20;
+
+  // ── LOGO ──────────────────────────────────────────────────────────────────
+  const logoUrl = invoiceData?.companyDetails?.logo;
+  if (logoUrl) {
+    const logoInfo = await fetchImageInfo(logoUrl);
+    if (logoInfo) {
+      const { w, h } = fitDimensions(logoInfo.naturalWidth, logoInfo.naturalHeight, 55, 22);
+      pdf.addImage(logoInfo.dataUrl, 'PNG', marginL, y, w, h);
+    }
+  }
+
+  // ── COMPANY DETAILS (right column) ────────────────────────────────────────
+  const comp = invoiceData?.companyDetails || {};
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(11);
+  pdf.setTextColor(31, 41, 55);
+  pdf.text(comp.name || '', pageW - marginR, y + 2, { align: 'right' });
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(75, 85, 99);
+  pdf.text(comp.phone || '', pageW - marginR, y + 7, { align: 'right' });
+  pdf.text(comp.email || '', pageW - marginR, y + 12, { align: 'right' });
+  if (comp.streetAddress) {
+    const addrLines = pdf.splitTextToSize(comp.streetAddress, 80);
+    pdf.text(addrLines, pageW - marginR, y + 17, { align: 'right' });
+    y += addrLines.length * 4;
+  }
+
+  y = Math.max(y, 44);
+
+  // ── BLUE DIVIDER ──────────────────────────────────────────────────────────
+  pdf.setDrawColor(37, 99, 235);
+  pdf.setLineWidth(0.6);
+  pdf.line(marginL, y, pageW - marginR, y);
+  y += 10;
+
+  // ── TITLE ─────────────────────────────────────────────────────────────────
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(18);
+  pdf.setTextColor(37, 99, 235);
+  pdf.text('PROFORMA INVOICE', pageW / 2, y, { align: 'center' });
+  y += 10;
+
+  // ── INVOICE META ──────────────────────────────────────────────────────────
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(55, 65, 81);
+  const dateStr = invoiceData?.date
+    ? new Date(invoiceData.date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '';
+  pdf.text(`Invoice #: ${invoiceData?.invoiceNumber || ''}`, marginL, y);
+  pdf.text(`Date: ${dateStr}`, pageW - marginR, y, { align: 'right' });
+  y += 12;
+
+  // ── FROM / TO ─────────────────────────────────────────────────────────────
+  const colMid = marginL + contentW / 2 + 5;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(31, 41, 55);
+  pdf.text('From:', marginL, y);
+  pdf.text('To:', colMid, y);
+  y += 5;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(55, 65, 81);
+  const fromLines = [
+    comp.name || '',
+    comp.streetAddress || '',
+    comp.phone ? `Phone: ${comp.phone}` : '',
+    comp.email ? `Email: ${comp.email}` : '',
+  ].filter(Boolean);
+
+  const toLines = [
+    invoiceData?.clientCompanyName || '',
+    invoiceData?.clientName || '',
+    invoiceData?.clientAddress || '',
+    invoiceData?.clientEmail ? `Email: ${invoiceData.clientEmail}` : '',
+    invoiceData?.clientGstNumber ? `GST/PAN: ${invoiceData.clientGstNumber}` : '',
+  ].filter(Boolean);
+
+  const maxRows = Math.max(fromLines.length, toLines.length);
+  for (let i = 0; i < maxRows; i++) {
+    if (fromLines[i]) pdf.text(fromLines[i], marginL, y + i * 5);
+    if (toLines[i]) pdf.text(toLines[i], colMid, y + i * 5);
+  }
+  y += maxRows * 5 + 10;
+
+  // ── ITEMS TABLE ───────────────────────────────────────────────────────────
+  const tblRight = pageW - marginR;
+  const cols = {
+    desc:  { x: marginL, w: 90, align: 'left' },
+    qty:   { x: marginL + 90, w: 20, align: 'right' },
+    rate:  { x: marginL + 110, w: 27, align: 'right' },
+    amt:   { x: marginL + 137, w: 28, align: 'right' },
+  };
+
+  // Header row
+  pdf.setFillColor(239, 246, 255);
+  pdf.rect(marginL, y - 5, contentW, 8, 'F');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(31, 41, 55);
+  pdf.text('Description', cols.desc.x + 2, y);
+  pdf.text('Qty', cols.qty.x + cols.qty.w, y, { align: 'right' });
+  pdf.text('Rate (₹)', cols.rate.x + cols.rate.w, y, { align: 'right' });
+  pdf.text('Amount (₹)', cols.amt.x + cols.amt.w, y, { align: 'right' });
+  y += 5;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(55, 65, 81);
+
+  (invoiceData?.items || []).forEach((item) => {
+    pdf.setDrawColor(209, 213, 219);
+    pdf.setLineWidth(0.1);
+    pdf.line(marginL, y - 3, tblRight, y - 3);
+    pdf.text(String(item.description || ''), cols.desc.x + 2, y);
+    pdf.text(String(item.quantity || 0), cols.qty.x + cols.qty.w, y, { align: 'right' });
+    pdf.text(Number(item.rate || 0).toFixed(2), cols.rate.x + cols.rate.w, y, { align: 'right' });
+    pdf.text(Number(item.amount || 0).toFixed(2), cols.amt.x + cols.amt.w, y, { align: 'right' });
+    y += 7;
+  });
+  pdf.line(marginL, y - 3, tblRight, y - 3);
+  y += 6;
+
+  // ── TOTALS ────────────────────────────────────────────────────────────────
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9.5);
+  pdf.text(`Subtotal:`, tblRight - 50, y);
+  pdf.text(`₹${Number(invoiceData?.subtotal || 0).toFixed(2)}`, tblRight, y, { align: 'right' });
+  y += 6;
+
+  if (invoiceData?.includeGst) {
+    pdf.text(`GST (${invoiceData.gstRate}%):`, tblRight - 50, y);
+    pdf.text(`₹${Number(invoiceData.gstAmount || 0).toFixed(2)}`, tblRight, y, { align: 'right' });
+    y += 6;
+  }
+
+  pdf.setDrawColor(31, 41, 55);
+  pdf.setLineWidth(0.5);
+  pdf.line(tblRight - 65, y - 2, tblRight, y - 2);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(11);
+  pdf.setTextColor(31, 41, 55);
+  pdf.text('Total:', tblRight - 50, y + 4);
+  pdf.text(`₹${Number(invoiceData?.total || 0).toFixed(2)}`, tblRight, y + 4, { align: 'right' });
+  y += 14;
+
+  // ── BANK DETAILS ──────────────────────────────────────────────────────────
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(31, 41, 55);
+  pdf.text('Bank Details:', marginL, y);
+  y += 5;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(55, 65, 81);
+  pdf.text(`Account: ${comp.bankAccountNumber || ''}  |  IFSC: ${comp.ifscCode || ''}`, marginL, y);
+  y += 5;
+  pdf.text(`Account Holder: ${comp.accountHolderName || ''}  |  Bank: ${comp.bankName || ''}`, marginL, y);
+  y += 15;
+
+  // ── DIGITAL STAMP (optional) ──────────────────────────────────────────────
+  const stampUrl = invoiceData?.companyDetails?.digitalStamp;
+  if (stampUrl) {
+    try {
+      const stampInfo = await fetchImageInfo(stampUrl);
+      if (stampInfo) {
+        const { w, h } = fitDimensions(stampInfo.naturalWidth, stampInfo.naturalHeight, 30, 30);
+        pdf.addImage(stampInfo.dataUrl, 'PNG', pageW - marginR - w, y, w, h);
+        pdf.setFontSize(8);
+        pdf.setTextColor(107, 114, 128);
+        pdf.text('Authorized Signature', pageW - marginR - w / 2, y + h + 4, { align: 'center' });
+      }
+    } catch (e) { /* skip stamp on error */ }
+  }
+
+  // ── FOOTER ────────────────────────────────────────────────────────────────
+  pdf.setDrawColor(229, 231, 235);
+  pdf.setLineWidth(0.3);
+  pdf.line(marginL, 272, pageW - marginR, 272);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.setTextColor(107, 114, 128);
+  pdf.text('Thank you for your business!', pageW / 2, 277, { align: 'center' });
+  pdf.text('This is a computer-generated proforma invoice and does not require a physical signature.', pageW / 2, 282, { align: 'center' });
+
+  pdf.save(filename);
 };
