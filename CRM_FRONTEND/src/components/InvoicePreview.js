@@ -36,7 +36,7 @@ function InvoicePreview({ invoice }) {
               <img
                 src={invoice.companyDetails.logo}
                 alt="Company Logo"
-                className="w-64 h-32 object-contain"
+                style={{ maxWidth: '200px', maxHeight: '80px', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block' }}
               />
             </div>
             <div className="text-right text-gray-600 text-sm">

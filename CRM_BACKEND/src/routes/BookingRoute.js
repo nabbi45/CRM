@@ -1,5 +1,5 @@
 import express from "express";
-import { BookingModel } from "../models/bookingModel.js";
+import { BookingModel } from "../models/BookingModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const BookingRoutes = express.Router();

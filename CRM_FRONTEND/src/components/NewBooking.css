@@ -24,6 +24,7 @@ input[type="number"]::-webkit-inner-spin-button {
 /* Hides the arrows in Firefox */
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .booking-form h2 {
@@ -240,6 +241,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Form Title */
