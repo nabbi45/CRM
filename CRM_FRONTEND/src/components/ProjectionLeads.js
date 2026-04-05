@@ -492,7 +492,7 @@ const ProjectionLeads = () => {
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
           <CircularProgress />
         </Box>
-      ) : isMobile ? (
+      ) : (
         <Grid container spacing={2}>
           {(tab === 0 ? leads : transferredLeads).length === 0 && (
             <Grid item xs={12}>
@@ -505,82 +505,53 @@ const ProjectionLeads = () => {
           )}
 
           {(tab === 0 ? leads : transferredLeads).map((lead) => (
-            <Grid item xs={12} key={lead._id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    {lead.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {lead.phone_number} • {lead.company_name || "No company"}
+            <Grid item xs={12} md={6} lg={4} xl={3} key={lead._id}>
+              <Card sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: 2, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                        {lead.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {lead.company_name || "No company"}
+                      </Typography>
+                    </Box>
+                    {paymentChip(lead)}
+                  </Box>
+
+                  <Typography variant="body2" sx={{ mb: 2, fontWeight: 600, color: "primary.main" }}>
+                    {lead.phone_number}
                   </Typography>
 
-                  <Stack spacing={0.5} sx={{ mb: 1.5 }}>
-                    <Typography variant="caption">Date: {new Date(lead.date).toLocaleDateString("en-IN")}</Typography>
-                    <Typography variant="caption">State: {lead.state || "-"}</Typography>
-                    <Typography variant="caption">Turnover: {lead.turnover || "-"}</Typography>
-                    <Typography variant="caption">Requirement: {lead.requirement || "-"}</Typography>
-                    <Typography variant="caption">Pitched: {lead.pitched || "-"}</Typography>
-                    <Typography variant="caption">Given Lead To: {lead.given_lead_to || "-"}</Typography>
-                    <Typography variant="caption">Notes: {lead.notes_update || "-"}</Typography>
-                    <Typography variant="caption">Owner: {lead.created_by_name || "-"}</Typography>
+                  <Stack spacing={1} sx={{ mb: 2, p: 1.5, bgcolor: "rgba(0,0,0,0.02)", borderRadius: 1 }}>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Date:</span> <b>{new Date(lead.date).toLocaleDateString("en-IN")}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>State:</span> <b>{lead.state || "-"}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Turnover:</span> <b>{lead.turnover || "-"}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Requirement:</span> <b style={{ textAlign: "right", maxWidth: "60%" }}>{lead.requirement || "-"}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Pitched:</span> <b style={{ textAlign: "right", maxWidth: "60%" }}>{lead.pitched || "-"}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Given Lead To:</span> <b>{lead.given_lead_to || "-"}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Notes:</span> <b style={{ textAlign: "right", maxWidth: "60%" }}>{lead.notes_update || "-"}</b>
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#64748b" }}>Owner:</span> <b>{lead.created_by_name || "-"}</b>
+                    </Typography>
                   </Stack>
 
-                  <Box sx={{ mb: 1.5 }}>{paymentChip(lead)}</Box>
-                  {tab === 0 ? renderActions(lead) : (
-                    <Typography variant="caption" color="text.secondary">
-                      Transferred on {lead.transferred_at ? new Date(lead.transferred_at).toLocaleDateString("en-IN") : "-"}
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      ) : (
-        <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 2, overflowX: "auto" }}>
-          <Table size="small" sx={{ minWidth: 1000, whiteSpace: "nowrap" }}>
-            <TableHead sx={{ bgcolor: "rgba(0,0,0,0.04)" }}>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Phone Number</TableCell>
-                <TableCell>Company Name</TableCell>
-                <TableCell>State</TableCell>
-                <TableCell>Turnover</TableCell>
-                <TableCell>Requirement</TableCell>
-                <TableCell>What I Have Pitched</TableCell>
-                <TableCell>Given the Lead to</TableCell>
-                <TableCell>Notes/Update</TableCell>
-                <TableCell>Payment Received</TableCell>
-                <TableCell>Owner</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(tab === 0 ? leads : transferredLeads).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={13} align="center">
-                    {tab === 0 ? "No active projection leads found." : "No transferred leads found."}
-                  </TableCell>
-                </TableRow>
-              )}
-
-              {(tab === 0 ? leads : transferredLeads).map((lead) => (
-                <TableRow key={lead._id} hover>
-                  <TableCell>{new Date(lead.date).toLocaleDateString("en-IN")}</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{lead.name}</TableCell>
-                  <TableCell>{lead.phone_number}</TableCell>
-                  <TableCell>{lead.company_name || "-"}</TableCell>
-                  <TableCell>{lead.state || "-"}</TableCell>
-                  <TableCell>{lead.turnover || "-"}</TableCell>
-                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={lead.requirement || ""}>{lead.requirement || "-"}</TableCell>
-                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={lead.pitched || ""}>{lead.pitched || "-"}</TableCell>
-                  <TableCell>{lead.given_lead_to || "-"}</TableCell>
-                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={lead.notes_update || ""}>{lead.notes_update || "-"}</TableCell>
-                  <TableCell>{paymentChip(lead)}</TableCell>
-                  <TableCell>{lead.created_by_name || "-"}</TableCell>
-                  <TableCell>
+                  <Box sx={{ mt: "auto", pt: 1, borderTop: "1px solid rgba(0,0,0,0.05)" }}>
                     {tab === 0 ? renderActions(lead) : (
                       <Stack spacing={0.5}>
                         <Typography variant="caption" color="text.secondary">
@@ -591,12 +562,12 @@ const ProjectionLeads = () => {
                         </Typography>
                       </Stack>
                     )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
       )}
     </Box>
   );
