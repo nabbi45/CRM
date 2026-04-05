@@ -13,8 +13,8 @@
 }
 
 .profile-header {
-  background: #111827;
-  color: white;
+  background: radial-gradient(circle at top, #1f2937 0%, #0f172a 60%, #020617 100%);
+  color: #f8fafc;
   padding: 2.5rem 1.5rem;
   text-align: center;
 }
@@ -40,15 +40,15 @@
 .header-title {
   font-size: 2rem;
   font-weight: 700;
-  color: black;
+  color: #f8fafc;
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .header-description {
   font-size: 1.1rem;
-  color: black;
-  opacity: 0.9;
+  color: rgba(248, 250, 252, 0.85);
+  opacity: 0.95;
   margin: 0;
   max-width: 500px;
 }

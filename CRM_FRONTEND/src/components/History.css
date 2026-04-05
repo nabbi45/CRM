@@ -81,6 +81,11 @@
   overflow-wrap: break-word;
 }
 
+.colon-bold {
+  font-weight: 700;
+  color: #111827;
+}
+
 .booking-item:hover {
   transform: translateY(-5px);
 }
@@ -98,6 +103,31 @@
   color: #333;
   word-break: break-word;
   /* Prevent text overflow */
+}
+
+body[data-theme='dark'] .history-page {
+  color: #e2e8f0;
+}
+
+body[data-theme='dark'] .booking-item {
+  background-color: #111827;
+  border-color: rgba(148, 191, 255, 0.25);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+body[data-theme='dark'] .booking-table td,
+body[data-theme='dark'] .booking-table th,
+body[data-theme='dark'] .booking-item strong,
+body[data-theme='dark'] .booking-item .colon-bold {
+  color: #f8fafc;
+}
+
+body[data-theme='dark'] .booking-item .colon-bold {
+  color: #f472b6;
+}
+
+body[data-theme='dark'] .booking-table tr:nth-child(even) td {
+  background-color: rgba(248, 250, 252, 0.02);
 }
 
 .booking-footer {

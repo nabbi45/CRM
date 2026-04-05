@@ -497,7 +497,24 @@ const TeamInbox = () => {
                         <IconButton
                             type="submit"
                             disabled={!inputMsg.trim()}
-                            sx={{ bgcolor: ACCENT, color: '#fff', '&:hover': { bgcolor: '#e03118' }, '&.Mui-disabled': { bgcolor: '#e0e0e0' } }}
+                            sx={{
+                                bgcolor: isDark ? '#f97316' : ACCENT,
+                                color: '#fff',
+                                borderRadius: '12px',
+                                border: isDark ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                                boxShadow: isDark ? '0 6px 18px rgba(0,0,0,0.45)' : 'none',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    bgcolor: isDark ? '#fb923c' : '#e03118'
+                                },
+                                '&.Mui-disabled': {
+                                    bgcolor: isDark ? 'rgba(148,163,184,0.15)' : '#e0e0e0',
+                                    color: isDark ? '#94a3b8' : '#9e9e9e'
+                                },
+                                '& svg': {
+                                    color: '#fff'
+                                }
+                            }}
                         >
                             <SendIcon fontSize="small" />
                         </IconButton>
