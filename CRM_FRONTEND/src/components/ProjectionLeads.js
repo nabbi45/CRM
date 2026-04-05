@@ -25,6 +25,8 @@ import {
   useTheme,
   useMediaQuery,
   CircularProgress,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -259,40 +261,41 @@ const ProjectionLeads = () => {
     const editable = canEditLead(lead);
 
     return (
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+      <Stack direction="row" spacing={0.5} justifyContent="flex-start">
         {editable && (
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<EditOutlinedIcon />}
-            onClick={() => startEdit(lead)}
-          >
-            Edit
-          </Button>
+          <Tooltip title="Edit Lead">
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={() => startEdit(lead)}
+            >
+              <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
 
         {editable && (
-          <Button
-            size="small"
-            variant={lead.payment_received ? "contained" : "outlined"}
-            color={lead.payment_received ? "success" : "primary"}
-            startIcon={<CurrencyRupeeOutlinedIcon />}
-            onClick={() => togglePaymentReceived(lead)}
-          >
-            {lead.payment_received ? "Payment Received" : "Mark Payment Received"}
-          </Button>
+          <Tooltip title={lead.payment_received ? "Payment Received" : "Mark Payment Received"}>
+            <IconButton
+              size="small"
+              color={lead.payment_received ? "success" : "warning"}
+              onClick={() => togglePaymentReceived(lead)}
+            >
+              <CurrencyRupeeOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
 
         {lead.payment_received && (
-          <Button
-            size="small"
-            variant="contained"
-            color="secondary"
-            startIcon={<PublishedWithChangesOutlinedIcon />}
-            onClick={() => transferToBooking(lead)}
-          >
-            Transfer to Booking
-          </Button>
+          <Tooltip title="Transfer to Booking">
+            <IconButton
+              size="small"
+              color="secondary"
+              onClick={() => transferToBooking(lead)}
+            >
+              <PublishedWithChangesOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
       </Stack>
     );
@@ -535,9 +538,9 @@ const ProjectionLeads = () => {
           ))}
         </Grid>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
+        <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 2, overflowX: "auto" }}>
+          <Table size="small" sx={{ minWidth: 1000, whiteSpace: "nowrap" }}>
+            <TableHead sx={{ bgcolor: "rgba(0,0,0,0.04)" }}>
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Name</TableCell>
@@ -566,15 +569,15 @@ const ProjectionLeads = () => {
               {(tab === 0 ? leads : transferredLeads).map((lead) => (
                 <TableRow key={lead._id} hover>
                   <TableCell>{new Date(lead.date).toLocaleDateString("en-IN")}</TableCell>
-                  <TableCell>{lead.name}</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>{lead.name}</TableCell>
                   <TableCell>{lead.phone_number}</TableCell>
                   <TableCell>{lead.company_name || "-"}</TableCell>
                   <TableCell>{lead.state || "-"}</TableCell>
                   <TableCell>{lead.turnover || "-"}</TableCell>
-                  <TableCell sx={{ maxWidth: 180 }}>{lead.requirement || "-"}</TableCell>
-                  <TableCell sx={{ maxWidth: 180 }}>{lead.pitched || "-"}</TableCell>
+                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={lead.requirement || ""}>{lead.requirement || "-"}</TableCell>
+                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={lead.pitched || ""}>{lead.pitched || "-"}</TableCell>
                   <TableCell>{lead.given_lead_to || "-"}</TableCell>
-                  <TableCell sx={{ maxWidth: 180 }}>{lead.notes_update || "-"}</TableCell>
+                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }} title={lead.notes_update || ""}>{lead.notes_update || "-"}</TableCell>
                   <TableCell>{paymentChip(lead)}</TableCell>
                   <TableCell>{lead.created_by_name || "-"}</TableCell>
                   <TableCell>

@@ -97,7 +97,7 @@ const EditBooking = ({ initialData, onClose }) => {
   const handleAddNextTerm = () => {
     if (!nextReceivableTerm) return;
     if (onClose) onClose();
-    navigate('/new-booking', {
+    navigate('/dashboard/new-booking', {
       state: {
         termPrefillBooking: initialData,
         requestedTerm: nextReceivableTerm,
@@ -427,20 +427,6 @@ const EditBooking = ({ initialData, onClose }) => {
                 name="funddisbursement"
                 value={formData.funddisbursement}
                 onChange={handleChange}
-              />
-            </Grid>
-
-            {/* Note */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                required
-                label="Approved By"
-                name="note"
-                value={formData.note}
-                onChange={handleChange}
-                multiline
-                rows={2}
               />
             </Grid>
 
