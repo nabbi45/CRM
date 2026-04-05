@@ -459,52 +459,47 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         sx={{
           p: 2,
           display: 'flex',
-          flexDirection: 'column',
-          gap: 1,
-          alignItems: 'stretch',
+          flexDirection: 'row',
+          gap: 1.5,
+          alignItems: 'center',
         }}
       >
         <Button
-          variant="text"
-          onClick={toggleColorMode}
-          startIcon={
-            mode === 'light' ? <DarkModeRoundedIcon /> : <LightModeRoundedIcon />
-          }
+          variant="outlined"
           sx={{
-            borderRadius: 2,
+            flexGrow: 1,
             color: isLight ? '#334155' : '#e2e8f0',
-            fontSize: '0.8rem',
-            justifyContent: 'flex-start',
-            pl: 2,
-            border: isLight ? '1px solid rgba(148,163,184,0.45)' : '1px solid rgba(255,255,255,0.15)',
-            backgroundColor: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
-            '&:hover': {
-              backgroundColor: isLight ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.16)',
-              color: isLight ? '#0f172a' : '#ffffff',
-            },
-          }}
-          fullWidth
-        >
-          {mode === 'light' ? 'Dark mode' : 'Light mode'}
-        </Button>
-
-        <Button
-          variant="contained"
-          sx={{
-            backgroundColor: ACCENT,
-            color: '#fff',
+            borderColor: isLight ? 'rgba(148,163,184,0.45)' : 'rgba(255,255,255,0.25)',
             borderRadius: 2,
             fontSize: '0.8rem',
+            textTransform: 'none',
+            fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#d93025',
+              backgroundColor: isLight ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.1)',
+              borderColor: isLight ? '#0f172a' : '#ffffff',
             },
           }}
           startIcon={<LogoutRoundedIcon />}
           onClick={onLogout}
-          fullWidth
         >
           Logout
         </Button>
+
+        <IconButton
+          onClick={toggleColorMode}
+          title={mode === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          sx={{
+            color: isLight ? '#475569' : '#e2e8f0',
+            border: isLight ? '1px solid rgba(148,163,184,0.45)' : '1px solid rgba(255,255,255,0.25)',
+            borderRadius: 2,
+            p: 1.25,
+            '&:hover': {
+              backgroundColor: isLight ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.1)',
+            },
+          }}
+        >
+          {mode === 'light' ? <DarkModeRoundedIcon fontSize="small" /> : <LightModeRoundedIcon fontSize="small" />}
+        </IconButton>
       </Box>
     </Box>
   );

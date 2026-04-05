@@ -120,6 +120,7 @@ const TeamInbox = () => {
 
     // Load Chat History when activeChat changes
     useEffect(() => {
+        setMessages([]); // instantly clear old messages when switching chat
         const fetchHistory = async () => {
             try {
                 const endpoint = activeChat.isGlobal ? '/chat/global' : `/chat/direct/${activeChat.id}`;
@@ -261,6 +262,7 @@ const TeamInbox = () => {
                     borderRight: { xs: 'none', md: '1px solid' },
                     borderBottom: { xs: '1px solid', md: 'none' },
                     borderColor: 'divider',
+                    bgcolor: isDark ? 'rgba(15,23,42,0.6)' : '#f8fafc',
                     display: isTabletOrBelow && mobilePane === 'chat' ? 'none' : 'flex',
                     flexDirection: 'column',
                     height: { xs: '100%', md: 'auto' },
@@ -382,7 +384,27 @@ const TeamInbox = () => {
                 </Box>
 
                 {/* Chat Messages Log */}
-                <Box sx={{ flex: 1, p: { xs: 1.5, sm: 2.5, md: 3 }, overflowY: 'auto', bgcolor: isDark ? '#0b1220' : '#fafafa' }}>
+                <Box sx={{ 
+                    flex: 1, 
+                    p: { xs: 1.5, sm: 2.5, md: 3 }, 
+                    overflowY: 'auto', 
+                    bgcolor: isDark ? '#0b1220' : '#efeae2',
+                    backgroundImage: isDark 
+                        ? 'radial-gradient(circle at center, rgba(255,255,255,0.03) 1px, transparent 1px)' 
+                        : 'radial-gradient(circle at center, rgba(0,0,0,0.04) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
+                    {messages.length === 0 && (
+                        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                            <Paper elevation={0} sx={{ p: 1.5, px: 3, borderRadius: 8, bgcolor: isDark ? 'rgba(30,41,59,0.7)' : 'rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)', border: '1px solid', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}>
+                                <Typography variant="body2" sx={{ color: isDark ? '#cbd5e1' : '#64748b', fontWeight: 500 }}>
+                                    Send a message to start the conversation
+                                </Typography>
+                            </Paper>
+                        </Box>
+                    )}
                     {messages.map((m, i) => {
                         const isMe = m.sender_id === session.user_id;
                         const showName = activeChat.isGlobal && !isMe;
@@ -412,13 +434,13 @@ const TeamInbox = () => {
                                                 p: 1.5,
                                                 px: 2,
                                                 maxWidth: { xs: 260, sm: 360, md: 420 },
-                                                bgcolor: isMe ? '#ff3b1f' : (isDark ? '#1e293b' : '#ffffff'),
+                                                background: isMe ? 'linear-gradient(135deg, #ff512f 0%, #dd2476 100%)' : (isDark ? '#1e293b' : '#ffffff'),
                                                 color: isMe ? '#fff' : (isDark ? '#f8fafc' : '#111827'),
                                                 borderRadius: 3,
                                                 borderTopRightRadius: isMe ? 0 : 12,
                                                 borderTopLeftRadius: !isMe ? 0 : 12,
-                                                border: isMe ? 'none' : (isDark ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(0,0,0,0.08)'),
-                                                boxShadow: isMe ? '0 4px 12px rgba(255,59,31,0.3)' : (isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.04)')
+                                                border: isMe ? 'none' : (isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)'),
+                                                boxShadow: isMe ? '0 4px 14px rgba(221, 36, 118, 0.3)' : (isDark ? '0 4px 12px rgba(0,0,0,0.2)' : '0 4px 12px rgba(0,0,0,0.03)')
                                             }}
                                         >
                                         {m.attachment_url && (
