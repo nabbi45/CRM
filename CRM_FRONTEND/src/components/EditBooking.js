@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiUrl } from './LoginSignup';
+import { useNavigate } from 'react-router-dom';
 import {
   TextField,
   MenuItem,
@@ -24,6 +25,7 @@ const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 const updatedBy = userSession.name || 'Unknown';
 
 const EditBooking = ({ initialData, onClose }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     branch: '',
     companyName: '',
@@ -48,6 +50,12 @@ const EditBooking = ({ initialData, onClose }) => {
   });
 
   const [errors, setErrors] = useState({});
+
+  const nextReceivableTerm = Number(initialData?.term_1 || 0) > 0 && Number(initialData?.term_2 || 0) <= 0
+    ? 'Term 2'
+    : Number(initialData?.term_2 || 0) > 0 && Number(initialData?.term_3 || 0) <= 0
+      ? 'Term 3'
+      : '';
 
   // Populate the form with initialData if available
   useEffect(() => {
@@ -83,6 +91,17 @@ const EditBooking = ({ initialData, onClose }) => {
     setFormData({
       ...formData,
       services: selectedOptions ? selectedOptions.map(option => option.value) : [], // Map selected options to an array
+    });
+  };
+
+  const handleAddNextTerm = () => {
+    if (!nextReceivableTerm) return;
+    if (onClose) onClose();
+    navigate('/new-booking', {
+      state: {
+        termPrefillBooking: initialData,
+        requestedTerm: nextReceivableTerm,
+      },
     });
   };
   // Prepare service options
@@ -444,17 +463,26 @@ const EditBooking = ({ initialData, onClose }) => {
           <Box
             sx={{
               display: 'flex',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
               gap: 2,
               mt: 2,
             }}
           >
-            <Button type="submit" variant="contained" color="primary">
-              Update
-            </Button>
-            <Button variant="outlined" color="secondary" onClick={onClose}>
-              Cancel
-            </Button>
+            <Box>
+              {nextReceivableTerm && (
+                <Button variant="outlined" color="success" onClick={handleAddNextTerm}>
+                  Add {nextReceivableTerm} Receivable
+                </Button>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button type="submit" variant="contained" color="primary">
+                Update
+              </Button>
+              <Button variant="outlined" color="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+            </Box>
           </Box>
         </Box>
       </DialogContent>

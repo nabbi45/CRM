@@ -18,6 +18,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -160,6 +161,9 @@ const Sidebar = () => {
     }
     if (canAccessFeature(userSession, 'new_booking')) {
       items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking', color: '#10b981' });
+    }
+    if (canAccessFeature(userSession, 'projection_leads')) {
+      items.push({ text: 'Projection Lead', icon: <TrendingUpOutlinedIcon />, path: '/dashboard/projection-leads', color: '#22c55e' });
     }
     if (canAccessFeature(userSession, 'all_bookings')) {
       items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history', color: '#f59e0b' });

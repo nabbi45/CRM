@@ -1,6 +1,7 @@
 export const FEATURE_KEYS = [
   'dashboard_overview',
   'new_booking',
+  'projection_leads',
   'all_bookings',
   'proforma_invoice',
   'agreements_generator',
@@ -19,6 +20,7 @@ export const FEATURE_KEYS = [
 export const FEATURE_LABELS = {
   dashboard_overview: 'Dashboard',
   new_booking: 'New Booking',
+  projection_leads: 'Projection Lead',
   all_bookings: 'All Booking',
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
@@ -53,6 +55,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   admin: [
     'dashboard_overview',
     'new_booking',
+    'projection_leads',
     'all_bookings',
     'proforma_invoice',
     'agreements_generator',
@@ -68,6 +71,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   'senior admin': [
     'dashboard_overview',
     'new_booking',
+    'projection_leads',
     'all_bookings',
     'proforma_invoice',
     'agreements_generator',
@@ -84,6 +88,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   bdm: [
     'dashboard_overview',
     'new_booking',
+    'projection_leads',
     'all_bookings',
     'proforma_invoice',
     'generated_documents',
@@ -99,7 +104,7 @@ export const getDefaultFeaturePermissionsForRole = (role) => {
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
 
-  return ['dashboard_overview', 'leave_management', 'communication', 'my_profile', 'create_profile'];
+  return ['dashboard_overview', 'projection_leads', 'leave_management', 'communication', 'my_profile', 'create_profile'];
 };
 
 export const applyRoleTemplate = (roleKey) => ({

@@ -3,6 +3,7 @@ import {
   Box,
   Grid,
   TextField,
+  Autocomplete,
   Select,
   MenuItem,
   InputLabel,
@@ -12,6 +13,7 @@ import {
   CircularProgress, // Import CircularProgress for the loader
 } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
+import { useLocation } from "react-router-dom";
 import servicesList from "../Data/ServicesData";
 import ServiceDropdown from "./Servicesdropdown";
 import { apiUrl } from "./LoginSignup";
@@ -19,6 +21,7 @@ import { apiUrl } from "./LoginSignup";
 import Mailer from "./mail";
 
 const AddBooking = ({ onClose }) => {
+  const location = useLocation();
   const [formData, setFormData] = useState({
     branch: "",
     companyName: "",
@@ -53,9 +56,152 @@ const AddBooking = ({ onClose }) => {
     });
   };
 
+  const handleSelectTermSourceBooking = (_, booking) => {
+    setSelectedSourceBooking(booking || null);
+    if (!booking) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      ...mapBookingToForm(booking, prev.selectTerm),
+    }));
+  };
+
   const [sharedPersons, setSharedPersons] = useState([{ userId: "", percentage: "" }]);
   const [shareCount, setShareCount] = useState(1);
   const [users, setUsers] = useState([]);
+  const [termSourceBookings, setTermSourceBookings] = useState([]);
+  const [termSearchLoading, setTermSearchLoading] = useState(false);
+  const [selectedSourceBooking, setSelectedSourceBooking] = useState(null);
+
+  const projectionLeadId = location?.state?.projectionLeadId || "";
+  const projectionPrefill = location?.state?.prefill || null;
+  const termPrefillBooking = location?.state?.termPrefillBooking || null;
+  const requestedTerm = location?.state?.requestedTerm || "";
+
+  const isContinuationTerm = formData.selectTerm === "Term 2" || formData.selectTerm === "Term 3";
+
+  const formatDateInput = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0];
+  };
+
+  const mapBookingToForm = (booking, forcedTerm = "") => ({
+    branch: booking?.branch_name || "",
+    companyName: booking?.company_name || "",
+    contactPerson: booking?.contact_person || "",
+    contactNumber: booking?.contact_no || "",
+    email: booking?.email || "",
+    date: formatDateInput(booking?.date) || new Date().toISOString().split("T")[0],
+    services: Array.isArray(booking?.services) ? booking.services : [],
+    totalAmount: booking?.total_amount || "",
+    selectTerm: forcedTerm || formData.selectTerm,
+    amount: "",
+    paymentDate: new Date().toISOString().split("T")[0],
+    closed: booking?.closed_by || "",
+    pan: booking?.pan || "",
+    gst: booking?.gst || "",
+    notes: booking?.remark || "",
+    bank: booking?.bank || "",
+    state: booking?.state || "",
+    funddisbursement: booking?.after_disbursement || "",
+  });
+
+  useEffect(() => {
+    if (!projectionPrefill) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      branch: projectionPrefill.branch || prev.branch,
+      companyName: projectionPrefill.companyName || prev.companyName,
+      contactPerson: projectionPrefill.contactPerson || prev.contactPerson,
+      contactNumber: projectionPrefill.contactNumber || prev.contactNumber,
+      state: projectionPrefill.state || prev.state,
+      notes: projectionPrefill.notes || prev.notes,
+    }));
+  }, [projectionPrefill]);
+
+  useEffect(() => {
+    if (!requestedTerm) return;
+    setFormData((prev) => ({
+      ...prev,
+      selectTerm: requestedTerm,
+    }));
+  }, [requestedTerm]);
+
+  useEffect(() => {
+    if (!termPrefillBooking) return;
+    setSelectedSourceBooking(termPrefillBooking);
+    setFormData((prev) => ({
+      ...prev,
+      ...mapBookingToForm(termPrefillBooking, requestedTerm || prev.selectTerm),
+    }));
+  }, [termPrefillBooking, requestedTerm]);
+
+  useEffect(() => {
+    if (!isContinuationTerm) {
+      setTermSourceBookings([]);
+      setSelectedSourceBooking(null);
+      return;
+    }
+
+    const fetchTermSourceBookings = async () => {
+      try {
+        setTermSearchLoading(true);
+        const userSession = JSON.parse(localStorage.getItem("userSession"));
+        if (!userSession) return;
+
+        const isAdmin = ["admin", "dev", "senior admin", "srdev", "super admin"].includes(
+          (userSession.user_role || "").toLowerCase()
+        );
+
+        const bookingUrl = isAdmin
+          ? `${apiUrl}/booking/all`
+          : `${apiUrl}/user/bookings/${userSession.user_id}`;
+
+        const response = await fetch(bookingUrl, {
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `${userSession.token}`,
+          },
+        });
+
+        if (!response.ok) {
+          setTermSourceBookings([]);
+          return;
+        }
+
+        const data = await response.json();
+        const bookings = Array.isArray(data?.Allbookings) ? data.Allbookings : Array.isArray(data) ? data : [];
+
+        const eligibleBookings = bookings.filter((booking) => {
+          const t1 = Number(booking.term_1 || 0);
+          const t2 = Number(booking.term_2 || 0);
+          const t3 = Number(booking.term_3 || 0);
+
+          if (formData.selectTerm === "Term 2") {
+            return t1 > 0 && t2 <= 0;
+          }
+
+          if (formData.selectTerm === "Term 3") {
+            return t2 > 0 && t3 <= 0;
+          }
+
+          return false;
+        });
+
+        setTermSourceBookings(eligibleBookings);
+      } catch (error) {
+        console.error("Failed to fetch continuation term bookings:", error);
+        setTermSourceBookings([]);
+      } finally {
+        setTermSearchLoading(false);
+      }
+    };
+
+    fetchTermSourceBookings();
+  }, [isContinuationTerm, formData.selectTerm]);
 
   // Fetch all users to populate the Shared With dropdown
   useEffect(() => {
@@ -119,6 +265,9 @@ const AddBooking = ({ onClose }) => {
     }
     if (!formData.selectTerm)
       validationErrors.selectTerm = "Select Term is required";
+    if (isContinuationTerm && !selectedSourceBooking) {
+      validationErrors.termSource = `Please select existing ${formData.selectTerm === "Term 2" ? "Term 1" : "Term 2"} booking first`;
+    }
     if (!formData.amount || isNaN(formData.amount)) {
       validationErrors.amount = "Valid Amount is required";
     }
@@ -143,7 +292,7 @@ const AddBooking = ({ onClose }) => {
     return Object.keys(validationErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (validate()) {
@@ -174,111 +323,176 @@ const AddBooking = ({ onClose }) => {
       const receivedAmount = Number(formData.amount);
       const total_amount = Number(formData.totalAmount);
 
-      const dataToSubmit = {
-        user_id: userSession.user_id,
-        bdm: userSession.name,
-        branch_name: formData.branch,
-        company_name: formData.companyName?.toUpperCase() || "",
-        contact_person: formData.contactPerson,
-        email: formData.email,
-        contact_no: Number(formData.contactNumber),
-        services: formData.services,
-        total_amount,
-        closed_by: formData.closed || "",
-        term_1: formData.selectTerm === "Term 1" ? receivedAmount : null,
-        term_2: formData.selectTerm === "Term 2" ? receivedAmount : null,
-        term_3: formData.selectTerm === "Term 3" ? receivedAmount : null,
-        payment_date: formData.paymentDate,
-        pan: formData.pan,
-        gst: formData.gst || "N/A",
-        remark: formData.notes,
-        date: formData.date,
-        bank: formData.bank,
-        state: formData.state,
-        status: "Pending",
-        after_disbursement: formData.funddisbursement || "",
-
-        shared_with: sharedPersons.map((person) => ({
-          user_id: person.userId, // ✅ renamed to match backend schema
-          percentage: Number(person.percentage),
-        })),
-      };
-
-      console.log("Submitting booking payload:", dataToSubmit);
-
-      fetch(`${apiUrl}/booking/addbooking`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: `${userSession.token}`,
-        },
-        body: JSON.stringify(dataToSubmit),
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.message || "Error creating booking");
-          }
-          return response.json();
-        })
-        .then((res) => {
-          const bookingId = res.booking_id?.toUpperCase?.() || "N/A";
-          setBookingId(bookingId);
-          setOpenDialog(true);
-
-          const data = {
-            email: res.booking.email,
-            name: res.booking.company_name,
+      try {
+        if (isContinuationTerm && selectedSourceBooking?._id) {
+          const continuationPayload = {
+            payment_date: formData.paymentDate,
+            updatedBy: userSession.name || "Unknown",
+            note: `${formData.selectTerm} added from continuation flow`,
           };
 
-          // Send welcome email (non-blocking — booking success is not affected if email fails)
-          if (res.booking.term_1 != null) {
-            try {
-              Mailer(data);
-              enqueueSnackbar("Welcome email sent!", { variant: "info" });
-            } catch (mailErr) {
-              console.warn("Welcome email failed (non-critical):", mailErr);
-            }
+          if (formData.selectTerm === "Term 2") {
+            continuationPayload.term_2 = receivedAmount;
           }
 
-          enqueueSnackbar("Booking created successfully!", {
-            variant: "success",
+          if (formData.selectTerm === "Term 3") {
+            continuationPayload.term_3 = receivedAmount;
+          }
+
+          const continuationRes = await fetch(`${apiUrl}/booking/editbooking/${selectedSourceBooking._id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "user-role": userSession.user_role,
+              authorization: `${userSession.token}`,
+            },
+            body: JSON.stringify(continuationPayload),
           });
 
-          // Reset form
-          setFormData({
-            branch: "",
-            companyName: "",
-            contactPerson: "",
-            contactNumber: "",
-            email: "",
-            date: "",
-            services: [],
-            totalAmount: "",
-            closed: "",
-            selectTerm: "",
+          const continuationData = await continuationRes.json().catch(() => ({}));
+          if (!continuationRes.ok) {
+            throw new Error(continuationData.message || `Error adding ${formData.selectTerm}`);
+          }
+
+          enqueueSnackbar(`${formData.selectTerm} added successfully!`, { variant: "success" });
+          setFormData((prev) => ({
+            ...prev,
             amount: "",
-            paymentDate: "",
-            pan: "",
-            gst: "",
-            notes: "",
-            bank: "",
-            state: "",
-            funddisbursement: "",
-          });
-          setSharedPersons([]);
-          setShareCount(0);
+            paymentDate: new Date().toISOString().split("T")[0],
+          }));
           setLoading(false);
-
           if (onClose) onClose();
-        })
-        .catch((error) => {
-          console.error("Booking submission error:", error);
-          enqueueSnackbar(`Error creating booking: ${error.message}`, {
-            variant: "error",
-          });
-          setLoading(false);
+          return;
+        }
+
+        const dataToSubmit = {
+          user_id: userSession.user_id,
+          bdm: userSession.name,
+          branch_name: formData.branch,
+          company_name: formData.companyName?.toUpperCase() || "",
+          contact_person: formData.contactPerson,
+          email: formData.email,
+          contact_no: Number(formData.contactNumber),
+          services: formData.services,
+          total_amount,
+          closed_by: formData.closed || "",
+          term_1: formData.selectTerm === "Term 1" ? receivedAmount : null,
+          term_2: formData.selectTerm === "Term 2" ? receivedAmount : null,
+          term_3: formData.selectTerm === "Term 3" ? receivedAmount : null,
+          payment_date: formData.paymentDate,
+          pan: formData.pan,
+          gst: formData.gst || "N/A",
+          remark: formData.notes,
+          date: formData.date,
+          bank: formData.bank,
+          state: formData.state,
+          status: "Pending",
+          after_disbursement: formData.funddisbursement || "",
+          shared_with: sharedPersons.map((person) => ({
+            user_id: person.userId,
+            percentage: Number(person.percentage),
+          })),
+        };
+
+        const response = await fetch(`${apiUrl}/booking/addbooking`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `${userSession.token}`,
+          },
+          body: JSON.stringify(dataToSubmit),
         });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || "Error creating booking");
+        }
+
+        const res = await response.json();
+        const bookingId = res.booking_id?.toUpperCase?.() || "N/A";
+        setBookingId(bookingId);
+        setOpenDialog(true);
+
+        if (projectionLeadId) {
+          try {
+            const transferRes = await fetch(`${apiUrl}/projection-leads/${projectionLeadId}/mark-transferred`, {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                authorization: `${userSession?.token || ""}`,
+              },
+              body: JSON.stringify({ booking_id: bookingId }),
+            });
+
+            if (transferRes.ok) {
+              enqueueSnackbar("Projection lead transferred to bookings.", {
+                variant: "success",
+              });
+            } else {
+              const transferErr = await transferRes.json().catch(() => ({}));
+              enqueueSnackbar(
+                transferErr?.message || "Booking created, but lead transfer was not completed.",
+                { variant: "warning" }
+              );
+            }
+          } catch (transferError) {
+            console.error("Failed to transfer projection lead:", transferError);
+            enqueueSnackbar("Booking created, but lead transfer failed.", {
+              variant: "warning",
+            });
+          }
+        }
+
+        const data = {
+          email: res.booking.email,
+          name: res.booking.company_name,
+        };
+
+        if (res.booking.term_1 != null) {
+          try {
+            Mailer(data);
+            enqueueSnackbar("Welcome email sent!", { variant: "info" });
+          } catch (mailErr) {
+            console.warn("Welcome email failed (non-critical):", mailErr);
+          }
+        }
+
+        enqueueSnackbar("Booking created successfully!", {
+          variant: "success",
+        });
+
+        setFormData({
+          branch: "",
+          companyName: "",
+          contactPerson: "",
+          contactNumber: "",
+          email: "",
+          date: new Date().toISOString().split("T")[0],
+          services: [],
+          totalAmount: "",
+          closed: "",
+          selectTerm: "",
+          amount: "",
+          paymentDate: "",
+          pan: "",
+          gst: "",
+          notes: "",
+          bank: "",
+          state: "",
+          funddisbursement: "",
+        });
+        setSharedPersons([]);
+        setShareCount(0);
+        setLoading(false);
+
+        if (onClose) onClose();
+      } catch (error) {
+        console.error("Booking submission error:", error);
+        enqueueSnackbar(`Error creating booking: ${error.message}`, {
+          variant: "error",
+        });
+        setLoading(false);
+      }
     }
   };
 
@@ -286,6 +500,12 @@ const AddBooking = ({ onClose }) => {
   const handleDialogClose = () => {
     setOpenDialog(false);
     if (onClose) onClose();
+  };
+
+  const bookingSearchLabel = (booking) => {
+    const bookingDate = formatDateInput(booking?.date || booking?.createdAt);
+    const bookingIdShort = booking?._id ? String(booking._id).slice(-6).toUpperCase() : "N/A";
+    return `${booking?.company_name || "No Company"} | ${booking?.bdm || "Unknown"} | ${bookingDate || "No Date"} | ID: ${bookingIdShort}`;
   };
 
   return (
@@ -428,7 +648,12 @@ const AddBooking = ({ onClose }) => {
               <Select
                 name="selectTerm"
                 value={formData.selectTerm}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  if (e.target.value === "Term 1") {
+                    setSelectedSourceBooking(null);
+                  }
+                }}
                 label="Select Term *"
                 variant="outlined"
               >
@@ -440,6 +665,28 @@ const AddBooking = ({ onClose }) => {
               {errors.selectTerm && <Typography color="error" variant="caption">{errors.selectTerm}</Typography>}
             </FormControl>
           </Grid>
+
+          {isContinuationTerm && (
+            <Grid item xs={12}>
+              <Autocomplete
+                options={termSourceBookings}
+                value={selectedSourceBooking}
+                onChange={handleSelectTermSourceBooking}
+                loading={termSearchLoading}
+                getOptionLabel={bookingSearchLabel}
+                isOptionEqualToValue={(option, value) => option?._id === value?._id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={`Search ${formData.selectTerm === "Term 2" ? "Term 1" : "Term 2"} Booking`}
+                    placeholder="Search by company, user, date, booking id"
+                    error={Boolean(errors.termSource)}
+                    helperText={errors.termSource || `Select existing ${formData.selectTerm === "Term 2" ? "Term 1" : "Term 2"} record to continue receivable`}
+                  />
+                )}
+              />
+            </Grid>
+          )}
 
           <Grid item xs={12} sm={6}>
             <TextField

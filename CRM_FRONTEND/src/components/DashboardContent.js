@@ -24,6 +24,8 @@ import BookOnlineOutlinedIcon from "@mui/icons-material/BookOnlineOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined";
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
 
@@ -42,12 +44,22 @@ const DashboardContent = () => {
   const [recentBookings, setRecentBookings] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [monthlyRevData, setMonthlyRevData] = useState({ labels: [], values: [] });
+  const [serviceSoldData, setServiceSoldData] = useState({ labels: [], values: [] });
+  const [serviceRevenueData, setServiceRevenueData] = useState({ labels: [], values: [] });
+  const [mostSoldService, setMostSoldService] = useState({ name: "-", count: 0 });
+  const [mostRevenueService, setMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+  const soldChartRef = useRef(null);
+  const soldChartInstance = useRef(null);
+  const revenueChartRef = useRef(null);
+  const revenueChartInstance = useRef(null);
+  const revenuePieChartRef = useRef(null);
+  const revenuePieChartInstance = useRef(null);
 
   const isAdmin = ["admin", "dev", "senior admin", "srdev"].includes(
     userSession?.user_role
@@ -136,6 +148,159 @@ const DashboardContent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthlyRevData, theme.palette.mode]);
 
+  useEffect(() => {
+    if (serviceSoldData.labels.length === 0 || !soldChartRef.current) return;
+    const ctx = soldChartRef.current.getContext("2d");
+    if (soldChartInstance.current) soldChartInstance.current.destroy();
+
+    const palette = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6"];
+    const isDark = theme.palette.mode === "dark";
+
+    soldChartInstance.current = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: serviceSoldData.labels,
+        datasets: [
+          {
+            data: serviceSoldData.values,
+            backgroundColor: serviceSoldData.labels.map((_, idx) => palette[idx % palette.length]),
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "62%",
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              color: isDark ? "#cbd5e1" : "#334155",
+              boxWidth: 12,
+              font: { size: 11 },
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${ctx.raw} bookings`,
+            },
+          },
+        },
+      },
+    });
+
+    return () => {
+      if (soldChartInstance.current) soldChartInstance.current.destroy();
+    };
+  }, [serviceSoldData, theme.palette.mode]);
+
+  useEffect(() => {
+    if (serviceRevenueData.labels.length === 0 || !revenueChartRef.current) return;
+    const ctx = revenueChartRef.current.getContext("2d");
+    if (revenueChartInstance.current) revenueChartInstance.current.destroy();
+
+    const palette = ["#ff3b1f", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#6366f1"];
+    const isDark = theme.palette.mode === "dark";
+
+    revenueChartInstance.current = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: serviceRevenueData.labels,
+        datasets: [
+          {
+            label: "Revenue (₹)",
+            data: serviceRevenueData.values,
+            backgroundColor: serviceRevenueData.labels.map((_, idx) => palette[idx % palette.length]),
+            borderRadius: 8,
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `₹${Number(ctx.raw || 0).toLocaleString()}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { color: isDark ? "#cbd5e1" : "#334155", font: { size: 11 } },
+            grid: { display: false },
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              color: isDark ? "#cbd5e1" : "#334155",
+              callback: (v) => `₹${(Number(v) / 1000).toFixed(0)}k`,
+            },
+            grid: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.22)" },
+          },
+        },
+      },
+    });
+
+    return () => {
+      if (revenueChartInstance.current) revenueChartInstance.current.destroy();
+    };
+  }, [serviceRevenueData, theme.palette.mode]);
+
+  useEffect(() => {
+    if (serviceRevenueData.labels.length === 0 || !revenuePieChartRef.current) return;
+    const ctx = revenuePieChartRef.current.getContext("2d");
+    if (revenuePieChartInstance.current) revenuePieChartInstance.current.destroy();
+
+    const palette = ["#ff3b1f", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#6366f1"];
+    const isDark = theme.palette.mode === "dark";
+
+    revenuePieChartInstance.current = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: serviceRevenueData.labels,
+        datasets: [
+          {
+            data: serviceRevenueData.values,
+            backgroundColor: serviceRevenueData.labels.map((_, idx) => palette[idx % palette.length]),
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              color: isDark ? "#cbd5e1" : "#334155",
+              boxWidth: 12,
+              font: { size: 11 },
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const value = Number(ctx.raw || 0);
+                const total = (ctx.dataset.data || []).reduce((sum, v) => sum + Number(v || 0), 0);
+                const percent = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
+                return `${ctx.label}: ₹${value.toLocaleString()} (${percent}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return () => {
+      if (revenuePieChartInstance.current) revenuePieChartInstance.current.destroy();
+    };
+  }, [serviceRevenueData, theme.palette.mode]);
+
   const fetchDashboardData = async (session) => {
     try {
       const bookingUrl = isAdmin
@@ -184,17 +349,27 @@ const DashboardContent = () => {
       const sortedBookings = [];
       const bdmRevMap = {}; // { bdmName: {revenue, count} }
       const monthlyMap = {}; // { "YYYY-MM": revenue }
+      const serviceSoldMap = {}; // { serviceName: soldCount }
+      const serviceRevenueMap = {}; // { serviceName: revenueShare }
 
       for (const booking of bookings) {
         bookingCount++;
-        const rev =
+        const rev = Number(
           (booking.term_1 || 0) +
-          (booking.term_2 || 0) +
-          (booking.term_3 || 0);
+            (booking.term_2 || 0) +
+            (booking.term_3 || 0)
+        );
+        const bookingDate = new Date(booking.date || booking.createdAt || booking.payment_date);
+        const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
+        const bookingTotalAmount = Number(booking.total_amount || 0);
 
-        const paymentDate = new Date(booking.payment_date);
+        const isCurrentMonthBooking =
+          !Number.isNaN(bookingDate.getTime()) &&
+          bookingDate.getMonth() === currentMonth &&
+          bookingDate.getFullYear() === currentYear;
 
         if (
+          !Number.isNaN(paymentDate.getTime()) &&
           paymentDate.getMonth() === currentMonth &&
           paymentDate.getFullYear() === currentYear
         ) {
@@ -207,6 +382,7 @@ const DashboardContent = () => {
 
         // Leaderboard aggregation (current month)
         if (
+          !Number.isNaN(paymentDate.getTime()) &&
           paymentDate.getMonth() === currentMonth &&
           paymentDate.getFullYear() === currentYear
         ) {
@@ -216,12 +392,32 @@ const DashboardContent = () => {
           bdmRevMap[bdm].count += 1;
         }
 
+        if (isCurrentMonthBooking) {
+          const services = Array.isArray(booking.services)
+            ? booking.services.filter((s) => typeof s === "string" && s.trim())
+            : [];
+
+          if (services.length > 0) {
+            const splitBaseRevenue = bookingTotalAmount > 0 ? bookingTotalAmount : rev;
+            const splitRevenue = splitBaseRevenue / services.length;
+
+            services.forEach((serviceNameRaw) => {
+              const serviceName = serviceNameRaw.trim();
+              serviceSoldMap[serviceName] = (serviceSoldMap[serviceName] || 0) + 1;
+              serviceRevenueMap[serviceName] =
+                (serviceRevenueMap[serviceName] || 0) + splitRevenue;
+            });
+          }
+        }
+
         // Monthly revenue (last 6 months)
-        const key = `${paymentDate.getFullYear()}-${String(
-          paymentDate.getMonth() + 1
-        ).padStart(2, "0")}`;
-        if (!monthlyMap[key]) monthlyMap[key] = 0;
-        monthlyMap[key] += rev;
+        if (!Number.isNaN(paymentDate.getTime())) {
+          const key = `${paymentDate.getFullYear()}-${String(
+            paymentDate.getMonth() + 1
+          ).padStart(2, "0")}`;
+          if (!monthlyMap[key]) monthlyMap[key] = 0;
+          monthlyMap[key] += rev;
+        }
 
         sortedBookings.push(booking);
       }
@@ -249,6 +445,25 @@ const DashboardContent = () => {
       setMonthlyRevData({
         labels: months.map((m) => m.label),
         values: months.map((m) => m.value),
+      });
+
+      const soldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
+      const revenueEntries = Object.entries(serviceRevenueMap).sort((a, b) => b[1] - a[1]);
+
+      const soldTop = soldEntries[0] || ["-", 0];
+      const revenueTop = revenueEntries[0] || ["-", 0];
+
+      setMostSoldService({ name: soldTop[0], count: soldTop[1] });
+      setMostRevenueService({ name: revenueTop[0], revenue: Number(revenueTop[1] || 0) });
+
+      setServiceSoldData({
+        labels: soldEntries.slice(0, 6).map(([service]) => service),
+        values: soldEntries.slice(0, 6).map(([, count]) => count),
+      });
+
+      setServiceRevenueData({
+        labels: revenueEntries.slice(0, 6).map(([service]) => service),
+        values: revenueEntries.slice(0, 6).map(([, revenue]) => Math.round(revenue)),
       });
 
       const recent = sortedBookings
@@ -533,6 +748,91 @@ const DashboardContent = () => {
             </Card>
           </Grid>
         )}
+      </Grid>
+
+      <Grid container spacing={2.5} sx={{ mt: 1 }}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <LocalOfferOutlinedIcon sx={{ color: "#3b82f6" }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Most Sold Service (MTD)
+                  </Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={`${mostSoldService.name} • ${mostSoldService.count}`}
+                  sx={{ bgcolor: "rgba(59,130,246,0.14)", color: "#1d4ed8", fontWeight: 700 }}
+                />
+              </Box>
+              <Box sx={{ height: 250 }}>
+                {serviceSoldData.labels.length > 0 ? (
+                  <canvas ref={soldChartRef} />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No service sales this month yet.</Typography>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <PaidOutlinedIcon sx={{ color: ACCENT }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Most Revenue Service (MTD)
+                  </Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={`${mostRevenueService.name} • ₹${mostRevenueService.revenue.toLocaleString()}`}
+                  sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, fontWeight: 700 }}
+                />
+              </Box>
+              <Box sx={{ height: 250 }}>
+                {serviceRevenueData.labels.length > 0 ? (
+                  <canvas ref={revenueChartRef} />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No service revenue this month yet.</Typography>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2.5} sx={{ mt: 1 }}>
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <PaidOutlinedIcon sx={{ color: "#6366f1" }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Service Revenue Distribution (MTD)
+                  </Typography>
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Amount + percentage per service
+                </Typography>
+              </Box>
+              <Box sx={{ height: 320 }}>
+                {serviceRevenueData.labels.length > 0 ? (
+                  <canvas ref={revenuePieChartRef} />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No service revenue this month yet.
+                  </Typography>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {/* ── Recent Bookings ── */}

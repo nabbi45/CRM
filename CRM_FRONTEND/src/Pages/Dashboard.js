@@ -30,6 +30,7 @@ import NotificationBell from '../components/NotificationBell';
 import DynamicHead from '../components/DynamicHead';
 import TeamInbox from '../components/TeamInbox';
 import ChatFAB from '../components/ChatFAB';
+import ProjectionLeads from '../components/ProjectionLeads';
 import { canAccessFeature } from '../utils/featureAccess';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
@@ -207,6 +208,7 @@ const Dashboard = () => {
         <Routes>
           <Route path="/" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><DashboardContent /></FeatureGuard>} />
           <Route path="new-booking" element={<FeatureGuard userSession={userSession} feature="new_booking"><AddBooking /></FeatureGuard>} />
+          <Route path="projection-leads" element={<FeatureGuard userSession={userSession} feature="projection_leads"><ProjectionLeads /></FeatureGuard>} />
           <Route path="history" element={<FeatureGuard userSession={userSession} feature="all_bookings"><History /></FeatureGuard>} />
           <Route path="adduser" element={<FeatureGuard userSession={userSession} feature="manage_users"><AddUser /></FeatureGuard>} />
           <Route path="removeuser" element={<FeatureGuard userSession={userSession} feature="manage_users"><RemoveUser /></FeatureGuard>} />

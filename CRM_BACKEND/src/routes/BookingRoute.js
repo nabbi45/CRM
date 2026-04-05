@@ -119,6 +119,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     }
 
     const rolesWithFullAccess = ["dev", "senior admin", "srdev"];
+    const requesterId = req.user?.user_id;
 
     if (user_role === "admin") {
       const { services, ...allowedUpdates } = updates;
@@ -155,6 +156,29 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     };
 
     if (rolesWithFullAccess.includes(user_role) || user_role === "admin") {
+      const updatedBooking = await BookingModel.findByIdAndUpdate(
+        id,
+        {
+          $set: updates,
+          $push: { updatedhistory: historyEntry },
+        },
+        { new: true }
+      );
+
+      return res.status(200).send({
+        message: "Booking Updated Successfully",
+        updatedBooking,
+      });
+    }
+
+    const continuationAllowedKeys = ["term_2", "term_3", "payment_date"];
+    const updateKeys = Object.keys(updates);
+    const isOwner = String(oldBooking.user_id || "") === String(requesterId || "");
+    const isContinuationUpdate =
+      updateKeys.length > 0 &&
+      updateKeys.every((key) => continuationAllowedKeys.includes(key));
+
+    if (isOwner && isContinuationUpdate) {
       const updatedBooking = await BookingModel.findByIdAndUpdate(
         id,
         {
