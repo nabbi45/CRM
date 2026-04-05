@@ -64,15 +64,15 @@ const AddBooking = ({ onClose }) => {
         const userSession = JSON.parse(localStorage.getItem('userSession'));
         if (!userSession) return;
 
-        // Use /user/all to get the full list of employees for sharing
-        const response = await fetch(`${apiUrl}/user/all`, {
+        // Use /user/options so all authenticated roles can access employee options
+        const response = await fetch(`${apiUrl}/user/options`, {
           headers: { 'Authorization': userSession?.token || '' }
         });
 
         if (response.ok) {
           const data = await response.json();
-          // Backend returns { Users: [...] }
-          setUsers(Array.isArray(data.Users) ? data.Users : []);
+          // Backend returns { users: [...] }
+          setUsers(Array.isArray(data.users) ? data.users : []);
         } else {
           // If restricted or error, default to empty to prevent crash
           setUsers([]);

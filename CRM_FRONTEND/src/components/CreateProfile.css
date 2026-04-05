@@ -13,10 +13,11 @@
 }
 
 .profile-header {
-  background: radial-gradient(circle at top, #1f2937 0%, #0f172a 60%, #020617 100%);
-  color: #f8fafc;
+  background: #ffffff;
+  color: #000000;
   padding: 2.5rem 1.5rem;
   text-align: center;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .header-content {
@@ -40,14 +41,14 @@
 .header-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: #000000;
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .header-description {
   font-size: 1.1rem;
-  color: rgba(248, 250, 252, 0.85);
+  color: #000000;
   opacity: 0.95;
   margin: 0;
   max-width: 500px;
@@ -550,10 +551,13 @@
 .create-profile-container.dark-mode .form-label,
 .create-profile-container.dark-mode .step-title,
 .create-profile-container.dark-mode .upload-label,
-.create-profile-container.dark-mode .upload-title,
+.create-profile-container.dark-mode .upload-title {
+  color: #e2e8f0;
+}
+
 .create-profile-container.dark-mode .header-title,
 .create-profile-container.dark-mode .header-description {
-  color: #e2e8f0;
+  color: #000000;
 }
 
 .create-profile-container.dark-mode .step.active .step-label,

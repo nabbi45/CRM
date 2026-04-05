@@ -498,21 +498,22 @@ const TeamInbox = () => {
                             type="submit"
                             disabled={!inputMsg.trim()}
                             sx={{
-                                bgcolor: isDark ? '#f97316' : ACCENT,
-                                color: '#fff',
+                                bgcolor: isDark ? '#111827' : ACCENT,
+                                color: isDark ? '#ffffff' : '#fff',
                                 borderRadius: '12px',
-                                border: isDark ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                                border: isDark ? '1px solid rgba(248,250,252,0.35)' : 'none',
                                 boxShadow: isDark ? '0 6px 18px rgba(0,0,0,0.45)' : 'none',
                                 transition: 'all 0.2s ease',
                                 '&:hover': {
-                                    bgcolor: isDark ? '#fb923c' : '#e03118'
+                                    bgcolor: isDark ? '#1f2937' : '#e03118'
                                 },
                                 '&.Mui-disabled': {
-                                    bgcolor: isDark ? 'rgba(148,163,184,0.15)' : '#e0e0e0',
-                                    color: isDark ? '#94a3b8' : '#9e9e9e'
+                                    bgcolor: isDark ? '#334155' : '#e0e0e0',
+                                    color: isDark ? '#f1f5f9' : '#9e9e9e',
+                                    opacity: 1
                                 },
                                 '& svg': {
-                                    color: '#fff'
+                                    color: isDark ? '#ffffff' : '#fff'
                                 }
                             }}
                         >
