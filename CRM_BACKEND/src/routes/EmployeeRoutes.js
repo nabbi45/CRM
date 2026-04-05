@@ -5,27 +5,23 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
+const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
+const PROFILE_EDITOR_ROLES = ["hr", "admin", "super admin", "dev", "srdev", "senior admin"];
+
+const canEditProfiles = (role) => PROFILE_EDITOR_ROLES.includes(normalizeRole(role));
+
 /**
  * Authorization middleware - Allow profile owner or HR
  */
-const authorizeSelfOrHR = (req, res, next) => {
-  const requestedUserId = req.params.id;
-  if (req.user.userId !== requestedUserId && req.user.user_role !== "HR") {
-    return res.status(403).json({ 
-      message: "Access denied. You can only access your own profile or need HR privileges." 
-    });
-  }
-  next();
-};
+const authorizeSelfOrHR = (req, res, next) => next();
 
 /**
  * HR-only authorization
  */
 const authorizeHROnly = (req, res, next) => {
-  
-  if (req.user.user_role !== "HR") {
-    return res.status(403).json({ 
-      message: "Access denied. Only HR personnel can perform this action." 
+  if (!canEditProfiles(req.user?.user_role)) {
+    return res.status(403).json({
+      message: "Access denied. Only HR/Admin/Super Admin/Dev roles can perform this action."
     });
   }
   next();
@@ -85,9 +81,9 @@ const validateProfileData = (req, res, next) => {
 router.use(authenticateUser);
 
 /**
- * GET /all - List all employee profiles (HR only)
+ * GET /all - List all employee profiles (all authenticated users)
  */
-router.get("/all", authorizeHROnly, async (req, res) => {
+router.get("/all", async (req, res) => {
   try {
     const { 
       page = 1, 
@@ -142,9 +138,34 @@ router.get("/all", authorizeHROnly, async (req, res) => {
 });
 
 /**
- * GET /profile/:id - Get specific employee profile
+ * GET /options - Lightweight employee profile options for dropdowns
  */
-router.get("/profile/:id", authorizeSelfOrHR, async (req, res) => {
+router.get("/options", async (req, res) => {
+  try {
+    const profiles = await EmployeeModel.find({ isActive: true })
+      .select("userId employeeFullName employeeId designation department")
+      .sort({ employeeFullName: 1 })
+      .lean();
+
+    const employees = profiles.map((profile) => ({
+      user_id: profile.userId,
+      name: profile.employeeFullName,
+      employeeId: profile.employeeId,
+      designation: profile.designation,
+      department: profile.department,
+    }));
+
+    res.json({ employees });
+  } catch (err) {
+    console.error("GET /options error:", err);
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+/**
+ * GET /profile/:id - Get specific employee profile (all authenticated users)
+ */
+router.get("/profile/:id", async (req, res) => {
   try {
     const profile = await EmployeeModel.findOne({ 
       userId: req.params.id,
@@ -209,6 +230,7 @@ router.post("/profile",
       const profileData = {
         userId: req.user.userId,
         ...req.body,
+        dateOfJoining: req.body.dateOfJoining || new Date(),
         personalEmailAddress: req.body.personalEmailAddress.toLowerCase(),
         workEmail: req.body.workEmail.toLowerCase(),
         panNumber: req.body.panNumber.toUpperCase(),
@@ -264,19 +286,17 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
       return res.status(404).json({ error: "Profile not found" });
     }
 
-    // Track changes for audit
     const changes = new Map();
     const updatableFields = [
       'employeeFullName', 'designation', 'department', 'branch', 'gender',
       'maritalStatus', 'dateOfBirth', 'personalContactNumber', 'personalEmailAddress',
       'workEmail', 'workPhoneNumber', 'permanentAddress', 'currentAddress',
       'emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelationship',
-      'dateOfJoining', 'reportingManager', 'dateOfLastPromotion',
+      'dateOfJoining', 'reportingManager', 'dateOfLastPromotion', 'offeredSalary',
       'educationQualification', 'previousEmployer', 'totalWorkExperience',
       'accountNumber', 'bankName', 'ifscCode', 'panNumber', 'aadharNumber'
     ];
 
-    // Build update object and track changes
     const updates = {};
     updatableFields.forEach(field => {
       if (req.body[field] !== undefined && req.body[field] !== profile[field]) {
@@ -288,28 +308,10 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
       }
     });
 
-    // Handle file uploads
-    if (req.files?.employeePhoto) {
-      changes.set('employeePhoto', {
-        oldValue: profile.employeePhoto,
-        newValue: req.files.employeePhoto[0].path
-      });
-      updates.employeePhoto = req.files.employeePhoto[0].path;
-    }
-
-    if (req.files?.aadhaarCardPhoto) {
-      changes.set('aadhaarCardPhoto', {
-        oldValue: profile.aadhaarCardPhoto,
-        newValue: req.files.aadhaarCardPhoto[0].path
-      });
-      updates.aadhaarCardPhoto = req.files.aadhaarCardPhoto[0].path;
-    }
-
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ message: "No changes detected" });
     }
 
-    // Add audit trail
     updates.updatedBy = req.user.userId;
     updates.$push = {
       updateHistory: {
@@ -320,20 +322,19 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
     };
 
     const updatedProfile = await EmployeeModel.findOneAndUpdate(
-      { userId: req.params.id },
+      { userId: req.params.id, isActive: true },
       updates,
       { new: true, runValidators: true }
     ).select('-updateHistory -__v');
 
-    res.json({
+    return res.json({
       message: "Profile updated successfully",
       profile: updatedProfile,
       changesCount: changes.size
     });
-
   } catch (err) {
     console.error("PUT /update/:id error:", err);
-    
+
     if (err.code === 11000) {
       const field = Object.keys(err.keyPattern)[0];
       return res.status(400).json({
@@ -341,31 +342,117 @@ router.put("/update/:id", authorizeHROnly, async (req, res) => {
       });
     }
 
-    res.status(500).json({ 
-      error: "Server error", 
-      details: err.message 
+    return res.status(500).json({
+      error: "Server error",
+      details: err.message
     });
   }
 });
 
+/**
+ * PUT /employment/:id - Update employment details (editor roles only)
+ */
+router.put("/employment/:id", authorizeHROnly, async (req, res) => {
+  try {
+    const profile = await EmployeeModel.findOne({ userId: req.params.id, isActive: true });
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    const updates = {};
+    if (req.body.dateOfJoining) updates.dateOfJoining = req.body.dateOfJoining;
+    if (req.body.offeredSalary !== undefined) updates.offeredSalary = req.body.offeredSalary;
+
+    const incomingCompensation = req.body.compensationDetails || {};
+    updates.compensationDetails = {
+      fixedMonthly: Number(incomingCompensation.fixedMonthly || 0),
+      fixedAnnual: Number(incomingCompensation.fixedAnnual || 0),
+      variablePay: Number(incomingCompensation.variablePay || 0),
+      bonus: Number(incomingCompensation.bonus || 0),
+      remarks: incomingCompensation.remarks || "",
+    };
+
+    updates.updatedBy = req.user.userId;
+
+    const updatedProfile = await EmployeeModel.findOneAndUpdate(
+      { userId: req.params.id, isActive: true },
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-updateHistory -__v");
+
+    return res.json({ message: "Employment details updated successfully", profile: updatedProfile });
+  } catch (err) {
+    console.error("PUT /employment/:id error:", err);
+    return res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
 
 /**
- * DELETE /delete/:id - Soft delete employee profile (HR only)
+ * POST /documents/:id - Upload supporting document against employee profile
+ */
+router.post(
+  "/documents/:id",
+  authorizeHROnly,
+  upload.single("documentFile"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "documentFile is required" });
+      }
+
+      const title = (req.body.title || "").trim();
+      if (!title) {
+        return res.status(400).json({ error: "Document title is required" });
+      }
+
+      const category = req.body.category || "other";
+
+      const updated = await EmployeeModel.findOneAndUpdate(
+        { userId: req.params.id, isActive: true },
+        {
+          $push: {
+            supportingDocuments: {
+              title,
+              category,
+              fileUrl: req.file.path,
+              uploadedBy: req.user.userId,
+              uploadedAt: new Date(),
+            },
+          },
+          $set: { updatedBy: req.user.userId },
+        },
+        { new: true }
+      ).select("supportingDocuments userId employeeFullName");
+
+      if (!updated) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+
+      return res.status(201).json({ message: "Document uploaded successfully", profile: updated });
+    } catch (err) {
+      console.error("POST /documents/:id error:", err);
+      return res.status(500).json({ error: "Server error", details: err.message });
+    }
+  }
+);
+
+/**
+ * DELETE /delete/:id - Soft delete employee profile (editor roles only)
  */
 router.delete("/delete/:id", authorizeHROnly, async (req, res) => {
   try {
     const profile = await EmployeeModel.findOneAndUpdate(
       { userId: req.params.id, isActive: true },
-      { 
+      {
         isActive: false,
         updatedBy: req.user.userId,
         $push: {
           updateHistory: {
             updatedBy: req.user.userId,
-            changes: new Map([['isActive', { oldValue: true, newValue: false }]]),
-            reason: req.body.reason || "Profile deactivated"
-          }
-        }
+            changes: new Map([["isActive", { oldValue: true, newValue: false }]]),
+            reason: req.body.reason || "Profile deactivated",
+          },
+        },
       },
       { new: true }
     );
@@ -374,16 +461,15 @@ router.delete("/delete/:id", authorizeHROnly, async (req, res) => {
       return res.status(404).json({ error: "Profile not found" });
     }
 
-    res.json({ 
+    return res.json({
       message: "Employee profile deactivated successfully",
-      employeeId: profile.employeeId
+      employeeId: profile.employeeId,
     });
-
   } catch (err) {
     console.error("DELETE /delete/:id error:", err);
-    res.status(500).json({ 
-      error: "Server error", 
-      details: err.message 
+    return res.status(500).json({
+      error: "Server error",
+      details: err.message,
     });
   }
 });

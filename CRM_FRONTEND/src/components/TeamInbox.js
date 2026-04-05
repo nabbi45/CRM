@@ -488,8 +488,23 @@ const TeamInbox = () => {
                                 fullWidth
                                 placeholder={`Type your reply to ${activeChat.name}...`}
                                 variant="standard"
-                                InputProps={{ disableUnderline: true }}
-                                sx={{ ml: 1, py: 1 }}
+                                InputProps={{
+                                    disableUnderline: true,
+                                    sx: {
+                                        color: isDark ? '#f8fafc' : 'inherit',
+                                        '& input::placeholder': {
+                                            color: isDark ? 'rgba(248,250,252,0.6)' : 'rgba(0,0,0,0.5)',
+                                            opacity: 1,
+                                        },
+                                    }
+                                }}
+                                sx={{
+                                    ml: 1,
+                                    py: 1,
+                                    '& .MuiInput-root': {
+                                        color: isDark ? '#f8fafc' : 'inherit',
+                                    },
+                                }}
                                 value={inputMsg}
                                 onChange={handleTyping}
                             />

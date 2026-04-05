@@ -12,14 +12,15 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
     const timestamp = Date.now();
-    const userId = req.user?.user_id || 'anonymous';
+    const userId = req.user?.userId || 'anonymous';
     const extension = file.originalname.split('.').pop();
     const filename = `${userId}_${file.fieldname}_${timestamp}.${extension}`;
 
     return {
       folder: 'employee_profiles',
       public_id: filename,
-      allowed_formats: ['jpg', 'jpeg', 'png'],
+      resource_type: 'auto',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
     };
   },
 });

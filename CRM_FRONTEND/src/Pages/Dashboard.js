@@ -218,8 +218,10 @@ const Dashboard = () => {
           <Route path="create-profile" element={<FeatureGuard userSession={userSession} feature="create_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="my-profile" element={<FeatureGuard userSession={userSession} feature="my_profile"><MyProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="manage-employees" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route path="employee-profiles" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
+          <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="leave_management"><LeaveManagement /></FeatureGuard>} />
           <Route path="leave-management" element={<FeatureGuard userSession={userSession} feature="leave_management"><LeaveManagement /></FeatureGuard>} />
           <Route path="communication" element={<FeatureGuard userSession={userSession} feature="communication"><TeamInbox /></FeatureGuard>} />
         </Routes>

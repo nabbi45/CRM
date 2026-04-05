@@ -10,6 +10,10 @@ import {
 import "./EmployeeManagement.css";
 
 export const EmployeeManagement = ({ apiUrl, userSession }) => {
+  const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
+  const editorRoles = ["hr", "admin", "super admin", "dev", "srdev", "senior admin"];
+  const isEditor = editorRoles.includes(normalizeRole(userSession?.user_role));
+
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,6 +31,8 @@ export const EmployeeManagement = ({ apiUrl, userSession }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [docForm, setDocForm] = useState({ title: "", category: "other", file: null });
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const departments = ["Sales", "Digital", "Admin", "Legal", "Finance"];
   const branches = ["1206", "808", "1512", "Admin", "Digital", "407 AMD", "408 AMD", "906"];
@@ -61,12 +67,14 @@ export const EmployeeManagement = ({ apiUrl, userSession }) => {
   };
 
   const handleDelete = async (id) => {
+    if (!isEditor) return;
     if (!window.confirm("Are you sure you want to delete this employee profile?")) return;
     try {
       await axios.delete(`${apiUrl}/employee/delete/${id}`, {
         headers: { authorization: userSession.token },
       });
-      setEmployees(employees.filter((emp) => emp._id !== id));
+      setEmployees(employees.filter((emp) => emp.userId !== id));
+
     } catch (err) {
       console.error(err);
       alert("Failed to delete profile.");
@@ -88,23 +96,78 @@ export const EmployeeManagement = ({ apiUrl, userSession }) => {
     try {
       setSaving(true);
       const userSession = JSON.parse(localStorage.getItem('userSession'));
+
+      if (!isEditor) {
+        setShowEditModal(false);
+        return;
+      }
       
-      await axios.put(`${apiUrl}/employee/update/${selectedEmployee._id}`, editFormData, {
+      await axios.put(`${apiUrl}/employee/update/${selectedEmployee.userId}`, editFormData, {
         headers: { Authorization: userSession.token },
       });
+
+      await axios.put(
+        `${apiUrl}/employee/employment/${selectedEmployee.userId}`,
+        {
+          dateOfJoining: editFormData.dateOfJoining,
+          offeredSalary: editFormData.offeredSalary,
+          compensationDetails: {
+            fixedMonthly: editFormData?.compensationDetails?.fixedMonthly || 0,
+            fixedAnnual: editFormData?.compensationDetails?.fixedAnnual || 0,
+            variablePay: editFormData?.compensationDetails?.variablePay || 0,
+            bonus: editFormData?.compensationDetails?.bonus || 0,
+            remarks: editFormData?.compensationDetails?.remarks || "",
+          },
+        },
+        { headers: { Authorization: userSession.token } }
+      );
       
       setEmployees(employees.map(emp => 
-        emp._id === selectedEmployee._id ? { ...emp, ...editFormData } : emp
+        emp.userId === selectedEmployee.userId ? { ...emp, ...editFormData } : emp
       ));
       
       setShowEditModal(false);
       setSelectedEmployee(null);
       setEditFormData({});
+      fetchEmployees();
     } catch (err) {
       console.error("Error updating employee:", err);
       alert("Failed to update employee.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUploadDocument = async () => {
+    if (!isEditor || !selectedEmployee?.userId) return;
+    if (!docForm.title.trim() || !docForm.file) {
+      alert("Please provide document title and file.");
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      const payload = new FormData();
+      payload.append("title", docForm.title.trim());
+      payload.append("category", docForm.category);
+      payload.append("documentFile", docForm.file);
+
+      const session = JSON.parse(localStorage.getItem("userSession")) || {};
+      await axios.post(`${apiUrl}/employee/documents/${selectedEmployee.userId}`, payload, {
+        headers: {
+          Authorization: session.token || "",
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      setDocForm({ title: "", category: "other", file: null });
+      fetchEmployees();
+      alert("Document uploaded successfully.");
+    } catch (err) {
+      console.error("Error uploading document:", err);
+      alert("Failed to upload document.");
+    } finally {
+      setUploadingDoc(false);
     }
   };
 
@@ -309,13 +372,15 @@ Generated: ${new Date().toLocaleString()}
         >
           <Eye size={16} />
         </button>
-        <button 
-          className="action-btn edit-btn" 
-          onClick={() => handleEditEmployee(employee)}
-          title="Edit Employee"
-        >
-          <Pencil size={16} />
-        </button>
+        {isEditor && (
+          <button 
+            className="action-btn edit-btn" 
+            onClick={() => handleEditEmployee(employee)}
+            title="Edit Employee"
+          >
+            <Pencil size={16} />
+          </button>
+        )}
         <button 
           className="action-btn download-btn" 
           onClick={() => downloadEmployeeData(employee)}
@@ -323,13 +388,15 @@ Generated: ${new Date().toLocaleString()}
         >
           <Download size={16} />
         </button>
-        <button 
-          className="action-btn delete-btn" 
-          onClick={() => handleDelete(employee._id)}
-          title="Delete Employee"
-        >
-          <Trash2 size={16} />
-        </button>
+        {isEditor && (
+          <button 
+            className="action-btn delete-btn" 
+            onClick={() => handleDelete(employee.userId)}
+            title="Delete Employee"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -372,7 +439,7 @@ Generated: ${new Date().toLocaleString()}
             </div>
             <div>
               <h1 className="page-title">Employee Directory</h1>
-              <p className="page-subtitle">Manage your team efficiently and effectively</p>
+              <p className="page-subtitle">Employee Profiles, employment details and documents</p>
             </div>
           </div>
           
@@ -446,10 +513,12 @@ Generated: ${new Date().toLocaleString()}
             </button>
           )}
           
-          <button className="add-btn" onClick={() => alert("Redirect to add new employee form")}>
-            <Plus size={20} />
-            Add Employee
-          </button>
+          {isEditor && (
+            <button className="add-btn" onClick={() => alert("Employee profiles are created from Create Profile")}> 
+              <Plus size={20} />
+              Add Employee
+            </button>
+          )}
         </div>
       </div>
 
@@ -549,10 +618,12 @@ Generated: ${new Date().toLocaleString()}
                 : "Start by adding your first employee to the directory."
               }
             </p>
-            <button className="add-first-btn" onClick={() => alert("Redirect to add employee form")}>
-              <Plus size={20} />
-              Add First Employee
-            </button>
+            {isEditor && (
+              <button className="add-first-btn" onClick={() => alert("Employee profiles are created from Create Profile")}>
+                <Plus size={20} />
+                Add First Employee
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -658,6 +729,50 @@ Generated: ${new Date().toLocaleString()}
                     </div>
                   </div>
                 </div>
+
+                <div className="detail-section">
+                  <h4><FileText size={18} /> Compensation Details</h4>
+                  <div className="detail-grid">
+                    <div className="detail-item">
+                      <span className="label">Offered Salary:</span>
+                      <span className="value">{selectedEmployee.offeredSalary || 'Not provided'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Fixed Monthly:</span>
+                      <span className="value">{selectedEmployee?.compensationDetails?.fixedMonthly || 0}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Fixed Annual:</span>
+                      <span className="value">{selectedEmployee?.compensationDetails?.fixedAnnual || 0}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Variable Pay:</span>
+                      <span className="value">{selectedEmployee?.compensationDetails?.variablePay || 0}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Bonus:</span>
+                      <span className="value">{selectedEmployee?.compensationDetails?.bonus || 0}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Remarks:</span>
+                      <span className="value">{selectedEmployee?.compensationDetails?.remarks || 'Not provided'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="detail-section">
+                  <h4><Upload size={18} /> Supporting Documents</h4>
+                  <div className="detail-grid">
+                    {(selectedEmployee.supportingDocuments || []).length === 0 ? (
+                      <div className="detail-item"><span className="value">No documents uploaded.</span></div>
+                    ) : (selectedEmployee.supportingDocuments || []).map((doc, idx) => (
+                      <div className="detail-item" key={`${doc.fileUrl}-${idx}`}>
+                        <span className="label">{doc.title} ({doc.category})</span>
+                        <a className="value" href={doc.fileUrl} target="_blank" rel="noreferrer">Open</a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -675,9 +790,10 @@ Generated: ${new Date().toLocaleString()}
                   setShowViewModal(false);
                   handleEditEmployee(selectedEmployee);
                 }}
+                disabled={!isEditor}
               >
                 <Edit3 size={18} />
-                Edit Profile
+                {isEditor ? 'Edit Profile' : 'Read Only'}
               </button>
             </div>
           </div>
@@ -797,8 +913,19 @@ Generated: ${new Date().toLocaleString()}
                         <label>Date of Joining</label>
                         <input
                           type="date"
-                          value={editFormData.dateOfJoining || ''}
+                          value={editFormData.dateOfJoining ? String(editFormData.dateOfJoining).slice(0, 10) : ''}
                           onChange={(e) => setEditFormData({...editFormData, dateOfJoining: e.target.value})}
+                          disabled={!isEditor}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Offered Salary</label>
+                        <input
+                          type="text"
+                          value={editFormData.offeredSalary || ''}
+                          onChange={(e) => setEditFormData({...editFormData, offeredSalary: e.target.value})}
+                          disabled={!isEditor}
                         />
                       </div>
 
@@ -808,6 +935,7 @@ Generated: ${new Date().toLocaleString()}
                           type="text"
                           value={editFormData.reportingManager || ''}
                           onChange={(e) => setEditFormData({...editFormData, reportingManager: e.target.value})}
+                          disabled={!isEditor}
                         />
                       </div>
 
@@ -817,9 +945,107 @@ Generated: ${new Date().toLocaleString()}
                           value={editFormData.educationQualification || ''}
                           onChange={(e) => setEditFormData({...editFormData, educationQualification: e.target.value})}
                           rows="3"
+                          disabled={!isEditor}
                         />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h4>Compensation Details</h4>
+                    <div className="form-grid">
+                      {[
+                        ["fixedMonthly", "Fixed Monthly"],
+                        ["fixedAnnual", "Fixed Annual"],
+                        ["variablePay", "Variable Pay"],
+                        ["bonus", "Bonus"],
+                      ].map(([key, label]) => (
+                        <div className="form-group" key={key}>
+                          <label>{label}</label>
+                          <input
+                            type="number"
+                            value={editFormData?.compensationDetails?.[key] || 0}
+                            onChange={(e) => setEditFormData({
+                              ...editFormData,
+                              compensationDetails: {
+                                ...(editFormData.compensationDetails || {}),
+                                [key]: Number(e.target.value || 0),
+                              },
+                            })}
+                            disabled={!isEditor}
+                          />
+                        </div>
+                      ))}
+
+                      <div className="form-group full-width">
+                        <label>Compensation Remarks</label>
+                        <textarea
+                          rows="2"
+                          value={editFormData?.compensationDetails?.remarks || ''}
+                          onChange={(e) => setEditFormData({
+                            ...editFormData,
+                            compensationDetails: {
+                              ...(editFormData.compensationDetails || {}),
+                              remarks: e.target.value,
+                            },
+                          })}
+                          disabled={!isEditor}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-section">
+                    <h4>Supporting Documents</h4>
+                    <div className="detail-grid">
+                      {(selectedEmployee.supportingDocuments || []).length === 0 ? (
+                        <div className="detail-item"><span className="value">No documents uploaded yet.</span></div>
+                      ) : (selectedEmployee.supportingDocuments || []).map((doc, idx) => (
+                        <div className="detail-item" key={`${doc.fileUrl}-${idx}`}>
+                          <span className="label">{doc.title} ({doc.category})</span>
+                          <a className="value" href={doc.fileUrl} target="_blank" rel="noreferrer">Open</a>
+                        </div>
+                      ))}
+                    </div>
+
+                    {isEditor && (
+                      <div className="form-grid" style={{ marginTop: 12 }}>
+                        <div className="form-group">
+                          <label>Document Title</label>
+                          <input
+                            type="text"
+                            value={docForm.title}
+                            onChange={(e) => setDocForm({ ...docForm, title: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Category</label>
+                          <select
+                            value={docForm.category}
+                            onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}
+                          >
+                            <option value="experience_letter">Experience Letter</option>
+                            <option value="offer_letter">Offer Letter</option>
+                            <option value="salary_document">Salary Document</option>
+                            <option value="id_document">ID Document</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label>Upload File</label>
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={(e) => setDocForm({ ...docForm, file: e.target.files?.[0] || null })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <button type="button" className="modal-btn primary" onClick={handleUploadDocument} disabled={uploadingDoc}>
+                            {uploadingDoc ? 'Uploading...' : 'Upload Document'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </form>
@@ -835,7 +1061,7 @@ Generated: ${new Date().toLocaleString()}
               <button 
                 className="modal-btn primary"
                 onClick={handleSaveEdit}
-                disabled={saving}
+                disabled={saving || !isEditor}
               >
                 {saving ? (
                   <>
@@ -845,7 +1071,7 @@ Generated: ${new Date().toLocaleString()}
                 ) : (
                   <>
                     <Save size={18} />
-                    Save Changes
+                    {isEditor ? 'Save Changes' : 'Read Only'}
                   </>
                 )}
               </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Grid, FormControl } from "@mui/material";
+import { Grid, FormControl, useTheme } from "@mui/material";
 import SelectReact from "react-select";
 import { apiUrl } from "./LoginSignup";
 
@@ -7,6 +7,8 @@ const ServiceDropdown = ({ formData, setFormData }) => {
   const [serviceOptions, setServiceOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
 
   // Fetch services from API
@@ -69,11 +71,43 @@ const ServiceDropdown = ({ formData, setFormData }) => {
               ...base,
               minHeight: "56px",
               padding: "5px",
-              backgroundColor: "#f9f9f9",
+              backgroundColor: isDark ? '#1e293b' : '#f9f9f9',
+              borderColor: isDark ? 'rgba(255,255,255,0.2)' : base.borderColor,
             }),
             menu: (base) => ({
               ...base,
               zIndex: 9999,
+              backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            }),
+            option: (base, state) => ({
+              ...base,
+              backgroundColor: state.isSelected
+                ? (isDark ? '#3b82f6' : '#2563eb')
+                : state.isFocused
+                  ? (isDark ? '#334155' : '#f3f4f6')
+                  : (isDark ? '#1e293b' : '#ffffff'),
+              color: state.isSelected
+                ? '#ffffff'
+                : (isDark ? '#f8fafc' : '#1f2937'),
+              '&:hover': {
+                backgroundColor: isDark ? '#334155' : '#f3f4f6',
+              },
+            }),
+            multiValue: (base) => ({
+              ...base,
+              backgroundColor: isDark ? '#334155' : '#e5e7eb',
+            }),
+            multiValueLabel: (base) => ({
+              ...base,
+              color: isDark ? '#f8fafc' : '#374151',
+            }),
+            placeholder: (base) => ({
+              ...base,
+              color: isDark ? 'rgba(248,250,252,0.6)' : '#6b7280',
+            }),
+            input: (base) => ({
+              ...base,
+              color: isDark ? '#f8fafc' : '#1f2937',
             }),
           }}
         />
