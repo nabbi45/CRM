@@ -276,6 +276,17 @@ UserRoutes.get('/all', authenticateUser, authorizeDevRole, async (req, res) => {
   }
 })
 
+// Sanitized user list for dropdowns/share selectors
+UserRoutes.get('/options', authenticateUser, async (req, res) => {
+  try {
+    const users = await UserModel.find({}, 'name user_role profilePicture').sort({ name: 1 }).lean();
+    return res.status(200).send({ users });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send({ message: error.message });
+  }
+});
+
 // Assuming you already have the user object after login
 export const generateToken = (user) => {
   return jwt.sign({ userId: user._id, user_role: user.user_role }, process.env.JWT_SECRET, {

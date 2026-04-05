@@ -21,6 +21,70 @@ body {
     radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 40%);
 }
 
+body[data-theme='dark'] {
+  background: radial-gradient(circle at top right, rgba(15, 23, 42, 0.8), transparent 35%),
+    radial-gradient(circle at bottom left, rgba(15, 118, 110, 0.25), transparent 40%);
+  color: #f8fafc;
+}
+
+body[data-theme='dark'] h1,
+body[data-theme='dark'] h2,
+body[data-theme='dark'] h3,
+body[data-theme='dark'] h4,
+body[data-theme='dark'] h5,
+body[data-theme='dark'] h6 {
+  color: #f8fafc;
+}
+
+body[data-theme='dark'] p,
+body[data-theme='dark'] label,
+body[data-theme='dark'] span,
+body[data-theme='dark'] li,
+body[data-theme='dark'] input,
+body[data-theme='dark'] textarea,
+body[data-theme='dark'] select {
+  color: #e2e8f0;
+}
+
+body[data-theme='dark'] input,
+body[data-theme='dark'] textarea,
+body[data-theme='dark'] select {
+  background-color: #0f172a;
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+body[data-theme='dark'] .text-gray-600,
+body[data-theme='dark'] .text-gray-500,
+body[data-theme='dark'] .text-gray-400,
+body[data-theme='dark'] .text-gray-300,
+body[data-theme='dark'] .text-slate-500,
+body[data-theme='dark'] .text-slate-600,
+body[data-theme='dark'] .text-gray-700 {
+  color: #cbd5f5 !important;
+}
+
+body[data-theme='dark'] .text-gray-900,
+body[data-theme='dark'] .text-slate-900,
+body[data-theme='dark'] .text-black,
+body[data-theme='dark'] .text-dark {
+  color: #f8fafc !important;
+}
+
+body[data-theme='dark'] .bg-white,
+body[data-theme='dark'] .bg-gray-50,
+body[data-theme='dark'] .bg-surface-light {
+  background-color: #0f172a !important;
+  color: #f8fafc;
+}
+
+body[data-theme='dark'] .card,
+body[data-theme='dark'] .panel,
+body[data-theme='dark'] .data-card {
+  background-color: #111827;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
 .App {
   text-align: center;
   min-height: 100vh;

@@ -2,6 +2,7 @@ import express from "express";
 import { BroadcastModel } from "../models/BroadcastModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
+import { getUserJoinDate } from "../utils/userJoinDate.js";
 
 const BroadcastRoutes = express.Router();
 
@@ -36,10 +37,11 @@ BroadcastRoutes.post("/", authenticateUser, async (req, res) => {
     }
 });
 
-// Get all broadcasts (latest first, last 50)
+// Get all broadcasts (latest first, last 50) respecting user join date
 BroadcastRoutes.get("/", authenticateUser, async (req, res) => {
     try {
-        const broadcasts = await BroadcastModel.find()
+        const joinDate = getUserJoinDate(req.user.userId);
+        const broadcasts = await BroadcastModel.find({ createdAt: { $gte: joinDate } })
             .sort({ createdAt: -1 })
             .limit(50)
             .lean();

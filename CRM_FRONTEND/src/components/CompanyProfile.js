@@ -31,6 +31,8 @@ const CompanyProfile = () => {
     const [sealFile, setSealFile] = useState(null);
 
     const userSession = JSON.parse(localStorage.getItem('userSession'));
+    const role = (userSession?.user_role || '').toLowerCase();
+    const canEditProfile = ['admin', 'dev', 'srdev', 'senior admin'].includes(role);
 
     useEffect(() => {
         fetchProfile();
@@ -67,6 +69,10 @@ const CompanyProfile = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!canEditProfile) {
+            enqueueSnackbar('You do not have permission to update the company profile.', { variant: 'warning' });
+            return;
+        }
         setLoading(true);
         try {
             const res = await fetch(`${apiUrl}/company/update`, {
@@ -93,6 +99,10 @@ const CompanyProfile = () => {
     };
 
     const handleUploadLogo = async () => {
+        if (!canEditProfile) {
+            enqueueSnackbar('You do not have permission to upload assets.', { variant: 'warning' });
+            return;
+        }
         if (!file) {
             enqueueSnackbar('Please select an image first', { variant: 'warning' });
             return;
@@ -126,6 +136,10 @@ const CompanyProfile = () => {
     };
 
     const handleUploadSeal = async () => {
+        if (!canEditProfile) {
+            enqueueSnackbar('You do not have permission to upload assets.', { variant: 'warning' });
+            return;
+        }
         if (!sealFile) {
             enqueueSnackbar('Please select an image first', { variant: 'warning' });
             return;
@@ -180,9 +194,9 @@ const CompanyProfile = () => {
                     <p style={{ fontSize: '0.85rem', marginBottom: '15px', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>
                         Suggestion: The best size for your CRM logo is a horizontal image of roughly <strong>300x100 pixels</strong> (PNG or JPG).
                     </p>
-                    <input type="file" accept="image/*" onChange={handleFileChange} style={{ marginBottom: '10px' }} />
+                    <input type="file" accept="image/*" onChange={handleFileChange} style={{ marginBottom: '10px' }} disabled={!canEditProfile} />
                     <div>
-                        <Button variant="contained" style={{ backgroundColor: '#111827', color: '#fff' }} onClick={handleUploadLogo} disabled={loading || !file}>
+                        <Button variant="contained" style={{ backgroundColor: '#111827', color: '#fff' }} onClick={handleUploadLogo} disabled={!canEditProfile || loading || !file}>
                             Upload Logo
                         </Button>
                     </div>
@@ -200,9 +214,9 @@ const CompanyProfile = () => {
                     <p style={{ fontSize: '0.85rem', marginBottom: '15px', color: mode === 'light' ? '#64748b' : '#94a3b8' }}>
                         Suggestion: Upload a circular or square format seal for official documents like your Invoices and Agreements.
                     </p>
-                    <input type="file" accept="image/*" onChange={handleSealFileChange} style={{ marginBottom: '10px' }} />
+                    <input type="file" accept="image/*" onChange={handleSealFileChange} style={{ marginBottom: '10px' }} disabled={!canEditProfile} />
                     <div>
-                        <Button variant="contained" style={{ backgroundColor: '#111827', color: '#fff' }} onClick={handleUploadSeal} disabled={loading || !sealFile}>
+                        <Button variant="contained" style={{ backgroundColor: '#111827', color: '#fff' }} onClick={handleUploadSeal} disabled={!canEditProfile || loading || !sealFile}>
                             Upload Seal
                         </Button>
                     </div>
@@ -218,19 +232,19 @@ const CompanyProfile = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                     <div>
                         <label style={labelStyle}>Company Name</label>
-                        <input type="text" name="company_name" value={profile.company_name} onChange={handleChange} style={inputStyle} required />
+                        <input type="text" name="company_name" value={profile.company_name} onChange={handleChange} style={inputStyle} required disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>Contact Number</label>
-                        <input type="text" name="contact_number" value={profile.contact_number} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="contact_number" value={profile.contact_number} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>Email</label>
-                        <input type="email" name="email" value={profile.email} onChange={handleChange} style={inputStyle} />
+                        <input type="email" name="email" value={profile.email} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>GST Number</label>
-                        <input type="text" name="gst_number" value={profile.gst_number} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="gst_number" value={profile.gst_number} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>PAN Number</label>
@@ -238,7 +252,7 @@ const CompanyProfile = () => {
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                         <label style={labelStyle}>Address</label>
-                        <textarea name="address" value={profile.address} onChange={handleChange} style={{ ...inputStyle, height: '80px', resize: 'vertical' }} required />
+                        <textarea name="address" value={profile.address} onChange={handleChange} style={{ ...inputStyle, height: '80px', resize: 'vertical' }} required disabled={!canEditProfile} />
                     </div>
                 </div>
 
@@ -246,19 +260,19 @@ const CompanyProfile = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                     <div>
                         <label style={labelStyle}>Bank Name</label>
-                        <input type="text" name="bank_name" value={profile.bank_name} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="bank_name" value={profile.bank_name} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>Account Name</label>
-                        <input type="text" name="account_name" value={profile.account_name} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="account_name" value={profile.account_name} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>Account Number</label>
-                        <input type="text" name="account_number" value={profile.account_number} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="account_number" value={profile.account_number} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>IFSC Code</label>
-                        <input type="text" name="ifsc_code" value={profile.ifsc_code} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="ifsc_code" value={profile.ifsc_code} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                 </div>
 
@@ -269,29 +283,34 @@ const CompanyProfile = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                     <div>
                         <label style={labelStyle}>SMTP Host (e.g., smtp.gmail.com)</label>
-                        <input type="text" name="mail_host" value={profile.mail_host || ''} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="mail_host" value={profile.mail_host || ''} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>SMTP Port (e.g., 465)</label>
-                        <input type="text" name="mail_port" value={profile.mail_port || ''} onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="mail_port" value={profile.mail_port || ''} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>Email Address (Sender)</label>
-                        <input type="email" name="mail_user" value={profile.mail_user || ''} onChange={handleChange} style={inputStyle} />
+                        <input type="email" name="mail_user" value={profile.mail_user || ''} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div>
                         <label style={labelStyle}>App Password / SMTP Password</label>
-                        <input type="password" name="mail_password" value={profile.mail_password || ''} onChange={handleChange} style={inputStyle} />
+                        <input type="password" name="mail_password" value={profile.mail_password || ''} onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                         <label style={labelStyle}>Default CC (Internal Copies - Comma Separated)</label>
-                        <input type="text" name="default_cc" value={profile.default_cc || ''} placeholder="e.g. sales@company.com, manager@company.com" onChange={handleChange} style={inputStyle} />
+                        <input type="text" name="default_cc" value={profile.default_cc || ''} placeholder="e.g. sales@company.com, manager@company.com" onChange={handleChange} style={inputStyle} disabled={!canEditProfile} />
                     </div>
                 </div>
 
-                <Button type="submit" variant="contained" style={{ backgroundColor: '#111827', color: '#fff', marginTop: '20px', width: '100%' }} disabled={loading}>
-                    Save Profile Details
+                <Button type="submit" variant="contained" style={{ backgroundColor: '#111827', color: '#fff', marginTop: '20px', width: '100%' }} disabled={!canEditProfile || loading}>
+                    {canEditProfile ? 'Save Profile Details' : 'Read Only Access'}
                 </Button>
+                {!canEditProfile && (
+                    <p style={{ marginTop: '8px', fontSize: '0.85rem', color: mode === 'light' ? '#64748b' : '#94a3b8', textAlign: 'center' }}>
+                        Contact an administrator to update branding assets or company settings.
+                    </p>
+                )}
             </form>
         </div>
     );

@@ -2,6 +2,7 @@ import express from "express";
 import { MessageModel } from "../models/MessageModel.js";
 import { UserModel } from "../models/UserModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { getUserJoinDate } from "../utils/userJoinDate.js";
 
 const ChatRoutes = express.Router();
 
@@ -53,9 +54,13 @@ ChatRoutes.get("/users", authenticateUser, async (req, res) => {
 // Get global "All Company" chat history
 ChatRoutes.get("/global", authenticateUser, async (req, res) => {
     try {
-        const messages = await MessageModel.find({ is_global: true })
+        const joinDate = getUserJoinDate(req.user.userId);
+        const messages = await MessageModel.find({
+            is_global: true,
+            createdAt: { $gte: joinDate },
+        })
             .sort({ createdAt: 1 })
-            .limit(100) // fetch last 100 max
+            .limit(100)
             .lean();
         return res.status(200).send(messages);
     } catch (error) {
@@ -69,12 +74,15 @@ ChatRoutes.get("/direct/:receiverId", authenticateUser, async (req, res) => {
         const currentUserId = req.user.userId;
         const receiverId = req.params.receiverId;
 
+        const joinDate = getUserJoinDate(currentUserId);
+
         const messages = await MessageModel.find({
             is_global: false,
             $or: [
                 { sender_id: currentUserId, receiver_id: receiverId },
                 { sender_id: receiverId, receiver_id: currentUserId },
             ],
+            createdAt: { $gte: joinDate },
         })
             .sort({ createdAt: 1 })
             .limit(100)
