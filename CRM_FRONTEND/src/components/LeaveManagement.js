@@ -120,13 +120,13 @@ const LeaveManagement = () => {
             if (isApprover) {
                 const [allCardsRes, usersRes] = await Promise.all([
                     fetch(`${apiUrl}/leaves/timecard/all?month=${month}`, { headers }),
-                    fetch(`${apiUrl}/employee/options`, { headers: { Authorization: session.token || '' } }),
+                    fetch(`${apiUrl}/user/options`, { headers: { Authorization: session.token || '' } }),
                 ]);
 
                 if (allCardsRes.ok) setAllTimecards(await allCardsRes.json());
                 if (usersRes.ok) {
                     const data = await usersRes.json();
-                    setEmployees(Array.isArray(data.employees) ? data.employees : []);
+                    setEmployees(Array.isArray(data.users) ? data.users : []);
                 }
             }
         } catch (error) {

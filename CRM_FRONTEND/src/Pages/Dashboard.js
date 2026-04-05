@@ -23,6 +23,7 @@ import { apiUrl } from '../components/LoginSignup';
 import { CreateProfile } from '../components/EmployeeProfileForm';
 import { MyProfile } from '../components/MyProfile';
 import { EmployeeManagement } from '../components/EmployeeManagement';
+import EmployeeProfiles from '../components/EmployeeProfiles';
 import CompanyProfile from '../components/CompanyProfile';
 import DocumentsPage from '../components/DocumentsPage';
 import LeaveManagement from '../components/LeaveManagement';
@@ -217,8 +218,15 @@ const Dashboard = () => {
           <Route path="Agreementsgenerator" element={<FeatureGuard userSession={userSession} feature="agreements_generator"><AgreementGeneratorPage /></FeatureGuard>} />
           <Route path="create-profile" element={<FeatureGuard userSession={userSession} feature="create_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="my-profile" element={<FeatureGuard userSession={userSession} feature="my_profile"><MyProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route
+            path="employee-profiles"
+            element={
+              (canAccessFeature(userSession, 'create_profile') || canAccessFeature(userSession, 'my_profile'))
+                ? <EmployeeProfiles apiUrl={apiUrl} userSession={userSession} />
+                : <FeatureGuard userSession={userSession} feature="create_profile"><EmployeeProfiles apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>
+            }
+          />
           <Route path="manage-employees" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
-          <Route path="employee-profiles" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
           <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="leave_management"><LeaveManagement /></FeatureGuard>} />

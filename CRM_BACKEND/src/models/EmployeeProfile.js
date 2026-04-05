@@ -60,17 +60,10 @@ const employeeProfileSchema = mongoose.Schema(
     },
     
     // Professional Information
-    dateOfJoining: { type: Date, default: Date.now },
+    dateOfJoining: { type: Date, required: true },
     reportingManager: { type: String, required: true },
     offeredSalary: { type: String, required: true },
     dateOfLastPromotion: { type: Date },
-    compensationDetails: {
-      fixedMonthly: { type: Number, default: 0 },
-      fixedAnnual: { type: Number, default: 0 },
-      variablePay: { type: Number, default: 0 },
-      bonus: { type: Number, default: 0 },
-      remarks: { type: String, default: "" },
-    },
     
     // Education & Experience
     educationQualification: { type: String, required: true },
@@ -92,19 +85,17 @@ const employeeProfileSchema = mongoose.Schema(
     // Document Files
     employeePhoto: { type: String, required: true },
     aadhaarCardPhoto: { type: String, required: true },
-    supportingDocuments: [
-      {
-        title: { type: String, required: true },
-        category: {
-          type: String,
-          enum: ["experience_letter", "offer_letter", "salary_document", "id_document", "other"],
-          default: "other",
-        },
-        fileUrl: { type: String, required: true },
-        uploadedBy: { type: String, required: true },
-        uploadedAt: { type: Date, default: Date.now },
-      },
-    ],
+    experienceLetter: { type: String, default: "" },
+    offerLetter: { type: String, default: "" },
+    joiningLetter: { type: String, default: "" },
+
+    // Compensation Details
+    compensationDetails: {
+      ctc: { type: String, default: "" },
+      basicSalary: { type: String, default: "" },
+      variablePay: { type: String, default: "" },
+      currency: { type: String, default: "INR" },
+    },
     
     // System fields
     isActive: { type: Boolean, default: true },
