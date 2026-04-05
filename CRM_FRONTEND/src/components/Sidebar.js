@@ -156,34 +156,34 @@ const Sidebar = () => {
     const items = [];
 
     if (canAccessFeature(userSession, 'dashboard_overview')) {
-      items.push({ text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard' });
+      items.push({ text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard', color: '#3b82f6' });
     }
     if (canAccessFeature(userSession, 'new_booking')) {
-      items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking' });
+      items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking', color: '#10b981' });
     }
     if (canAccessFeature(userSession, 'all_bookings')) {
-      items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history' });
+      items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history', color: '#f59e0b' });
     }
     if (canAccessFeature(userSession, 'proforma_invoice')) {
-      items.push({ text: 'Proforma Invoice', icon: <ReceiptLongOutlinedIcon />, path: '/dashboard/ProformaInvoice' });
+      items.push({ text: 'Proforma Invoice', icon: <ReceiptLongOutlinedIcon />, path: '/dashboard/ProformaInvoice', color: '#8b5cf6' });
     }
     if (canAccessFeature(userSession, 'agreements_generator')) {
-      items.push({ text: 'Agreements Generator', icon: <DescriptionOutlinedIcon />, path: '/dashboard/Agreementsgenerator' });
+      items.push({ text: 'Agreements Generator', icon: <DescriptionOutlinedIcon />, path: '/dashboard/Agreementsgenerator', color: '#ec4899' });
     }
     if (canAccessFeature(userSession, 'generated_documents')) {
-      items.push({ text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents' });
+      items.push({ text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents', color: '#06b6d4' });
     }
     if (canAccessFeature(userSession, 'manage_users')) {
-      items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser' });
+      items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser', color: '#f97316' });
     }
     if (canAccessFeature(userSession, 'manage_services')) {
-      items.push({ text: 'Manage Services', icon: <MiscellaneousServicesOutlinedIcon />, path: '/dashboard/addservices' });
+      items.push({ text: 'Manage Services', icon: <MiscellaneousServicesOutlinedIcon />, path: '/dashboard/addservices', color: '#84cc16' });
     }
     if (canAccessFeature(userSession, 'company_profile')) {
-      items.push({ text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile' });
+      items.push({ text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile', color: '#6366f1' });
     }
     if (canAccessFeature(userSession, 'leave_management')) {
-      items.push({ text: 'Timecard', icon: <EventNoteOutlinedIcon />, path: '/dashboard/timecard' });
+      items.push({ text: 'Leave Management', icon: <EventNoteOutlinedIcon />, path: '/dashboard/leave-management', color: '#14b8a6' });
     }
     if (canAccessFeature(userSession, 'communication')) {
       items.push({
@@ -194,15 +194,18 @@ const Sidebar = () => {
           </Badge>
         ),
         path: '/dashboard/communication',
+        color: '#ef4444',
       });
     }
 
-    if (canAccessFeature(userSession, 'create_profile') || canAccessFeature(userSession, 'my_profile')) {
-      items.push({ text: 'Employee Profiles', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/employee-profiles' });
+    if (hasProfile && canAccessFeature(userSession, 'my_profile')) {
+      items.push({ text: 'My Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/my-profile', color: '#a855f7' });
+    } else if (!hasProfile && canAccessFeature(userSession, 'create_profile')) {
+      items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile', color: '#a855f7' });
     }
 
     if (canAccessFeature(userSession, 'trash')) {
-      items.push({ text: 'Trash', icon: <DeleteOutlineIcon />, path: '/dashboard/trash' });
+      items.push({ text: 'Trash', icon: <DeleteOutlineIcon />, path: '/dashboard/trash', color: '#ef4444' });
     }
 
     return items;
@@ -379,26 +382,54 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
             {({ isActive }) => (
               <ListItem
                 sx={{
-                  mb: 0.3,
+                  mb: 0.5,
                   borderRadius: 2,
-                  py: 0.8,
+                  py: 0.9,
                   px: 1.5,
-                  transition: 'all 0.15s ease',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   color: isActive ? '#ffffff' : navTextColor,
                   background: isActive ? activeTabBg : 'transparent',
-                  borderLeft: '3px solid transparent',
-                  boxShadow: isActive ? '0 10px 22px rgba(255,59,31,0.4)' : 'none',
+                  borderLeft: isActive ? `3px solid ${item.color}` : '3px solid transparent',
+                  boxShadow: isActive ? `0 8px 20px ${item.color}40` : 'none',
+                  transform: isActive ? 'translateX(4px)' : 'translateX(0)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `linear-gradient(135deg, ${item.color}20 0%, transparent 50%)`,
+                    opacity: isActive ? 0 : 0,
+                    transition: 'opacity 0.3s ease',
+                  },
                   '&:hover': {
-                    background: isActive ? activeTabBg : navHoverBg,
-                    color: isActive ? '#ffffff' : (isLight ? '#0f172a' : '#f8fafc'),
+                    background: isActive ? activeTabBg : `${item.color}15`,
+                    color: isActive ? '#ffffff' : item.color,
+                    transform: 'translateX(6px)',
+                    '&::before': {
+                      opacity: 0.3,
+                    },
+                  },
+                  '&:active': {
+                    transform: 'scale(0.98) translateX(4px)',
+                    transition: 'transform 0.1s ease',
                   },
                 }}
               >
                 <ListItemIcon
                   sx={{
-                    color: 'inherit',
-                    minWidth: 36,
-                    '& .MuiSvgIcon-root': { fontSize: '1.2rem' },
+                    color: isActive ? '#ffffff' : item.color,
+                    minWidth: 40,
+                    transition: 'all 0.3s ease',
+                    transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                    '& .MuiSvgIcon-root': { 
+                      fontSize: '1.25rem',
+                      transition: 'all 0.3s ease',
+                    },
+                    filter: isActive ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' : 'none',
                   }}
                 >
                   {item.icon}
@@ -406,8 +437,9 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontSize: '0.82rem',
-                    fontWeight: isActive ? 600 : 400,
+                    fontSize: '0.85rem',
+                    fontWeight: isActive ? 600 : 500,
+                    transition: 'all 0.3s ease',
                   }}
                 />
               </ListItem>

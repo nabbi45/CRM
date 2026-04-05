@@ -85,17 +85,6 @@ const employeeProfileSchema = mongoose.Schema(
     // Document Files
     employeePhoto: { type: String, required: true },
     aadhaarCardPhoto: { type: String, required: true },
-    experienceLetter: { type: String, default: "" },
-    offerLetter: { type: String, default: "" },
-    joiningLetter: { type: String, default: "" },
-
-    // Compensation Details
-    compensationDetails: {
-      ctc: { type: String, default: "" },
-      basicSalary: { type: String, default: "" },
-      variablePay: { type: String, default: "" },
-      currency: { type: String, default: "INR" },
-    },
     
     // System fields
     isActive: { type: Boolean, default: true },

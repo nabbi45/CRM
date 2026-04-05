@@ -27,10 +27,10 @@ export const FEATURE_LABELS = {
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
   manage_employees: 'Manage Employees',
-  leave_management: 'Timecard',
+  leave_management: 'Leave Management',
   communication: 'Communication',
   my_profile: 'My Profile',
-  create_profile: 'Employee Profiles',
+  create_profile: 'Create Profile',
   trash: 'Trash',
 };
 

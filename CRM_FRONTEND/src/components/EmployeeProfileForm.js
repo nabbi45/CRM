@@ -29,8 +29,6 @@ import { useColorMode } from "../context/AppThemeProvider";
 
 export const CreateProfile = ({ apiUrl, userSession }) => {
   const { mode } = useColorMode();
-  const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
-  const canEditRestrictedFields = ['hr', 'admin', 'super admin', 'dev', 'srdev', 'senior admin'].includes(normalizeRole(userSession?.user_role));
 
   const [profileExists, setProfileExists] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -62,7 +60,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     emergencyContactRelationship: "",
 
     // Professional Information
-    dateOfJoining: new Date().toISOString().slice(0, 10),
+    dateOfJoining: "",
     offeredSalary: "",
     reportingManager: "",
 
@@ -590,12 +588,8 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
                   value={formData.dateOfJoining}
                   onChange={handleChange}
                   className={`form-input ${errors.dateOfJoining ? 'error' : ''}`}
-                  disabled={!canEditRestrictedFields}
                 />
                 {errors.dateOfJoining && <span className="error-message">{errors.dateOfJoining}</span>}
-                {!canEditRestrictedFields && (
-                  <span className="preview-text">Date of joining is auto-set from profile creation date for your role.</span>
-                )}
               </div>
 
               <div className="form-group">

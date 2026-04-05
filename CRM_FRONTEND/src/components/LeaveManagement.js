@@ -1,17 +1,19 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box, Typography, TextField, Button, Select, MenuItem, InputLabel, FormControl,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Chip, Dialog, DialogTitle, DialogContent, DialogActions, Grid, Card, CardContent,
-    Tab, Tabs,
+    Tab, Tabs, Avatar,
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
-import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
+import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from './LoginSignup';
 import Loader from './Loader';
+
+const ACCENT = '#111827';
 
 const statusColors = {
     pending: '#f59e0b',
@@ -25,80 +27,26 @@ const statusIcons = {
     rejected: <CancelOutlinedIcon sx={{ fontSize: 16 }} />,
 };
 
-const blankAttendance = {
-    user_id: '',
-    present_days: 0,
-    leave_days: 0,
-    week_off: 0,
-    holiday: 0,
-    half_day: 0,
-    wfh: 0,
-    el_taken: 0,
-    notes: '',
-};
-
-const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
-const approverRoles = ['hr', 'admin', 'super admin', 'dev', 'srdev', 'senior admin'];
-const currentMonth = () => new Date().toISOString().slice(0, 7);
-
-const numberValue = (value) => {
-    const parsed = Number(value || 0);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-};
-
 const LeaveManagement = () => {
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
-    const isApprover = approverRoles.includes(normalizeRole(session.user_role));
+    const isApprover = ['admin', 'dev', 'srdev', 'senior admin', 'HR'].includes(session.user_role);
 
-    const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState(0);
-    const [selectedMonth, setSelectedMonth] = useState(currentMonth());
-
     const [myLeaves, setMyLeaves] = useState([]);
     const [allLeaves, setAllLeaves] = useState([]);
-    const [myTimecard, setMyTimecard] = useState(null);
-    const [allTimecards, setAllTimecards] = useState([]);
-    const [employees, setEmployees] = useState([]);
-
-    const [leaveForm, setLeaveForm] = useState({ leave_type: '', start_date: '', end_date: '', reason: '' });
-    const [attendanceForm, setAttendanceForm] = useState(blankAttendance);
-    const [submittingLeave, setSubmittingLeave] = useState(false);
-    const [savingAttendance, setSavingAttendance] = useState(false);
-
+    const [loading, setLoading] = useState(true);
+    const [form, setForm] = useState({ leave_type: '', start_date: '', end_date: '', reason: '' });
+    const [submitting, setSubmitting] = useState(false);
     const [actionDialog, setActionDialog] = useState({ open: false, leave: null, action: '' });
     const [actionNote, setActionNote] = useState('');
 
-    const attendanceComputed = useMemo(() => {
-        const present_days = numberValue(attendanceForm.present_days);
-        const leave_days = numberValue(attendanceForm.leave_days);
-        const week_off = numberValue(attendanceForm.week_off);
-        const holiday = numberValue(attendanceForm.holiday);
-        const half_day = numberValue(attendanceForm.half_day);
-        const wfh = numberValue(attendanceForm.wfh);
-        const el_taken = numberValue(attendanceForm.el_taken);
-
-        const total_leave = leave_days + half_day;
-        const payable_days = present_days + week_off + holiday + half_day + wfh + el_taken;
-
-        return { present_days, leave_days, week_off, holiday, half_day, wfh, el_taken, total_leave, payable_days };
-    }, [attendanceForm]);
-
     useEffect(() => {
-        loadInitial();
+        fetchData();
     }, []);
 
-    useEffect(() => {
-        loadMonthData(selectedMonth);
-    }, [selectedMonth]);
-
-    const loadInitial = async () => {
+    const fetchData = async () => {
         setLoading(true);
-        await Promise.all([loadLeaveData(), loadMonthData(selectedMonth)]);
-        setLoading(false);
-    };
-
-    const loadLeaveData = async () => {
         try {
             const myRes = await fetch(`${apiUrl}/leaves/my`, { headers });
             if (myRes.ok) setMyLeaves(await myRes.json());
@@ -107,259 +55,156 @@ const LeaveManagement = () => {
                 const allRes = await fetch(`${apiUrl}/leaves/all`, { headers });
                 if (allRes.ok) setAllLeaves(await allRes.json());
             }
-        } catch (error) {
-            console.error(error);
+        } catch (e) {
+            console.error(e);
         }
+        setLoading(false);
     };
 
-    const loadMonthData = async (month) => {
-        try {
-            const myCardRes = await fetch(`${apiUrl}/leaves/timecard/my?month=${month}`, { headers });
-            if (myCardRes.ok) setMyTimecard(await myCardRes.json());
-
-            if (isApprover) {
-                const [allCardsRes, usersRes] = await Promise.all([
-                    fetch(`${apiUrl}/leaves/timecard/all?month=${month}`, { headers }),
-                    fetch(`${apiUrl}/user/options`, { headers: { Authorization: session.token || '' } }),
-                ]);
-
-                if (allCardsRes.ok) setAllTimecards(await allCardsRes.json());
-                if (usersRes.ok) {
-                    const data = await usersRes.json();
-                    setEmployees(Array.isArray(data.users) ? data.users : []);
-                }
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
-
-    const handleLeaveSubmit = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!leaveForm.leave_type || !leaveForm.start_date || !leaveForm.end_date || !leaveForm.reason) {
-            enqueueSnackbar('All leave fields are required.', { variant: 'warning' });
+        if (!form.leave_type || !form.start_date || !form.end_date || !form.reason) {
+            enqueueSnackbar('All fields are required.', { variant: 'warning' });
             return;
         }
-
-        setSubmittingLeave(true);
+        setSubmitting(true);
         try {
             const res = await fetch(`${apiUrl}/leaves`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify(leaveForm),
+                body: JSON.stringify(form),
             });
             const data = await res.json();
-            if (!res.ok) {
-                enqueueSnackbar(data.message || 'Failed to submit leave.', { variant: 'error' });
-                return;
+            if (res.ok) {
+                enqueueSnackbar('Leave request submitted!', { variant: 'success' });
+                setForm({ leave_type: '', start_date: '', end_date: '', reason: '' });
+                fetchData();
+            } else {
+                enqueueSnackbar(data.message || 'Failed', { variant: 'error' });
             }
-
-            enqueueSnackbar('Leave request submitted.', { variant: 'success' });
-            setLeaveForm({ leave_type: '', start_date: '', end_date: '', reason: '' });
-            loadLeaveData();
-        } catch (error) {
-            enqueueSnackbar('Error submitting leave request.', { variant: 'error' });
+        } catch (e) {
+            enqueueSnackbar('Error submitting leave.', { variant: 'error' });
         }
-        setSubmittingLeave(false);
+        setSubmitting(false);
     };
 
-    const handleLeaveAction = async () => {
+    const handleAction = async () => {
         const { leave, action } = actionDialog;
-        if (!leave?._id) return;
-
         try {
             const res = await fetch(`${apiUrl}/leaves/${leave._id}`, {
                 method: 'PATCH',
                 headers,
                 body: JSON.stringify({ status: action, notes: actionNote }),
             });
-
-            if (!res.ok) {
-                enqueueSnackbar('Unable to update leave status.', { variant: 'error' });
-                return;
+            if (res.ok) {
+                enqueueSnackbar(`Leave ${action}.`, { variant: 'success' });
+                setActionDialog({ open: false, leave: null, action: '' });
+                setActionNote('');
+                fetchData();
             }
-
-            enqueueSnackbar(`Leave ${action}.`, { variant: 'success' });
-            setActionDialog({ open: false, leave: null, action: '' });
-            setActionNote('');
-            loadLeaveData();
-        } catch (error) {
-            enqueueSnackbar('Error while processing leave action.', { variant: 'error' });
+        } catch (e) {
+            enqueueSnackbar('Error processing leave.', { variant: 'error' });
         }
     };
 
-    const handlePickEmployee = (userId) => {
-        if (!userId) {
-            setAttendanceForm(blankAttendance);
-            return;
-        }
+    const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const dayCount = (s, e) => Math.max(1, Math.ceil((new Date(e) - new Date(s)) / 86400000) + 1);
 
-        const existing = allTimecards.find((card) => card.user_id === userId);
-        if (existing) {
-            setAttendanceForm({
-                user_id: userId,
-                present_days: existing.present_days || 0,
-                leave_days: existing.leave_days || 0,
-                week_off: existing.week_off || 0,
-                holiday: existing.holiday || 0,
-                half_day: existing.half_day || 0,
-                wfh: existing.wfh || 0,
-                el_taken: existing.el_taken || 0,
-                notes: existing.notes || '',
-            });
-            return;
-        }
-
-        setAttendanceForm({ ...blankAttendance, user_id: userId });
-    };
-
-    const handleSaveAttendance = async () => {
-        if (!attendanceForm.user_id) {
-            enqueueSnackbar('Please select an employee first.', { variant: 'warning' });
-            return;
-        }
-
-        setSavingAttendance(true);
-        try {
-            const res = await fetch(`${apiUrl}/leaves/timecard/mark`, {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify({
-                    user_id: attendanceForm.user_id,
-                    month: selectedMonth,
-                    ...attendanceComputed,
-                    notes: attendanceForm.notes,
-                }),
-            });
-
-            const data = await res.json();
-            if (!res.ok) {
-                enqueueSnackbar(data.message || 'Failed to save timecard.', { variant: 'error' });
-                return;
-            }
-
-            enqueueSnackbar('Timecard saved successfully.', { variant: 'success' });
-            loadMonthData(selectedMonth);
-        } catch (error) {
-            enqueueSnackbar('Error saving attendance.', { variant: 'error' });
-        }
-        setSavingAttendance(false);
-    };
-
-    const formatDate = (value) => new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const leaveDays = (from, to) => Math.max(1, Math.ceil((new Date(to) - new Date(from)) / 86400000) + 1);
-
-    if (loading) {
-        return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><Loader /></Box>;
-    }
-
-    const summaryCard = myTimecard || {
-        present_days: 0,
-        leave_days: 0,
-        week_off: 0,
-        holiday: 0,
-        half_day: 0,
-        wfh: 0,
-        el_taken: 0,
-        total_leave: 0,
-        payable_days: 0,
-        notes: '',
-    };
+    if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><Loader /></Box>;
 
     return (
         <Box sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <AccessTimeOutlinedIcon sx={{ color: '#111827' }} />
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>Timecard</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <EventNoteOutlinedIcon sx={{ color: ACCENT }} />
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>Leave Management</Typography>
             </Box>
 
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                HR/Admin/Super Admin/Dev can mark monthly attendance and approve or reject leave requests.
-            </Typography>
+            {/* Summary Cards */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                {[
+                    { label: 'Total', count: myLeaves.length, color: '#64748b' },
+                    { label: 'Pending', count: myLeaves.filter((l) => l.status === 'pending').length, color: statusColors.pending },
+                    { label: 'Approved', count: myLeaves.filter((l) => l.status === 'approved').length, color: statusColors.approved },
+                    { label: 'Rejected', count: myLeaves.filter((l) => l.status === 'rejected').length, color: statusColors.rejected },
+                ].map((s, i) => (
+                    <Grid item xs={6} sm={3} key={i}>
+                        <Card>
+                            <CardContent sx={{ textAlign: 'center', py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                <Typography variant="h5" sx={{ fontWeight: 700, color: s.color }}>{s.count}</Typography>
+                                <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                ))}
+            </Grid>
 
-            <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}>
-                <Tab label="My Timecard" />
-                <Tab label="Apply Leave" />
+            <Tabs
+                value={tab}
+                onChange={(_, v) => setTab(v)}
+                sx={{ mb: 2, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}
+            >
+                <Tab label="Apply for Leave" />
                 <Tab label="My Leave History" />
-                {isApprover && <Tab label="Leave Requests" />}
-                {isApprover && <Tab label="Attendance Marking" />}
+                {isApprover && <Tab label="All Requests" />}
             </Tabs>
 
+            {/* Tab 0: Apply */}
             {tab === 0 && (
-                <Grid container spacing={2}>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            label="Month"
-                            type="month"
-                            fullWidth
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </Grid>
-                    {[ 
-                        ['Present Days', summaryCard.present_days],
-                        ['Leave Days', summaryCard.leave_days],
-                        ['Week Off', summaryCard.week_off],
-                        ['Holiday', summaryCard.holiday],
-                        ['Half Day', summaryCard.half_day],
-                        ['WFH', summaryCard.wfh],
-                        ['EL Taken', summaryCard.el_taken],
-                        ['Total Leave', summaryCard.total_leave],
-                        ['Payable Days', summaryCard.payable_days],
-                    ].map(([label, value]) => (
-                        <Grid item xs={6} sm={4} md={3} key={label}>
-                            <Card>
-                                <CardContent sx={{ textAlign: 'center' }}>
-                                    <Typography variant="h5" sx={{ fontWeight: 700 }}>{value}</Typography>
-                                    <Typography variant="caption" color="text.secondary">{label}</Typography>
-                                </CardContent>
-                            </Card>
-                        </Grid>
-                    ))}
-                    <Grid item xs={12}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>Payable Days Formula</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Present Days + Week Off + Holiday + Half Day + WFH + EL Taken = Payable Days
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                {summaryCard.present_days} + {summaryCard.week_off} + {summaryCard.holiday} + {summaryCard.half_day} + {summaryCard.wfh} + {summaryCard.el_taken} = {summaryCard.payable_days}
-                            </Typography>
-                            {summaryCard.notes ? (
-                                <Typography variant="body2" sx={{ mt: 1.5 }}><strong>Notes:</strong> {summaryCard.notes}</Typography>
-                            ) : null}
-                        </Paper>
-                    </Grid>
-                </Grid>
-            )}
-
-            {tab === 1 && (
                 <Card>
                     <CardContent>
-                        <form onSubmit={handleLeaveSubmit}>
+                        <form onSubmit={handleSubmit}>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} sm={6}>
                                     <FormControl fullWidth required>
                                         <InputLabel>Leave Type</InputLabel>
-                                        <Select label="Leave Type" value={leaveForm.leave_type} onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}>
-                                            {['sick', 'casual', 'earned', 'unpaid', 'other'].map((type) => (
-                                                <MenuItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</MenuItem>
+                                        <Select
+                                            label="Leave Type"
+                                            value={form.leave_type}
+                                            onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
+                                        >
+                                            {['sick', 'casual', 'earned', 'unpaid', 'other'].map((t) => (
+                                                <MenuItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</MenuItem>
                                             ))}
                                         </Select>
                                     </FormControl>
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
-                                    <TextField label="From" type="date" fullWidth required InputLabelProps={{ shrink: true }} value={leaveForm.start_date} onChange={(e) => setLeaveForm({ ...leaveForm, start_date: e.target.value })} />
+                                    <TextField
+                                        label="From"
+                                        type="date"
+                                        fullWidth
+                                        required
+                                        InputLabelProps={{ shrink: true }}
+                                        value={form.start_date}
+                                        onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                                    />
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
-                                    <TextField label="To" type="date" fullWidth required InputLabelProps={{ shrink: true }} value={leaveForm.end_date} onChange={(e) => setLeaveForm({ ...leaveForm, end_date: e.target.value })} />
+                                    <TextField
+                                        label="To"
+                                        type="date"
+                                        fullWidth
+                                        required
+                                        InputLabelProps={{ shrink: true }}
+                                        value={form.end_date}
+                                        onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                                    />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <TextField label="Reason" fullWidth multiline rows={3} required value={leaveForm.reason} onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })} />
+                                    <TextField
+                                        label="Reason"
+                                        fullWidth
+                                        required
+                                        multiline
+                                        rows={3}
+                                        value={form.reason}
+                                        onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                                    />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <Button type="submit" variant="contained" disabled={submittingLeave}>{submittingLeave ? 'Submitting...' : 'Submit Leave Request'}</Button>
+                                    <Button type="submit" variant="contained" disabled={submitting} sx={{ px: 4 }}>
+                                        {submitting ? 'Submitting...' : 'Submit Leave Request'}
+                                    </Button>
                                 </Grid>
                             </Grid>
                         </form>
@@ -367,7 +212,8 @@ const LeaveManagement = () => {
                 </Card>
             )}
 
-            {tab === 2 && (
+            {/* Tab 1: My History */}
+            {tab === 1 && (
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
@@ -382,24 +228,44 @@ const LeaveManagement = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {myLeaves.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} align="center">No leave history found.</TableCell></TableRow>
-                            ) : myLeaves.map((item) => (
-                                <TableRow key={item._id}>
-                                    <TableCell><Chip size="small" label={item.leave_type} sx={{ textTransform: 'capitalize' }} /></TableCell>
-                                    <TableCell>{formatDate(item.start_date)}</TableCell>
-                                    <TableCell>{formatDate(item.end_date)}</TableCell>
-                                    <TableCell>{leaveDays(item.start_date, item.end_date)}</TableCell>
+                            {myLeaves.length === 0 && (
+                                <TableRow><TableCell colSpan={7} align="center">No leave history</TableCell></TableRow>
+                            )}
+                            {myLeaves.map((l) => (
+                                <TableRow key={l._id}>
+                                    <TableCell>
+                                        <Chip size="small" label={l.leave_type} sx={{ textTransform: 'capitalize' }} />
+                                    </TableCell>
+                                    <TableCell>{formatDate(l.start_date)}</TableCell>
+                                    <TableCell>{formatDate(l.end_date)}</TableCell>
+                                    <TableCell>{dayCount(l.start_date, l.end_date)}</TableCell>
                                     <TableCell>
                                         <Chip
                                             size="small"
-                                            icon={statusIcons[item.status]}
-                                            label={item.status}
-                                            sx={{ bgcolor: `${statusColors[item.status]}18`, color: statusColors[item.status], textTransform: 'capitalize' }}
+                                            icon={statusIcons[l.status]}
+                                            label={l.status}
+                                            sx={{
+                                                bgcolor: `${statusColors[l.status]}18`,
+                                                color: statusColors[l.status],
+                                                fontWeight: 600,
+                                                textTransform: 'capitalize',
+                                            }}
                                         />
                                     </TableCell>
-                                    <TableCell>{item.approved_by || '-'}</TableCell>
-                                    <TableCell>{item.notes || '-'}</TableCell>
+                                    <TableCell>
+                                        {l.approved_by ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                <Avatar sx={{ width: 22, height: 22, fontSize: '0.65rem', bgcolor: ACCENT }}>
+                                                    {l.approved_by.charAt(0)}
+                                                </Avatar>
+                                                <Typography variant="body2">{l.approved_by}</Typography>
+                                                {l.approver_role && (
+                                                    <Chip size="small" label={l.approver_role} sx={{ height: 16, fontSize: '0.6rem' }} />
+                                                )}
+                                            </Box>
+                                        ) : '-'}
+                                    </TableCell>
+                                    <TableCell>{l.notes || '-'}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -407,7 +273,8 @@ const LeaveManagement = () => {
                 </TableContainer>
             )}
 
-            {tab === 3 && isApprover && (
+            {/* Tab 2: All Requests (Approver) */}
+            {tab === 2 && isApprover && (
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
@@ -419,35 +286,67 @@ const LeaveManagement = () => {
                                 <TableCell>Days</TableCell>
                                 <TableCell>Reason</TableCell>
                                 <TableCell>Status</TableCell>
-                                <TableCell>Action</TableCell>
+                                <TableCell>Approved By</TableCell>
+                                <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {allLeaves.length === 0 ? (
-                                <TableRow><TableCell colSpan={8} align="center">No leave requests.</TableCell></TableRow>
-                            ) : allLeaves.map((item) => (
-                                <TableRow key={item._id}>
-                                    <TableCell>{item.user_name}</TableCell>
-                                    <TableCell><Chip size="small" label={item.leave_type} sx={{ textTransform: 'capitalize' }} /></TableCell>
-                                    <TableCell>{formatDate(item.start_date)}</TableCell>
-                                    <TableCell>{formatDate(item.end_date)}</TableCell>
-                                    <TableCell>{leaveDays(item.start_date, item.end_date)}</TableCell>
-                                    <TableCell>{item.reason}</TableCell>
+                            {allLeaves.length === 0 && (
+                                <TableRow><TableCell colSpan={9} align="center">No requests</TableCell></TableRow>
+                            )}
+                            {allLeaves.map((l) => (
+                                <TableRow key={l._id} sx={{ bgcolor: l.status === 'pending' ? 'rgba(245,158,11,0.05)' : 'inherit' }}>
+                                    <TableCell>
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{l.user_name}</Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip size="small" label={l.leave_type} sx={{ textTransform: 'capitalize' }} />
+                                    </TableCell>
+                                    <TableCell>{formatDate(l.start_date)}</TableCell>
+                                    <TableCell>{formatDate(l.end_date)}</TableCell>
+                                    <TableCell>{dayCount(l.start_date, l.end_date)}</TableCell>
+                                    <TableCell sx={{ maxWidth: 180 }}>
+                                        <Typography variant="body2" noWrap title={l.reason}>{l.reason}</Typography>
+                                    </TableCell>
                                     <TableCell>
                                         <Chip
                                             size="small"
-                                            icon={statusIcons[item.status]}
-                                            label={item.status}
-                                            sx={{ bgcolor: `${statusColors[item.status]}18`, color: statusColors[item.status], textTransform: 'capitalize' }}
+                                            icon={statusIcons[l.status]}
+                                            label={l.status}
+                                            sx={{
+                                                bgcolor: `${statusColors[l.status]}18`,
+                                                color: statusColors[l.status],
+                                                fontWeight: 600,
+                                                textTransform: 'capitalize',
+                                            }}
                                         />
                                     </TableCell>
+                                    <TableCell>{l.approved_by || '-'}</TableCell>
                                     <TableCell>
-                                        {item.status === 'pending' ? (
-                                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                                <Button size="small" variant="contained" color="success" onClick={() => setActionDialog({ open: true, leave: item, action: 'approved' })}>Approve</Button>
-                                                <Button size="small" variant="outlined" color="error" onClick={() => setActionDialog({ open: true, leave: item, action: 'rejected' })}>Reject</Button>
+                                        {l.status === 'pending' ? (
+                                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    color="success"
+                                                    sx={{ fontSize: '0.7rem', minWidth: 0, px: 1 }}
+                                                    onClick={() => setActionDialog({ open: true, leave: l, action: 'approved' })}
+                                                >
+                                                    Approve
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    sx={{ fontSize: '0.7rem', minWidth: 0, px: 1 }}
+                                                    onClick={() => setActionDialog({ open: true, leave: l, action: 'rejected' })}
+                                                >
+                                                    Reject
+                                                </Button>
                                             </Box>
-                                        ) : 'Done'}
+                                        ) : (
+                                            <Typography variant="caption" color="text.secondary">Done</Typography>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -456,133 +355,34 @@ const LeaveManagement = () => {
                 </TableContainer>
             )}
 
-            {tab === 4 && isApprover && (
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                        <TextField
-                            label="Month"
-                            type="month"
-                            fullWidth
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={8}>
-                        <FormControl fullWidth>
-                            <InputLabel>Employee</InputLabel>
-                            <Select label="Employee" value={attendanceForm.user_id} onChange={(e) => handlePickEmployee(e.target.value)}>
-                                {employees.map((employee) => (
-                                    <MenuItem key={employee._id} value={employee._id}>{employee.name}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </Grid>
-
-                    {[ 
-                        ['present_days', 'Present Days'],
-                        ['leave_days', 'Leave Days'],
-                        ['week_off', 'Week Off'],
-                        ['holiday', 'Holiday'],
-                        ['half_day', 'Half Day'],
-                        ['wfh', 'WFH'],
-                        ['el_taken', 'EL Taken'],
-                    ].map(([key, label]) => (
-                        <Grid item xs={12} sm={6} md={4} key={key}>
-                            <TextField
-                                type="number"
-                                label={label}
-                                fullWidth
-                                value={attendanceForm[key]}
-                                onChange={(e) => setAttendanceForm({ ...attendanceForm, [key]: Number(e.target.value || 0) })}
-                                inputProps={{ min: 0 }}
-                            />
-                        </Grid>
-                    ))}
-
-                    <Grid item xs={12}>
-                        <TextField
-                            label="Notes"
-                            fullWidth
-                            multiline
-                            rows={3}
-                            value={attendanceForm.notes}
-                            onChange={(e) => setAttendanceForm({ ...attendanceForm, notes: e.target.value })}
-                        />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="body2"><strong>Total Leave:</strong> {attendanceComputed.leave_days} + {attendanceComputed.half_day} = {attendanceComputed.total_leave}</Typography>
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                                <strong>Payable Days:</strong> {attendanceComputed.present_days} + {attendanceComputed.week_off} + {attendanceComputed.holiday} + {attendanceComputed.half_day} + {attendanceComputed.wfh} + {attendanceComputed.el_taken} = {attendanceComputed.payable_days}
-                            </Typography>
-                        </Paper>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                        <Button variant="contained" onClick={handleSaveAttendance} disabled={savingAttendance}>
-                            {savingAttendance ? 'Saving...' : 'Save Attendance'}
-                        </Button>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                        <TableContainer component={Paper}>
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Employee</TableCell>
-                                        <TableCell>Present</TableCell>
-                                        <TableCell>Leave</TableCell>
-                                        <TableCell>Week Off</TableCell>
-                                        <TableCell>Holiday</TableCell>
-                                        <TableCell>Half Day</TableCell>
-                                        <TableCell>WFH</TableCell>
-                                        <TableCell>EL Taken</TableCell>
-                                        <TableCell>Total Leave</TableCell>
-                                        <TableCell>Payable Days</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {allTimecards.length === 0 ? (
-                                        <TableRow><TableCell colSpan={10} align="center">No attendance data for this month.</TableCell></TableRow>
-                                    ) : allTimecards.map((row) => (
-                                        <TableRow key={`${row.user_id}-${row.month}`}>
-                                            <TableCell>{row.user_name}</TableCell>
-                                            <TableCell>{row.present_days}</TableCell>
-                                            <TableCell>{row.leave_days}</TableCell>
-                                            <TableCell>{row.week_off}</TableCell>
-                                            <TableCell>{row.holiday}</TableCell>
-                                            <TableCell>{row.half_day}</TableCell>
-                                            <TableCell>{row.wfh}</TableCell>
-                                            <TableCell>{row.el_taken}</TableCell>
-                                            <TableCell>{row.total_leave}</TableCell>
-                                            <TableCell>{row.payable_days}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </Grid>
-                </Grid>
-            )}
-
+            {/* Action Dialog */}
             <Dialog open={actionDialog.open} onClose={() => setActionDialog({ open: false, leave: null, action: '' })} maxWidth="xs" fullWidth>
-                <DialogTitle>{actionDialog.action === 'approved' ? 'Approve' : 'Reject'} Leave Request</DialogTitle>
+                <DialogTitle>
+                    {actionDialog.action === 'approved' ? 'Approve' : 'Reject'} Leave Request
+                </DialogTitle>
                 <DialogContent>
+                    {actionDialog.leave && (
+                        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                            {actionDialog.leave.user_name}'s {actionDialog.leave.leave_type} leave from{' '}
+                            {formatDate(actionDialog.leave.start_date)} to {formatDate(actionDialog.leave.end_date)}
+                        </Typography>
+                    )}
                     <TextField
                         label="Notes (optional)"
                         fullWidth
                         multiline
-                        rows={3}
+                        rows={2}
                         value={actionNote}
                         onChange={(e) => setActionNote(e.target.value)}
-                        sx={{ mt: 1 }}
                     />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => { setActionDialog({ open: false, leave: null, action: '' }); setActionNote(''); }}>Cancel</Button>
-                    <Button variant="contained" color={actionDialog.action === 'approved' ? 'success' : 'error'} onClick={handleLeaveAction}>
+                    <Button
+                        variant="contained"
+                        color={actionDialog.action === 'approved' ? 'success' : 'error'}
+                        onClick={handleAction}
+                    >
                         {actionDialog.action === 'approved' ? 'Approve' : 'Reject'}
                     </Button>
                 </DialogActions>

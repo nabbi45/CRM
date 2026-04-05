@@ -5,31 +5,27 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
-const MANAGER_ROLES = ["hr", "admin", "super admin", "dev", "srdev", "senior admin"];
-
-const canManageProfiles = (role) => MANAGER_ROLES.includes(normalizeRole(role));
-
 /**
- * Authorization middleware - Allow profile owner or profile managers
+ * Authorization middleware - Allow profile owner or HR
  */
-const authorizeSelfOrManager = (req, res, next) => {
+const authorizeSelfOrHR = (req, res, next) => {
   const requestedUserId = req.params.id;
-  if (req.user.userId !== requestedUserId && !canManageProfiles(req.user.user_role)) {
+  if (req.user.userId !== requestedUserId && req.user.user_role !== "HR") {
     return res.status(403).json({ 
-      message: "Access denied. You can only access your own profile or need manager privileges." 
+      message: "Access denied. You can only access your own profile or need HR privileges." 
     });
   }
   next();
 };
 
 /**
- * Manager-role authorization
+ * HR-only authorization
  */
-const authorizeManagerRoles = (req, res, next) => {
-  if (!canManageProfiles(req.user.user_role)) {
+const authorizeHROnly = (req, res, next) => {
+  
+  if (req.user.user_role !== "HR") {
     return res.status(403).json({ 
-      message: "Access denied. Only HR/Admin/Super Admin/Dev can perform this action." 
+      message: "Access denied. Only HR personnel can perform this action." 
     });
   }
   next();
@@ -44,7 +40,7 @@ const validateProfileData = (req, res, next) => {
     'maritalStatus', 'dateOfBirth', 'personalContactNumber', 'personalEmailAddress',
     'workEmail', 'workPhoneNumber', 'permanentAddress', 'currentAddress',
     'emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelationship',
-    'reportingManager', 'offeredSalary', 'educationQualification', 'totalWorkExperience',
+    'dateOfJoining', 'reportingManager', 'offeredSalary', 'educationQualification', 'totalWorkExperience',
     'accountNumber', 'bankName', 'ifscCode', 'panNumber', 'aadharNumber'
   ];
 
@@ -89,9 +85,9 @@ const validateProfileData = (req, res, next) => {
 router.use(authenticateUser);
 
 /**
- * GET /all - List all employee profiles (viewable by all authenticated users)
+ * GET /all - List all employee profiles (HR only)
  */
-router.get("/all", async (req, res) => {
+router.get("/all", authorizeHROnly, async (req, res) => {
   try {
     const { 
       page = 1, 
@@ -146,36 +142,9 @@ router.get("/all", async (req, res) => {
 });
 
 /**
- * GET /options - minimal employee profile list for dropdowns
- * Returns only users who have created profile records.
- */
-router.get("/options", async (req, res) => {
-  try {
-    const profiles = await EmployeeModel.find({ isActive: true })
-      .select("userId employeeFullName employeeId designation department dateOfJoining")
-      .sort({ employeeFullName: 1 })
-      .lean();
-
-    const options = profiles.map((p) => ({
-      user_id: p.userId,
-      name: p.employeeFullName,
-      employeeId: p.employeeId,
-      designation: p.designation,
-      department: p.department,
-      dateOfJoining: p.dateOfJoining,
-    }));
-
-    res.json({ users: options });
-  } catch (err) {
-    console.error("GET /options error:", err);
-    res.status(500).json({ error: "Server error", details: err.message });
-  }
-});
-
-/**
  * GET /profile/:id - Get specific employee profile
  */
-router.get("/profile/:id", authorizeSelfOrManager, async (req, res) => {
+router.get("/profile/:id", authorizeSelfOrHR, async (req, res) => {
   try {
     const profile = await EmployeeModel.findOne({ 
       userId: req.params.id,
@@ -199,10 +168,7 @@ router.get("/profile/:id", authorizeSelfOrManager, async (req, res) => {
 router.post("/profile", 
   upload.fields([
     { name: "employeePhoto", maxCount: 1 },
-    { name: "aadhaarCardPhoto", maxCount: 1 },
-    { name: "experienceLetter", maxCount: 1 },
-    { name: "offerLetter", maxCount: 1 },
-    { name: "joiningLetter", maxCount: 1 },
+    { name: "aadhaarCardPhoto", maxCount: 1 }
   ]),
   validateProfileData,
   async (req, res) => {
@@ -239,41 +205,15 @@ router.post("/profile",
         });
       }
 
-      const canEditRestrictedFields = canManageProfiles(req.user.user_role);
-
-      let compensationDetails = { ctc: "", basicSalary: "", variablePay: "", currency: "INR" };
-      if (req.body.compensationDetails) {
-        try {
-          const parsed = typeof req.body.compensationDetails === "string"
-            ? JSON.parse(req.body.compensationDetails)
-            : req.body.compensationDetails;
-          if (parsed && typeof parsed === "object") {
-            compensationDetails = {
-              ctc: parsed.ctc || "",
-              basicSalary: parsed.basicSalary || "",
-              variablePay: parsed.variablePay || "",
-              currency: parsed.currency || "INR",
-            };
-          }
-        } catch (_) {}
-      }
-
       // Create new profile
       const profileData = {
         userId: req.user.userId,
         ...req.body,
-        dateOfJoining: canEditRestrictedFields && req.body.dateOfJoining
-          ? req.body.dateOfJoining
-          : new Date(),
         personalEmailAddress: req.body.personalEmailAddress.toLowerCase(),
         workEmail: req.body.workEmail.toLowerCase(),
         panNumber: req.body.panNumber.toUpperCase(),
         employeePhoto: req.files.employeePhoto[0].path,
         aadhaarCardPhoto: req.files.aadhaarCardPhoto[0].path,
-        experienceLetter: req.files?.experienceLetter?.[0]?.path || "",
-        offerLetter: req.files?.offerLetter?.[0]?.path || "",
-        joiningLetter: req.files?.joiningLetter?.[0]?.path || "",
-        compensationDetails: canEditRestrictedFields ? compensationDetails : { ctc: "", basicSalary: "", variablePay: "", currency: "INR" },
         createdBy: req.user.userId
       };
 
@@ -311,18 +251,9 @@ router.post("/profile",
  * PUT /update/:id - Update employee profile (partial update)
  */
 /**
- * PUT /update/:id - Update employee profile (manager roles only)
+ * PUT /update/:id - Update employee profile (HR only)
  */
-router.put("/update/:id",
-  upload.fields([
-    { name: "employeePhoto", maxCount: 1 },
-    { name: "aadhaarCardPhoto", maxCount: 1 },
-    { name: "experienceLetter", maxCount: 1 },
-    { name: "offerLetter", maxCount: 1 },
-    { name: "joiningLetter", maxCount: 1 },
-  ]),
-  authorizeManagerRoles,
-  async (req, res) => {
+router.put("/update/:id", authorizeHROnly, async (req, res) => {
   try {
     const profile = await EmployeeModel.findOne({ 
       userId: req.params.id,
@@ -341,7 +272,6 @@ router.put("/update/:id",
       'workEmail', 'workPhoneNumber', 'permanentAddress', 'currentAddress',
       'emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelationship',
       'dateOfJoining', 'reportingManager', 'dateOfLastPromotion',
-      'offeredSalary',
       'educationQualification', 'previousEmployer', 'totalWorkExperience',
       'accountNumber', 'bankName', 'ifscCode', 'panNumber', 'aadharNumber'
     ];
@@ -358,6 +288,7 @@ router.put("/update/:id",
       }
     });
 
+    // Handle file uploads
     if (req.files?.employeePhoto) {
       changes.set('employeePhoto', {
         oldValue: profile.employeePhoto,
@@ -372,52 +303,6 @@ router.put("/update/:id",
         newValue: req.files.aadhaarCardPhoto[0].path
       });
       updates.aadhaarCardPhoto = req.files.aadhaarCardPhoto[0].path;
-    }
-
-    if (req.files?.experienceLetter) {
-      changes.set('experienceLetter', {
-        oldValue: profile.experienceLetter,
-        newValue: req.files.experienceLetter[0].path
-      });
-      updates.experienceLetter = req.files.experienceLetter[0].path;
-    }
-
-    if (req.files?.offerLetter) {
-      changes.set('offerLetter', {
-        oldValue: profile.offerLetter,
-        newValue: req.files.offerLetter[0].path
-      });
-      updates.offerLetter = req.files.offerLetter[0].path;
-    }
-
-    if (req.files?.joiningLetter) {
-      changes.set('joiningLetter', {
-        oldValue: profile.joiningLetter,
-        newValue: req.files.joiningLetter[0].path
-      });
-      updates.joiningLetter = req.files.joiningLetter[0].path;
-    }
-
-    if (req.body.compensationDetails !== undefined) {
-      let nextComp = profile.compensationDetails || { ctc: "", basicSalary: "", variablePay: "", currency: "INR" };
-      if (typeof req.body.compensationDetails === 'string') {
-        try {
-          nextComp = JSON.parse(req.body.compensationDetails);
-        } catch (_) {}
-      } else if (typeof req.body.compensationDetails === 'object') {
-        nextComp = req.body.compensationDetails;
-      }
-
-      changes.set('compensationDetails', {
-        oldValue: profile.compensationDetails,
-        newValue: nextComp
-      });
-      updates.compensationDetails = {
-        ctc: nextComp?.ctc || "",
-        basicSalary: nextComp?.basicSalary || "",
-        variablePay: nextComp?.variablePay || "",
-        currency: nextComp?.currency || "INR",
-      };
     }
 
     if (Object.keys(updates).length === 0) {
@@ -463,10 +348,11 @@ router.put("/update/:id",
   }
 });
 
+
 /**
- * DELETE /delete/:id - Soft delete employee profile (manager roles only)
+ * DELETE /delete/:id - Soft delete employee profile (HR only)
  */
-router.delete("/delete/:id", authorizeManagerRoles, async (req, res) => {
+router.delete("/delete/:id", authorizeHROnly, async (req, res) => {
   try {
     const profile = await EmployeeModel.findOneAndUpdate(
       { userId: req.params.id, isActive: true },
@@ -503,9 +389,9 @@ router.delete("/delete/:id", authorizeManagerRoles, async (req, res) => {
 });
 
 /**
- * POST /approve/:id - Approve employee profile (manager roles only)
+ * POST /approve/:id - Approve employee profile (HR only)
  */
-router.post("/approve/:id", authorizeManagerRoles, async (req, res) => {
+router.post("/approve/:id", authorizeHROnly, async (req, res) => {
   try {
     const profile = await EmployeeModel.findOneAndUpdate(
       { userId: req.params.id, isActive: true },
@@ -547,9 +433,9 @@ router.post("/approve/:id", authorizeManagerRoles, async (req, res) => {
 });
 
 /**
- * GET /stats - Get employee statistics (manager roles only)
+ * GET /stats - Get employee statistics (HR only)
  */
-router.get("/stats", authorizeManagerRoles, async (req, res) => {
+router.get("/stats", authorizeHROnly, async (req, res) => {
   try {
     const [
       totalEmployees,
@@ -601,9 +487,9 @@ router.get("/stats", authorizeManagerRoles, async (req, res) => {
 });
 
 /**
- * GET /export - Export employee data (manager roles only)
+ * GET /export - Export employee data (HR only)
  */
-router.get("/export", authorizeManagerRoles, async (req, res) => {
+router.get("/export", authorizeHROnly, async (req, res) => {
   try {
     const { format = 'json', department, branch } = req.query;
     
