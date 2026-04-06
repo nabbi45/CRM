@@ -28,8 +28,7 @@ welcomeRoutes.post("/api/welcome", async (req, res) => {
     const smtpPort = parseInt(profile.mail_port) || 587;
     const isSecure = smtpPort === 465;
 
-    const transportConfig = {
-      pool: true,
+    const transporter = nodemailer.createTransport({
       host: profile.mail_host,
       port: smtpPort,
       secure: isSecure,
@@ -38,18 +37,14 @@ welcomeRoutes.post("/api/welcome", async (req, res) => {
         pass: profile.mail_password,
       },
       tls: {
-        rejectUnauthorized: false,
-        minVersion: 'TLSv1.2'
+        rejectUnauthorized: false
       },
+      connectionTimeout: 10000,
       greetingTimeout: 10000,
-      connectionTimeout: 10000
-    };
-
-    if (smtpPort === 587) {
-        transportConfig.requireTLS = true;
-    }
-
-    const transporter = nodemailer.createTransport(transportConfig);
+      socketTimeout: 15000,
+      debug: true,
+      logger: true
+    });
 
     const mailOptions = {
       to: email,
@@ -121,8 +116,12 @@ welcomeRoutes.post("/api/welcome", async (req, res) => {
 
     res.status(200).json({ message: "Welcome Mail Sent Successfully." });
   } catch (error) {
-    console.error("Error sending welcome email:", error);
-    res.status(500).json({ message: "Failed to send welcome email.", error: error.message });
+    console.error("SERVER WELCOME SMTP ERROR:", error);
+    res.status(500).json({ 
+        message: `Welcome Mail SMTP Error: ${error.message} (Code: ${error.code || 'UNKNOWN'})`,
+        technicalError: error.message,
+        errorCode: error.code
+    });
   }
 });
 

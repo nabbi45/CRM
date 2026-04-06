@@ -29,8 +29,8 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
         const smtpPort = parseInt(profile.mail_port) || 587;
         const isSecure = smtpPort === 465;
 
-        const transportConfig = {
-            pool: true, // Use pooling for better performance & stability
+        // Optimized transporter for Hostinger/Zoho on cloud platforms like Render
+        const transporter = nodemailer.createTransport({
             host: profile.mail_host,
             port: smtpPort,
             secure: isSecure,
@@ -39,18 +39,14 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
                 pass: profile.mail_password,
             },
             tls: {
-                rejectUnauthorized: false,
-                minVersion: 'TLSv1.2'
+                rejectUnauthorized: false
             },
-            greetingTimeout: 10000, // Wait up to 10s for the SMTP banner
-            connectionTimeout: 10000 
-        };
-
-        if (smtpPort === 587) {
-            transportConfig.requireTLS = true;
-        }
-
-        const transporter = nodemailer.createTransport(transportConfig);
+            connectionTimeout: 10000, 
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+            debug: true, // Enable for detailed logs in console
+            logger: true 
+        });
 
         // Parse base64 document
         const base64Data = documentDataUrl.split(';base64,').pop();
@@ -92,8 +88,14 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
 
         res.status(200).json({ message: "Document sent successfully!" });
     } catch (error) {
-        console.error("Error sending document via email:", error);
-        res.status(500).json({ message: "Failed to send email.", error: error.message });
+        console.error("SERVER SMTP ERROR:", error);
+        // Include the technical error directly in the message so the frontend shows it
+        res.status(500).json({ 
+            message: `SMTP Error: ${error.message} (Code: ${error.code || 'UNKNOWN'})`,
+            technicalError: error.message,
+            errorCode: error.code,
+            command: error.command
+        });
     }
 });
 
