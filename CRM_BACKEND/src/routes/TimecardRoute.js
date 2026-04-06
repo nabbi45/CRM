@@ -2,7 +2,7 @@ import express from "express";
 import AttendanceModel from "../models/AttendanceModel.js";
 import HolidayModel from "../models/HolidayModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
-import UserModel from "../models/UserModel.js";
+import { UserModel } from "../models/UserModel.js";
 
 const router = express.Router();
 
