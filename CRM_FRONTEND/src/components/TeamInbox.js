@@ -15,6 +15,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EmojiPicker from 'emoji-picker-react';
 import { apiUrl } from './LoginSignup';
 import { socket } from '../socket';
+import bgChat from '../assets/bg_chat.jpg';
 
 const ACCENT = '#ff3b1f';
 
@@ -389,10 +390,10 @@ const TeamInbox = () => {
                     p: { xs: 1.5, sm: 2.5, md: 3 }, 
                     overflowY: 'auto', 
                     bgcolor: isDark ? '#0b1220' : '#efeae2',
-                    backgroundImage: isDark 
-                        ? 'radial-gradient(circle at center, rgba(255,255,255,0.03) 1px, transparent 1px)' 
-                        : 'radial-gradient(circle at center, rgba(0,0,0,0.04) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px',
+                    backgroundImage: `url(${bgChat})`,
+                    backgroundRepeat: 'repeat',
+                    backgroundBlendMode: isDark ? 'overlay' : 'normal',
+                    opacity: isDark ? 0.9 : 1,
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
