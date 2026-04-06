@@ -778,7 +778,6 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
           </Button>
         </DialogActions>
       </Dialog>
-      </Dialog>
 
       {/* ─── ADD COMPENSATION DIALOG ────────── */}
       <Dialog open={addCompDialog.open} onClose={() => setAddCompDialog({ open: false, userId: null })} maxWidth="sm" fullWidth>
@@ -802,6 +801,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
         </DialogActions>
       </Dialog>
     </Box>
+  );
 
   // ─── MY PROFILE SECTION (reused by both authority + regular) ──────────
   function renderMyProfileSection() {
