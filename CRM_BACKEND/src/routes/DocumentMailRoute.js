@@ -39,12 +39,13 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
                 pass: profile.mail_password,
             },
             tls: {
-                rejectUnauthorized: false
+                rejectUnauthorized: false,
+                servername: profile.mail_host // Helps with ETIMEDOUT during handshake
             },
-            connectionTimeout: 10000, 
-            greetingTimeout: 10000,
-            socketTimeout: 15000,
-            debug: true, // Enable for detailed logs in console
+            connectionTimeout: 20000, // 20 seconds
+            greetingTimeout: 20000,
+            socketTimeout: 25000,
+            debug: true,
             logger: true 
         });
 

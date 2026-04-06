@@ -37,11 +37,12 @@ welcomeRoutes.post("/api/welcome", async (req, res) => {
         pass: profile.mail_password,
       },
       tls: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false,
+        servername: profile.mail_host
       },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 25000,
       debug: true,
       logger: true
     });
