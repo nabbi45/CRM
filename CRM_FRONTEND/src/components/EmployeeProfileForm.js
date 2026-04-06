@@ -69,6 +69,8 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const [viewProfile, setViewProfile] = useState(null);
   const [rejectDialog, setRejectDialog] = useState({ open: false, userId: null, remark: "" });
   const [addDetailsDialog, setAddDetailsDialog] = useState({ open: false, userId: null });
+  const [addCompDialog, setAddCompDialog] = useState({ open: false, userId: null });
+  const [compForm, setCompForm] = useState({ ctc: "", basicSalary: "", hra: "", incentives: "", otherAllowances: "", notes: "" });
   const [detailFile, setDetailFile] = useState(null);
   const [detailForm, setDetailForm] = useState({ docType: "", title: "", notes: "" });
   const [additionalDetails, setAdditionalDetails] = useState([]);
@@ -201,6 +203,47 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     } catch (err) {
       console.error("Add details error:", err);
       setUploadDocError("Failed to upload document. Ensure file format is valid (PDF/DOCX/JPG/PNG).");
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleOpenComp = async (userId) => {
+    setUploadingDoc(true);
+    setUploadDocError("");
+    setAddCompDialog({ open: true, userId });
+    setCompForm({ ctc: "", basicSalary: "", hra: "", incentives: "", otherAllowances: "", notes: "" });
+    try {
+      const res = await axios.get(`${apiUrl}/employee/additional-details/${userId}`, { headers: { authorization: userSession.token } });
+      if (res.data.compensationDetails) {
+        setCompForm({
+          ctc: res.data.compensationDetails.ctc || "",
+          basicSalary: res.data.compensationDetails.basicSalary || "",
+          hra: res.data.compensationDetails.hra || "",
+          incentives: res.data.compensationDetails.incentives || "",
+          otherAllowances: res.data.compensationDetails.otherAllowances || "",
+          notes: res.data.compensationDetails.notes || ""
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleAddCompensation = async () => {
+    setUploadingDoc(true);
+    setUploadDocError("");
+    try {
+      await axios.put(`${apiUrl}/employee/compensation/${addCompDialog.userId}`, compForm, {
+        headers: { authorization: userSession.token }
+      });
+      setAddCompDialog({ open: false, userId: null });
+      if (viewProfile) fetchAdditionalDetails(viewProfile.userId);
+    } catch (err) {
+      console.error("Add comp error:", err);
+      setUploadDocError("Failed to update compensation details.");
     } finally {
       setUploadingDoc(false);
     }
@@ -616,6 +659,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
                 allEmployees.map(p => renderProfileCard(p, <>
                   <Tooltip title="View Profile"><IconButton color="primary" onClick={() => { setViewProfile(p); fetchAdditionalDetails(p.userId); }}><VisibilityIcon /></IconButton></Tooltip>
                   <Tooltip title="Add Documents"><IconButton color="secondary" onClick={() => setAddDetailsDialog({ open: true, userId: p.userId })}><UploadFileIcon /></IconButton></Tooltip>
+                  <Tooltip title="Compensation/Incentives"><IconButton sx={{ color: "#10b981" }} onClick={() => handleOpenComp(p.userId)}><AttachMoneyIcon /></IconButton></Tooltip>
                   {p.profileCompletionStatus === "pending_review" && <Button size="small" variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={() => handleApprove(p.userId)}>Approve</Button>}
                   <Tooltip title="Deactivate"><IconButton color="error" onClick={() => handleDeleteProfile(p.userId)}><DeleteIcon /></IconButton></Tooltip>
                 </>))
@@ -734,8 +778,30 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      </Dialog>
+
+      {/* ─── ADD COMPENSATION DIALOG ────────── */}
+      <Dialog open={addCompDialog.open} onClose={() => setAddCompDialog({ open: false, userId: null })} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Update Compensation & Incentives</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField fullWidth size="small" label="CTC (Annual)" value={compForm.ctc} onChange={(e) => setCompForm({ ...compForm, ctc: e.target.value })} />
+            <TextField fullWidth size="small" label="Basic Salary" value={compForm.basicSalary} onChange={(e) => setCompForm({ ...compForm, basicSalary: e.target.value })} />
+            <TextField fullWidth size="small" label="HRA" value={compForm.hra} onChange={(e) => setCompForm({ ...compForm, hra: e.target.value })} />
+            <TextField fullWidth size="small" label="Incentives / Variable" value={compForm.incentives} onChange={(e) => setCompForm({ ...compForm, incentives: e.target.value })} />
+            <TextField fullWidth size="small" label="Other Allowances" value={compForm.otherAllowances} onChange={(e) => setCompForm({ ...compForm, otherAllowances: e.target.value })} />
+            <TextField fullWidth size="small" label="Notes" multiline rows={3} value={compForm.notes} onChange={(e) => setCompForm({ ...compForm, notes: e.target.value })} />
+            {uploadDocError && <Alert severity="error">{uploadDocError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddCompDialog({ open: false, userId: null })} disabled={uploadingDoc}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddCompensation} disabled={uploadingDoc}>
+            {uploadingDoc ? <CircularProgress size={24} color="inherit" /> : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
-  );
 
   // ─── MY PROFILE SECTION (reused by both authority + regular) ──────────
   function renderMyProfileSection() {
@@ -794,6 +860,8 @@ const AdditionalDetailsReadOnly = ({ apiUrl, userSession, userId, isAuthority })
   const [details, setDetails] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [compDetails, setCompDetails] = useState(null);
+
   useEffect(() => {
     const fetch = async () => {
       try {
@@ -801,36 +869,58 @@ const AdditionalDetailsReadOnly = ({ apiUrl, userSession, userId, isAuthority })
           headers: { authorization: userSession.token }
         });
         setDetails(res.data.additionalDetails || []);
-      } catch { setDetails([]); }
+        setCompDetails(res.data.compensationDetails || null);
+      } catch { setDetails([]); setCompDetails(null); }
       setLoading(false);
     };
     if (userId) fetch();
   }, [apiUrl, userSession, userId]);
 
   if (loading) return <CircularProgress size={24} sx={{ display: "block", mx: "auto", my: 3 }} />;
-  if (details.length === 0) return null;
+  if (loading) return <CircularProgress size={24} sx={{ display: "block", mx: "auto", my: 3 }} />;
+  if (details.length === 0 && (!compDetails || !Object.values(compDetails).some(v => !!v))) return null;
 
   return (
-    <Paper sx={{ p: 3, mt: 3, borderRadius: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
-        <InsertDriveFileIcon color="primary" /> Documents & Additional Details
-      </Typography>
-      <Stack spacing={1.5}>
-        {details.map((d, i) => (
-          <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2, display: "flex", alignItems: "center", gap: 2 }}>
-            <InsertDriveFileIcon sx={{ color: "#a855f7" }} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{d.title}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {DOC_TYPE_LABELS_SUB[d.docType] || d.docType} • Added {new Date(d.addedAt).toLocaleDateString("en-IN")}
-                {d.addedByName && ` by ${d.addedByName}`}
-              </Typography>
-              {d.notes && <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>{d.notes}</Typography>}
-            </Box>
-            <Button size="small" variant="outlined" href={d.fileUrl} target="_blank">View</Button>
-          </Paper>
-        ))}
-      </Stack>
-    </Paper>
+    <Box>
+      {compDetails && Object.values(compDetails).some(v => !!v) && (
+        <Paper sx={{ p: 3, mt: 3, mb: 3, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            <AttachMoneyIcon color="success" /> Compensation & Incentives
+          </Typography>
+          <Grid container spacing={2}>
+            {compDetails.ctc && <Grid item xs={6} md={4}><Typography variant="caption" color="text.secondary">CTC:</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{compDetails.ctc}</Typography></Grid>}
+            {compDetails.basicSalary && <Grid item xs={6} md={4}><Typography variant="caption" color="text.secondary">Basic Salary:</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{compDetails.basicSalary}</Typography></Grid>}
+            {compDetails.hra && <Grid item xs={6} md={4}><Typography variant="caption" color="text.secondary">HRA:</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{compDetails.hra}</Typography></Grid>}
+            {compDetails.incentives && <Grid item xs={6} md={4}><Typography variant="caption" color="text.secondary">Incentives:</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{compDetails.incentives}</Typography></Grid>}
+            {compDetails.otherAllowances && <Grid item xs={6} md={4}><Typography variant="caption" color="text.secondary">Other Allowances:</Typography><Typography variant="body2" sx={{ fontWeight: 600 }}>{compDetails.otherAllowances}</Typography></Grid>}
+            {compDetails.notes && <Grid item xs={12}><Typography variant="caption" color="text.secondary">Notes:</Typography><Typography variant="body2">{compDetails.notes}</Typography></Grid>}
+          </Grid>
+        </Paper>
+      )}
+
+      {details.length > 0 && (
+        <Paper sx={{ p: 3, mt: 3, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+            <InsertDriveFileIcon color="primary" /> Documents & Additional Details
+          </Typography>
+          <Stack spacing={1.5}>
+            {details.map((d, i) => (
+              <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2, display: "flex", alignItems: "center", gap: 2 }}>
+                <InsertDriveFileIcon sx={{ color: "#a855f7" }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{d.title}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {DOC_TYPE_LABELS_SUB[d.docType] || d.docType} • Added {new Date(d.addedAt).toLocaleDateString("en-IN")}
+                    {d.addedByName && ` by ${d.addedByName}`}
+                  </Typography>
+                  {d.notes && <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>{d.notes}</Typography>}
+                </Box>
+                <Button size="small" variant="outlined" href={d.fileUrl} target="_blank">View</Button>
+              </Paper>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+    </Box>
   );
 };

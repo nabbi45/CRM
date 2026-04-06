@@ -534,12 +534,12 @@ router.get("/additional-details/:id", authorizeSelfOrAuthority, async (req, res)
 
     const response = {
       additionalDetails: profile.additionalDetails || [],
-      employeeFullName: profile.employeeFullName
+      employeeFullName: profile.employeeFullName,
+      compensationDetails: profile.compensationDetails || {}
     };
 
-    // Only include sensitive fields for authorities
+    // Only include authority notes for authorities
     if (isHigherAuthority(req.user.user_role)) {
-      response.compensationDetails = profile.compensationDetails || {};
       response.authorityNotes = profile.authorityNotes || [];
     }
 
@@ -555,12 +555,12 @@ router.get("/additional-details/:id", authorizeSelfOrAuthority, async (req, res)
  */
 router.put("/compensation/:id", authorizeHigherAuthority, async (req, res) => {
   try {
-    const { ctc, basicSalary, hra, otherAllowances, notes } = req.body;
+    const { ctc, basicSalary, hra, incentives, otherAllowances, notes } = req.body;
 
     const profile = await EmployeeModel.findOneAndUpdate(
       { userId: req.params.id, isActive: true },
       {
-        compensationDetails: { ctc, basicSalary, hra, otherAllowances, notes }
+        compensationDetails: { ctc, basicSalary, hra, incentives, otherAllowances, notes }
       },
       { new: true }
     ).select('compensationDetails employeeFullName');

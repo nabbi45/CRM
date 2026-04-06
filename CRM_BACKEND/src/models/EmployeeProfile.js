@@ -120,11 +120,12 @@ const employeeProfileSchema = mongoose.Schema(
       }
     ],
 
-    // Compensation Details (only visible/editable by authorities)
+    // Compensation Details
     compensationDetails: {
       ctc: { type: String },
       basicSalary: { type: String },
       hra: { type: String },
+      incentives: { type: String },
       otherAllowances: { type: String },
       notes: { type: String }
     },
