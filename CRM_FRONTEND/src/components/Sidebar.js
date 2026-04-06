@@ -202,10 +202,8 @@ const Sidebar = () => {
       });
     }
 
-    if (hasProfile && canAccessFeature(userSession, 'my_profile')) {
-      items.push({ text: 'My Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/my-profile', color: '#a855f7' });
-    } else if (!hasProfile && canAccessFeature(userSession, 'create_profile')) {
-      items.push({ text: 'Create Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/create-profile', color: '#a855f7' });
+    if (canAccessFeature(userSession, 'create_profile') || canAccessFeature(userSession, 'my_profile') || ['HR', 'Admin', 'Super Admin', 'Dev'].includes(userSession?.user_role)) {
+      items.push({ text: 'Employee Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/employee-profile', color: '#a855f7' });
     }
 
     if (canAccessFeature(userSession, 'trash')) {

@@ -27,6 +27,12 @@ export const EmployeeManagement = ({ apiUrl, userSession }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [remarks, setRemarks] = useState("");
+  // Additional details states
+  const [showAddDetailModal, setShowAddDetailModal] = useState(false);
+  const [detailType, setDetailType] = useState('notes');
+  const [detailForm, setDetailForm] = useState({ note: '', salary: '', effectiveDate: '', comments: '', name: '' });
+  const [detailFile, setDetailFile] = useState(null);
 
   const departments = ["Sales", "Digital", "Admin", "Legal", "Finance"];
   const branches = ["1206", "808", "1512", "Admin", "Digital", "407 AMD", "408 AMD", "906"];
@@ -105,6 +111,68 @@ export const EmployeeManagement = ({ apiUrl, userSession }) => {
       alert("Failed to update employee.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateStatus = async (status) => {
+    if (status === 'rejected' && !remarks.trim()) {
+      alert("Please provide remarks for rejection.");
+      return;
+    }
+    try {
+      setSaving(true);
+      await axios.put(`${apiUrl}/employee/profile/${selectedEmployee.userId}/status`, { status, remarks }, {
+        headers: { Authorization: userSession.token },
+      });
+      alert(`Profile successfully marked as ${status}`);
+      fetchEmployees();
+      setShowViewModal(false);
+      setRemarks("");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddDetail = async (e) => {
+    e.preventDefault();
+    if (!selectedEmployee) return;
+    try {
+      setSaving(true);
+      const formData = new FormData();
+      formData.append('type', detailType);
+      
+      let payload = {};
+      if (detailType === 'notes') payload = { note: detailForm.note };
+      else if (detailType === 'compensation') payload = { salary: detailForm.salary, effectiveDate: detailForm.effectiveDate, comments: detailForm.comments, type: 'Salary' };
+      else if (detailType === 'document') {
+        payload = { name: detailForm.name };
+        if (detailFile) formData.append('documentFile', detailFile);
+      }
+      
+      if (detailType !== 'document') {
+         await axios.put(`${apiUrl}/employee/profile/${selectedEmployee.userId}/additional-details`, { type: detailType, ...payload }, {
+            headers: { Authorization: userSession.token },
+         });
+      } else {
+         formData.append('payload', JSON.stringify(payload));
+         await axios.put(`${apiUrl}/employee/profile/${selectedEmployee.userId}/additional-details`, formData, {
+            headers: { Authorization: userSession.token, 'Content-Type': 'multipart/form-data' },
+         });
+      }
+      
+      alert(`Successfully added ${detailType}`);
+      fetchEmployees();
+      setShowAddDetailModal(false);
+      setDetailForm({ note: '', salary: '', effectiveDate: '', comments: '', name: '' });
+      setDetailFile(null);
+    } catch (err) {
+       console.error("Error adding details:", err);
+       alert("Failed to add details.");
+    } finally {
+       setSaving(false);
     }
   };
 
@@ -586,6 +654,9 @@ Generated: ${new Date().toLocaleString()}
                   <p className="designation">{selectedEmployee.designation}</p>
                   <div className="badges">
                     <span className="badge">ID: {selectedEmployee.employeeId}</span>
+                    <span className={`badge ${selectedEmployee.profileCompletionStatus === 'approved' ? 'department' : 'branch'}`}>
+                      {selectedEmployee.profileCompletionStatus ? selectedEmployee.profileCompletionStatus.replace('_', ' ').toUpperCase() : 'UNKNOWN'}
+                    </span>
                     {selectedEmployee.department && (
                       <span className="badge department">{selectedEmployee.department}</span>
                     )}
@@ -659,6 +730,30 @@ Generated: ${new Date().toLocaleString()}
                   </div>
                 </div>
               </div>
+              {selectedEmployee.profileCompletionStatus === "pending_review" && (
+                <div className="detail-section" style={{ marginTop: '20px' }}>
+                  <h4>Action Required</h4>
+                  <textarea 
+                    placeholder="Provide remarks if rejecting..."
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', marginBottom: '10px' }}
+                    rows={3}
+                  />
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      onClick={() => handleUpdateStatus('approved')}
+                      style={{ flex: 1, padding: '10px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                      Approve Profile
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateStatus('rejected')}
+                      style={{ flex: 1, padding: '10px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                      Reject & Request Changes
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-footer">
@@ -669,16 +764,26 @@ Generated: ${new Date().toLocaleString()}
                 <Download size={18} />
                 Download Profile
               </button>
-              <button 
-                className="modal-btn primary"
-                onClick={() => {
-                  setShowViewModal(false);
-                  handleEditEmployee(selectedEmployee);
-                }}
-              >
-                <Edit3 size={18} />
-                Edit Profile
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  className="modal-btn secondary"
+                  style={{ background: '#3b82f6', color: 'white', border: 'none' }}
+                  onClick={() => setShowAddDetailModal(true)}
+                >
+                  <Plus size={18} />
+                  Add HR Record
+                </button>
+                <button 
+                  className="modal-btn primary"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    handleEditEmployee(selectedEmployee);
+                  }}
+                >
+                  <Edit3 size={18} />
+                  Edit Data
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -848,6 +953,121 @@ Generated: ${new Date().toLocaleString()}
                     Save Changes
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Detail Modal */}
+      {showAddDetailModal && selectedEmployee && (
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) setShowAddDetailModal(false);
+        }}>
+          <div className="modal-container edit-modal" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2>Add HR Record</h2>
+              <button className="modal-close-btn" onClick={() => setShowAddDetailModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-content" style={{ padding: '20px' }}>
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label>Record Type</label>
+                <select 
+                  className="form-input" 
+                  value={detailType} 
+                  onChange={(e) => setDetailType(e.target.value)}
+                >
+                  <option value="notes">Note</option>
+                  <option value="compensation">Compensation</option>
+                  <option value="document">Document</option>
+                </select>
+              </div>
+
+              {detailType === 'notes' && (
+                <div className="form-group">
+                  <label>Note Content</label>
+                  <textarea 
+                    className="form-input"
+                    rows="4" 
+                    value={detailForm.note}
+                    onChange={(e) => setDetailForm({ ...detailForm, note: e.target.value })}
+                    placeholder="Enter HR note..."
+                  />
+                </div>
+              )}
+
+              {detailType === 'compensation' && (
+                <>
+                  <div className="form-group" style={{ marginBottom: '15px' }}>
+                    <label>Salary / Amount</label>
+                    <input 
+                      type="number" 
+                      className="form-input"
+                      value={detailForm.salary}
+                      onChange={(e) => setDetailForm({ ...detailForm, salary: e.target.value })}
+                      placeholder="e.g. 50000"
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '15px' }}>
+                    <label>Effective Date</label>
+                    <input 
+                      type="date" 
+                      className="form-input"
+                      value={detailForm.effectiveDate}
+                      onChange={(e) => setDetailForm({ ...detailForm, effectiveDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Comments</label>
+                    <textarea 
+                      className="form-input"
+                      rows="2"
+                      value={detailForm.comments}
+                      onChange={(e) => setDetailForm({ ...detailForm, comments: e.target.value })}
+                      placeholder="Optional comments..."
+                    />
+                  </div>
+                </>
+              )}
+
+              {detailType === 'document' && (
+                <>
+                  <div className="form-group" style={{ marginBottom: '15px' }}>
+                    <label>Document Name</label>
+                    <input 
+                      type="text" 
+                      className="form-input"
+                      value={detailForm.name}
+                      onChange={(e) => setDetailForm({ ...detailForm, name: e.target.value })}
+                      placeholder="e.g. Identity Proof"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>File Upload</label>
+                    <input 
+                      type="file" 
+                      className="form-input"
+                      onChange={(e) => setDetailFile(e.target.files[0])}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="modal-footer" style={{ padding: '15px 20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                className="modal-btn secondary"
+                onClick={() => setShowAddDetailModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="modal-btn primary"
+                onClick={handleAddDetail}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           </div>

@@ -10,22 +10,23 @@ const router = express.Router();
  */
 const authorizeSelfOrHR = (req, res, next) => {
   const requestedUserId = req.params.id;
-  if (req.user.userId !== requestedUserId && req.user.user_role !== "HR") {
+  const adminRoles = ["Admin", "Super Admin", "HR", "Dev"];
+  if (req.user.userId !== requestedUserId && !adminRoles.includes(req.user.user_role)) {
     return res.status(403).json({ 
-      message: "Access denied. You can only access your own profile or need HR privileges." 
+      message: "Access denied. You can only access your own profile or need Admin/HR privileges." 
     });
   }
   next();
 };
 
 /**
- * HR-only authorization
+ * HR/Admin/Dev-only authorization
  */
 const authorizeHROnly = (req, res, next) => {
-  
-  if (req.user.user_role !== "HR") {
+  const adminRoles = ["Admin", "Super Admin", "HR", "Dev"];
+  if (!adminRoles.includes(req.user.user_role)) {
     return res.status(403).json({ 
-      message: "Access denied. Only HR personnel can perform this action." 
+      message: "Access denied. Only Management personnel can perform this action." 
     });
   }
   next();
@@ -217,6 +218,14 @@ router.post("/profile",
         createdBy: req.user.userId
       };
 
+      // Fix Mongoose CastError by stripping empty strings on optional dates
+      if (!profileData.dateOfLastPromotion) {
+        delete profileData.dateOfLastPromotion;
+      }
+      if (!profileData.previousEmployer) {
+        delete profileData.previousEmployer;
+      }
+
       const profile = new EmployeeModel(profileData);
       await profile.save();
 
@@ -246,6 +255,107 @@ router.post("/profile",
     }
   }
 );
+
+/**
+ * PUT /profile/:id - Update existing profile (Resets status to pending if updated by employee)
+ */
+router.put("/profile/:id", authorizeSelfOrHR, async (req, res) => {
+  try {
+    const profile = await EmployeeModel.findOne({ userId: req.params.id });
+    if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+    const adminRoles = ["Admin", "Super Admin", "HR", "Dev"];
+    const isAdmin = adminRoles.includes(req.user.user_role);
+
+    // If a normal employee updates their profile, reset status to pending_review
+    if (!isAdmin) {
+      req.body.profileCompletionStatus = "pending_review";
+    }
+
+    // Prepare update payload
+    Object.assign(profile, req.body);
+    
+    if (!profile.dateOfLastPromotion) delete profile.dateOfLastPromotion;
+    if (!profile.previousEmployer) delete profile.previousEmployer;
+
+    await profile.save();
+    res.json({ message: "Profile updated successfully", profile });
+  } catch (err) {
+    console.error("PUT /profile/:id error:", err);
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+/**
+ * PUT /profile/:id/status - Approve or reject an employee profile
+ */
+router.put("/profile/:id/status", authorizeHROnly, async (req, res) => {
+  try {
+    const { status, remarks } = req.body;
+    
+    if (!["approved", "rejected", "pending_review"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
+    const profile = await EmployeeModel.findOneAndUpdate(
+      { userId: req.params.id },
+      { 
+        profileCompletionStatus: status,
+        remarks: remarks || "",
+        approvedBy: status === "approved" ? req.user.userId : undefined,
+        approvedAt: status === "approved" ? new Date() : undefined
+      },
+      { new: true }
+    );
+
+    if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+    res.json({ message: `Profile ${status} successfully`, profile });
+  } catch (err) {
+    console.error("PUT /profile/status error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * PUT /profile/:id/additional-details - Add compensation, notes, or documents
+ */
+router.put("/profile/:id/additional-details", authorizeHROnly, upload.single("documentFile"), async (req, res) => {
+  try {
+    const { type, payload } = req.body; // payload is a JSON string if uploading document
+    let detailData = payload ? JSON.parse(payload) : req.body;
+
+    const updateQuery = {};
+    if (type === "compensation") {
+      updateQuery["additionalDetails.compensation"] = { ...detailData, dateAdded: new Date() };
+    } else if (type === "notes") {
+      updateQuery["additionalDetails.notes"] = { ...detailData, addedBy: req.user.userId, dateAdded: new Date() };
+    } else if (type === "document") {
+      if (!req.file) return res.status(400).json({ error: "Document file required" });
+      updateQuery["additionalDetails.documents"] = { 
+        name: detailData.name, 
+        fileUrl: req.file.path, 
+        addedBy: req.user.userId,
+        dateAdded: new Date() 
+      };
+    } else {
+      return res.status(400).json({ error: "Invalid additional detail type" });
+    }
+
+    const profile = await EmployeeModel.findOneAndUpdate(
+      { userId: req.params.id },
+      { $push: updateQuery },
+      { new: true }
+    );
+
+    if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+    res.json({ message: "Additional details added", profile });
+  } catch (err) {
+    console.error("PUT /profile/additional-details error:", err);
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
 
 /**
  * PUT /update/:id - Update employee profile (partial update)

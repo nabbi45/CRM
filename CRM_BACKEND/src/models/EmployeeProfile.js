@@ -99,6 +99,29 @@ const employeeProfileSchema = mongoose.Schema(
     updatedBy: { type: String },
     approvedBy: { type: String },
     approvedAt: { type: Date },
+    remarks: { type: String }, // For HR feedback / rejections
+    
+    // Additional Details (Admin/HR only)
+    additionalDetails: {
+      documents: [{
+        name: { type: String },
+        fileUrl: { type: String },
+        dateAdded: { type: Date, default: Date.now },
+        addedBy: { type: String }
+      }],
+      compensation: [{
+        effectiveDate: { type: Date },
+        salary: { type: String },
+        type: { type: String },
+        comments: { type: String },
+        dateAdded: { type: Date, default: Date.now }
+      }],
+      notes: [{
+        note: { type: String },
+        addedBy: { type: String },
+        dateAdded: { type: Date, default: Date.now }
+      }]
+    },
     
     // Update history
     updateHistory: [

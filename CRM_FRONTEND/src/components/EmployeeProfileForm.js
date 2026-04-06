@@ -31,9 +31,15 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const { mode } = useColorMode();
 
   const [profileExists, setProfileExists] = useState(false);
+  const [profileId, setProfileId] = useState(null);
+  const [profileStatus, setProfileStatus] = useState("incomplete");
+  const [remarks, setRemarks] = useState("");
+  const [additionalDetails, setAdditionalDetails] = useState(null);
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+
   const [formData, setFormData] = useState({
     // Personal Information
     employeeFullName: "",
@@ -111,7 +117,21 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
           headers: { authorization: userSession.token },
         })
         .then((res) => {
-          setProfileExists(!!res.data.profile);
+          if (res.data.profile) {
+              const p = res.data.profile;
+              setFormData({
+                 ...formData,
+                 ...p,
+                 dateOfBirth: p.dateOfBirth ? p.dateOfBirth.split('T')[0] : "",
+                 dateOfJoining: p.dateOfJoining ? p.dateOfJoining.split('T')[0] : "",
+                 dateOfLastPromotion: p.dateOfLastPromotion ? p.dateOfLastPromotion.split('T')[0] : ""
+              });
+              setProfileExists(true);
+              setProfileId(p.userId);
+              setProfileStatus(p.profileCompletionStatus);
+              setRemarks(p.remarks);
+              setAdditionalDetails(p.additionalDetails);
+          }
           setLoading(false);
         })
         .catch(() => {
@@ -253,23 +273,45 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     setSubmitting(true);
 
     const data = new FormData();
-    Object.entries(formData).forEach(([key, value]) => data.append(key, value));
-    data.append("employeePhoto", photo);
-    data.append("aadhaarCardPhoto", aadhaar);
+    Object.entries(formData).forEach(([key, value]) => {
+      // Don't append objects, complex arrays like additionalDetails
+      if (typeof value !== 'object' && value !== undefined && value !== null) {
+         data.append(key, value);
+      }
+    });
+
+    if (photo) data.append("employeePhoto", photo);
+    if (aadhaar) data.append("aadhaarCardPhoto", aadhaar);
 
     try {
-      const response = await axios.post(`${apiUrl}/employee/profile`, data, {
-        headers: {
-          authorization: userSession?.token || "",
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      setProfileExists(true);
+      if (profileExists) {
+         // Perform direct JSON PUT for text updates, ignoring files if not selected
+         const jsonPayload = { ...formData };
+         delete jsonPayload.additionalDetails; 
+         delete jsonPayload._id;
+         delete jsonPayload.updateHistory;
+         await axios.put(`${apiUrl}/employee/profile/${userSession.user_id}`, jsonPayload, {
+           headers: { authorization: userSession?.token || "" }
+         });
+         setProfileStatus("pending_review");
+         setCurrentStep(0);
+         alert("Profile updated successfully! It has been submitted for review.");
+      } else {
+         const response = await axios.post(`${apiUrl}/employee/profile`, data, {
+           headers: {
+             authorization: userSession?.token || "",
+             "Content-Type": "multipart/form-data",
+           },
+         });
+         setProfileExists(true);
+         setProfileStatus("pending_review");
+         setCurrentStep(0);
+         alert("Profile created successfully and submitted for review!");
+      }
     } catch (err) {
-      console.error("Error creating profile:", err);
+      console.error("Error creating/updating profile:", err);
       setErrors({
-        submit: err?.response?.data?.error || "Failed to create profile. Please try again."
+        submit: err?.response?.data?.error || "Failed to process profile. Please try again."
       });
     } finally {
       setSubmitting(false);
@@ -287,22 +329,37 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     );
   }
 
-  if (profileExists) {
+  const renderStatusBanner = () => {
+    if (!profileExists) return null;
+
+    let bannerClass = "status-pending";
+    let icon = <Loader2 size={24} className="banner-icon" />;
+    let title = "Profile Under Review";
+    let desc = "Your profile is pending HR approval. You can still modify the details below.";
+
+    if (profileStatus === "approved") {
+      bannerClass = "status-approved";
+      icon = <CheckCircle size={24} className="banner-icon" />;
+      title = "Profile Approved";
+      desc = "Your profile is officially active. Making any edits now will reset it to Pending mode.";
+    } else if (profileStatus === "rejected") {
+      bannerClass = "status-rejected";
+      icon = <AlertCircle size={24} className="banner-icon" />;
+      title = "Profile Needs Attention";
+      desc = "HR has requested changes to your profile. Please read the remarks and update.";
+    }
+
     return (
-      <div className="success-container">
-        <div className="success-card">
-          <CheckCircle className="success-icon" />
-          <h2 className="success-title">Profile Exists</h2>
-          <p className="success-text">Your profile has already been created successfully.</p>
-           <button
-            className="success-button"
-          >
-            Refresh Your CRM
-          </button>
-        </div>
+      <div className={`status-banner ${bannerClass}`} style={{ marginBottom: '24px', padding: '16px', borderRadius: '12px', display: 'flex', gap: '16px', alignItems: 'center', background: profileStatus==='approved'?'#dcfce7':profileStatus==='rejected'?'#fee2e2':'#fef3c7', color: profileStatus==='approved'?'#166534':profileStatus==='rejected'?'#991b1b':'#92400e' }}>
+         {icon}
+         <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{title}</span>
+            <span style={{ fontSize: '0.95rem' }}>{desc}</span>
+            {remarks && ( <span style={{ marginTop: '8px', fontStyle: 'italic', background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '8px' }}>" {remarks} "</span> )}
+         </div>
       </div>
     );
-  }
+  };
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -846,10 +903,11 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     <div className={`create-profile-container ${mode === "dark" ? "dark-mode" : ""}`}>
       <div className="create-profile-wrapper">
         <div className="profile-header">
+          {renderStatusBanner()}
           <div className="header-content">
             <UserCheck className="header-icon" />
-            <h1 className="header-title">Create Employee Profile</h1>
-            <p className="header-description">Complete your comprehensive employee profile</p>
+            <h1 className="header-title">{profileExists ? "Manage Employee Profile" : "Create Employee Profile"}</h1>
+            <p className="header-description">{profileExists ? "Update your details below." : "Complete your comprehensive employee profile"}</p>
           </div>
         </div>
 
@@ -903,12 +961,12 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
                 {submitting ? (
                   <>
                     <Loader2 className="button-spinner" />
-                    Creating Profile...
+                    {profileExists ? "Updating..." : "Creating Profile..."}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="button-icon" />
-                    Create Profile
+                    {profileExists ? "Update Profile" : "Create Profile"}
                   </>
                 )}
               </button>

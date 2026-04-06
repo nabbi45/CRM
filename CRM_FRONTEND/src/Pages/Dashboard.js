@@ -20,8 +20,7 @@ import ServicesComponent from '../components/Servicescomponent';
 import Trash from '../components/Trash';
 import Proformainvoice from '../Pages/InvoicePage';
 import { apiUrl } from '../components/LoginSignup';
-import { CreateProfile } from '../components/EmployeeProfileForm';
-import { MyProfile } from '../components/MyProfile';
+import EmployeeProfileHub from '../components/EmployeeProfileHub';
 import { EmployeeManagement } from '../components/EmployeeManagement';
 import CompanyProfile from '../components/CompanyProfile';
 import DocumentsPage from '../components/DocumentsPage';
@@ -217,8 +216,7 @@ const Dashboard = () => {
           <Route path="trash" element={<FeatureGuard userSession={userSession} feature="trash"><Trash /></FeatureGuard>} />
           <Route path="Proformainvoice" element={<FeatureGuard userSession={userSession} feature="proforma_invoice"><Proformainvoice /></FeatureGuard>} />
           <Route path="Agreementsgenerator" element={<FeatureGuard userSession={userSession} feature="agreements_generator"><AgreementGeneratorPage /></FeatureGuard>} />
-          <Route path="create-profile" element={<FeatureGuard userSession={userSession} feature="create_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
-          <Route path="my-profile" element={<FeatureGuard userSession={userSession} feature="my_profile"><MyProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route path="employee-profile" element={<EmployeeProfileHub apiUrl={apiUrl} userSession={userSession} />} />
           <Route path="manage-employees" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
