@@ -26,18 +26,27 @@ welcomeRoutes.post("/api/welcome", async (req, res) => {
     const logoUrl = profile.logo_url || "";
 
     const smtpPort = parseInt(profile.mail_port) || 587;
+    const isSecure = smtpPort === 465;
+
     const transportConfig = {
+      pool: true,
       host: profile.mail_host,
       port: smtpPort,
-      secure: smtpPort === 465,
-      tls: { rejectUnauthorized: false },
-    };
-
-    if (profile.mail_password && profile.mail_password.trim() !== '') {
-      transportConfig.auth = {
+      secure: isSecure,
+      auth: {
         user: profile.mail_user,
         pass: profile.mail_password,
-      };
+      },
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      },
+      greetingTimeout: 10000,
+      connectionTimeout: 10000
+    };
+
+    if (smtpPort === 587) {
+        transportConfig.requireTLS = true;
     }
 
     const transporter = nodemailer.createTransport(transportConfig);

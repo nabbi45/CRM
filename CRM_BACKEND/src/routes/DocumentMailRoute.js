@@ -27,19 +27,27 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
         }
 
         const smtpPort = parseInt(profile.mail_port) || 587;
+        const isSecure = smtpPort === 465;
+
         const transportConfig = {
+            pool: true, // Use pooling for better performance & stability
             host: profile.mail_host,
             port: smtpPort,
-            secure: smtpPort === 465,
-            tls: { rejectUnauthorized: false },
-        };
-
-        // Only add auth if password is provided (sandbox SMTP may have no password)
-        if (profile.mail_password && profile.mail_password.trim() !== '') {
-            transportConfig.auth = {
+            secure: isSecure,
+            auth: {
                 user: profile.mail_user,
                 pass: profile.mail_password,
-            };
+            },
+            tls: {
+                rejectUnauthorized: false,
+                minVersion: 'TLSv1.2'
+            },
+            greetingTimeout: 10000, // Wait up to 10s for the SMTP banner
+            connectionTimeout: 10000 
+        };
+
+        if (smtpPort === 587) {
+            transportConfig.requireTLS = true;
         }
 
         const transporter = nodemailer.createTransport(transportConfig);
