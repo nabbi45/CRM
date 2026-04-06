@@ -171,6 +171,24 @@ const CompanyProfile = () => {
             setLoading(false);
         }
     };
+    const runConnectionTest = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${apiUrl}/document-mail/test-connection`, {
+                headers: { 'Authorization': userSession?.token || '' }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                enqueueSnackbar(data.message, { variant: 'success', autoHideDuration: 6000 });
+            } else {
+                enqueueSnackbar(data.message, { variant: 'error', autoHideDuration: 10000 });
+            }
+        } catch (err) {
+            enqueueSnackbar('Internal network error during test.', { variant: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const inputStyle = {
         padding: '10px',
@@ -303,9 +321,16 @@ const CompanyProfile = () => {
                     </div>
                 </div>
 
-                <Button type="submit" variant="contained" style={{ backgroundColor: '#111827', color: '#fff', marginTop: '20px', width: '100%' }} disabled={!canEditProfile || loading}>
-                    {canEditProfile ? 'Save Profile Details' : 'Read Only Access'}
-                </Button>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <Button type="submit" variant="contained" style={{ backgroundColor: '#111827', color: '#fff', flex: 2 }} disabled={!canEditProfile || loading}>
+                        {canEditProfile ? 'Save Profile Details' : 'Read Only Access'}
+                    </Button>
+                    {canEditProfile && (
+                        <Button variant="outlined" color="primary" style={{ flex: 1 }} onClick={runConnectionTest} disabled={loading}>
+                            Diagnostic Test
+                        </Button>
+                    )}
+                </div>
                 {!canEditProfile && (
                     <p style={{ marginTop: '8px', fontSize: '0.85rem', color: mode === 'light' ? '#64748b' : '#94a3b8', textAlign: 'center' }}>
                         Contact an administrator to update branding assets or company settings.

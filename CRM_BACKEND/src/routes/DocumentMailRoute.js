@@ -90,7 +90,6 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
         res.status(200).json({ message: "Document sent successfully!" });
     } catch (error) {
         console.error("SERVER SMTP ERROR:", error);
-        // Include the technical error directly in the message so the frontend shows it
         res.status(500).json({ 
             message: `SMTP Error: ${error.message} (Code: ${error.code || 'UNKNOWN'})`,
             technicalError: error.message,
@@ -98,6 +97,44 @@ DocumentMailRoute.post("/send", authenticateUser, async (req, res) => {
             command: error.command
         });
     }
+});
+
+import net from 'net';
+
+// Helper route to diagnosis network blocks
+DocumentMailRoute.get("/test-connection", authenticateUser, async (req, res) => {
+    const profile = await CompanyProfileModel.findOne();
+    if (!profile || !profile.mail_host) return res.status(400).json({ message: "No SMTP host set" });
+
+    const host = profile.mail_host;
+    const port = parseInt(profile.mail_port) || 587;
+
+    const start = Date.now();
+    const socket = new net.Socket();
+    
+    let result = "";
+    
+    socket.setTimeout(5000); // 5 second test
+
+    socket.on('connect', () => {
+        result = `SUCCESS: Connected to ${host}:${port} in ${Date.now() - start}ms. The port is OPEN.`;
+        socket.destroy();
+        res.json({ message: result, status: "open" });
+    });
+
+    socket.on('timeout', () => {
+        result = `FAILED: Timeout reaching ${host}:${port}. The port is likely BLOCKED by the network/firewall.`;
+        socket.destroy();
+        res.status(504).json({ message: result, status: "blocked" });
+    });
+
+    socket.on('error', (err) => {
+        result = `FAILED: Error reaching ${host}:${port}: ${err.message}.`;
+        socket.destroy();
+        res.status(500).json({ message: result, status: "error", error: err.message });
+    });
+
+    socket.connect(port, host);
 });
 
 export default DocumentMailRoute;
