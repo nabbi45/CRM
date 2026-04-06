@@ -10,20 +10,27 @@ const ChatRoutes = express.Router();
 ChatRoutes.get("/users", authenticateUser, async (req, res) => {
     try {
         const currentUserId = req.user.userId;
-        // Fetch all users except the current user
-        const users = await UserModel.find({ _id: { $ne: currentUserId } })
+        // Fetch all users including the current user for Saved Messages
+        const users = await UserModel.find({})
             .select("name email user_role profilePicture")
             .lean();
 
         // For each user, fetch the last message exchanged with the current user
         const usersWithLastMsg = await Promise.all(
             users.map(async (u) => {
+                const isSelf = u._id.toString() === currentUserId;
+                if (isSelf) {
+                    u.name = "You (Save Messages)";
+                }
+
                 const lastMsg = await MessageModel.findOne({
                     is_global: false,
-                    $or: [
-                        { sender_id: currentUserId, receiver_id: u._id.toString() },
-                        { sender_id: u._id.toString(), receiver_id: currentUserId },
-                    ],
+                    $or: isSelf 
+                        ? [{ sender_id: currentUserId, receiver_id: currentUserId }]
+                        : [
+                            { sender_id: currentUserId, receiver_id: u._id.toString() },
+                            { sender_id: u._id.toString(), receiver_id: currentUserId },
+                          ],
                 })
                     .sort({ createdAt: -1 })
                     .select("message createdAt read_by sender_id")

@@ -159,6 +159,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("messages_read", (data) => {
+    const { reader_id, sender_id } = data;
+    if (sender_id && reader_id) {
+      io.to(`user_${sender_id}`).emit("messages_read_by", { reader_id });
+    }
+  });
+
   socket.on("disconnect", () => {
     let disconnectedUserId = null;
     for (const [userId, socketIds] of global.onlineUsers.entries()) {

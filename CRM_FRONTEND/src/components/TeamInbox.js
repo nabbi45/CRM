@@ -12,6 +12,8 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DoneIcon from '@mui/icons-material/Done';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
 import EmojiPicker from 'emoji-picker-react';
 import { apiUrl } from './LoginSignup';
 import { socket } from '../socket';
@@ -107,14 +109,30 @@ const TeamInbox = () => {
             });
         };
 
+        const handleMessagesRead = ({ reader_id }) => {
+            if (!activeChat.isGlobal && activeChat.id === reader_id) {
+                setMessages(prev => prev.map(m => {
+                    if (m.sender_id === session.user_id) {
+                        const currentReads = m.read_by || [];
+                        if (!currentReads.some(r => r.user_id === reader_id)) {
+                            return { ...m, read_by: [...currentReads, { user_id: reader_id, read_at: new Date() }] };
+                        }
+                    }
+                    return m;
+                }));
+            }
+        };
+
         socket.on("receiveMessage", handleReceiveMessage);
         socket.on("user_online_status", handleOnlineStatus);
         socket.on("user_typing", handleTyping);
+        socket.on("messages_read_by", handleMessagesRead);
 
         return () => {
             socket.off("receiveMessage", handleReceiveMessage);
             socket.off("user_online_status", handleOnlineStatus);
             socket.off("user_typing", handleTyping);
+            socket.off("messages_read_by", handleMessagesRead);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeChat]);
@@ -129,6 +147,9 @@ const TeamInbox = () => {
                 if (res.ok) {
                     setMessages(await res.json());
                     scrollToBottom();
+                    if (!activeChat.isGlobal) {
+                        socket.emit("messages_read", { reader_id: session.user_id, sender_id: activeChat.id });
+                    }
                 }
             } catch (e) { }
         };
@@ -467,8 +488,15 @@ const TeamInbox = () => {
                                         )}
                                     </Paper>
                                 </Box>
-                                <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary', px: 1 }}>
+                                <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary', px: 1, display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
                                     {formatTime(m.createdAt || new Date())}
+                                    {isMe && !activeChat.isGlobal && (() => {
+                                        const isRead = m.read_by?.some(r => r.user_id === activeChat.id);
+                                        const isDelivered = activeUser?.isOnline;
+                                        if (isRead) return <DoneAllIcon sx={{ fontSize: 16, color: '#3b82f6' }} />;
+                                        if (isDelivered) return <DoneAllIcon sx={{ fontSize: 16 }} />;
+                                        return <DoneIcon sx={{ fontSize: 16 }} />;
+                                    })()}
                                 </Typography>
                             </Box>
                         );
