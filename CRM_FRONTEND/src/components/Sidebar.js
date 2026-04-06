@@ -202,7 +202,7 @@ const Sidebar = () => {
       });
     }
 
-    if (canAccessFeature(userSession, 'create_profile') || canAccessFeature(userSession, 'my_profile') || ['HR', 'Admin', 'Super Admin', 'Dev'].includes(userSession?.user_role)) {
+    if (canAccessFeature(userSession, 'employee_profile')) {
       items.push({ text: 'Employee Profile', icon: <AccountCircleOutlinedIcon />, path: '/dashboard/employee-profile', color: '#a855f7' });
     }
 

@@ -16,7 +16,7 @@ const employeeProfileSchema = mongoose.Schema(
     branch: { 
       type: String, 
       required: true,
-      enum: ["Main Branch"]
+      enum: ["1206", "808", "1512", "Admin", "Digital", "407 AMD", "408 AMD", "906"]
     },
     gender: { 
       type: String, 
@@ -62,7 +62,7 @@ const employeeProfileSchema = mongoose.Schema(
     // Professional Information
     dateOfJoining: { type: Date, required: true },
     reportingManager: { type: String, required: true },
-    offeredSalary: { type: String, required: true },
+    offeredSalary: { type: String }, // Not required for employee self-creation
     dateOfLastPromotion: { type: Date },
     
     // Education & Experience
@@ -99,29 +99,45 @@ const employeeProfileSchema = mongoose.Schema(
     updatedBy: { type: String },
     approvedBy: { type: String },
     approvedAt: { type: Date },
-    remarks: { type: String }, // For HR feedback / rejections
-    
-    // Additional Details (Admin/HR only)
-    additionalDetails: {
-      documents: [{
-        name: { type: String },
-        fileUrl: { type: String },
-        dateAdded: { type: Date, default: Date.now },
-        addedBy: { type: String }
-      }],
-      compensation: [{
-        effectiveDate: { type: Date },
-        salary: { type: String },
-        type: { type: String },
-        comments: { type: String },
-        dateAdded: { type: Date, default: Date.now }
-      }],
-      notes: [{
-        note: { type: String },
-        addedBy: { type: String },
-        dateAdded: { type: Date, default: Date.now }
-      }]
+    rejectedBy: { type: String },
+    rejectedAt: { type: Date },
+    rejectionRemark: { type: String },
+
+    // Additional Details (added by higher authorities)
+    additionalDetails: [
+      {
+        docType: { 
+          type: String, 
+          enum: ["offer_letter", "promotion_letter", "marksheet", "experience_letter", "other"],
+          required: true
+        },
+        title: { type: String, required: true },
+        fileUrl: { type: String, required: true },
+        notes: { type: String },
+        addedBy: { type: String, required: true },
+        addedByName: { type: String },
+        addedAt: { type: Date, default: Date.now }
+      }
+    ],
+
+    // Compensation Details (only visible/editable by authorities)
+    compensationDetails: {
+      ctc: { type: String },
+      basicSalary: { type: String },
+      hra: { type: String },
+      otherAllowances: { type: String },
+      notes: { type: String }
     },
+
+    // Authority Notes
+    authorityNotes: [
+      {
+        note: { type: String, required: true },
+        addedBy: { type: String, required: true },
+        addedByName: { type: String },
+        addedAt: { type: Date, default: Date.now }
+      }
+    ],
     
     // Update history
     updateHistory: [
@@ -186,6 +202,7 @@ employeeProfileSchema.index({ userId: 1 });
 employeeProfileSchema.index({ employeeId: 1 });
 employeeProfileSchema.index({ department: 1 });
 employeeProfileSchema.index({ branch: 1 });
+employeeProfileSchema.index({ profileCompletionStatus: 1 });
 employeeProfileSchema.index({ personalEmailAddress: 1 });
 employeeProfileSchema.index({ workEmail: 1 });
 

@@ -1,0 +1,6 @@
+﻿Creating an optimized production build...
+Failed to compile.
+
+Module not found: Error: Can't resolve 'react-dom/client' in 'C:\Users\91972\Documents\CRM UPDATED G\CRM UPDATED G\CRM_FRONTEND\src'
+
+

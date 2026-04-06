@@ -9,11 +9,9 @@ export const FEATURE_KEYS = [
   'manage_users',
   'manage_services',
   'company_profile',
-  'manage_employees',
   'leave_management',
   'communication',
-  'my_profile',
-  'create_profile',
+  'employee_profile',
   'trash',
 ];
 
@@ -28,11 +26,9 @@ export const FEATURE_LABELS = {
   manage_users: 'Manage User',
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
-  manage_employees: 'Manage Employees',
   leave_management: 'Leave Management',
   communication: 'Communication',
-  my_profile: 'My Profile',
-  create_profile: 'Create Profile',
+  employee_profile: 'Employee Profile',
   trash: 'Trash',
 };
 
@@ -65,8 +61,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'company_profile',
     'leave_management',
     'communication',
-    'my_profile',
-    'create_profile',
+    'employee_profile',
   ],
   'senior admin': [
     'dashboard_overview',
@@ -81,10 +76,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'company_profile',
     'leave_management',
     'communication',
-    'my_profile',
-    'create_profile',
+    'employee_profile',
   ],
-  hr: ['manage_employees', 'leave_management', 'communication', 'my_profile', 'create_profile'],
+  hr: ['leave_management', 'communication', 'employee_profile'],
   bdm: [
     'dashboard_overview',
     'new_booking',
@@ -94,8 +88,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'generated_documents',
     'leave_management',
     'communication',
-    'my_profile',
-    'create_profile',
+    'employee_profile',
   ],
 };
 
@@ -104,7 +97,7 @@ export const getDefaultFeaturePermissionsForRole = (role) => {
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
 
-  return ['dashboard_overview', 'projection_leads', 'leave_management', 'communication', 'my_profile', 'create_profile'];
+  return ['dashboard_overview', 'projection_leads', 'leave_management', 'communication', 'employee_profile'];
 };
 
 export const applyRoleTemplate = (roleKey) => ({
@@ -123,3 +116,10 @@ export const resolveFeaturePermissions = (userSession = {}) => {
 
 export const canAccessFeature = (userSession, featureKey) =>
   resolveFeaturePermissions(userSession).includes(featureKey);
+
+// Helper to check higher authority role on frontend
+export const HIGHER_AUTHORITY_ROLES = ['admin', 'senior admin', 'super admin', 'hr', 'dev', 'srdev'];
+export const isHigherAuthority = (userSession) => {
+  const role = (userSession?.user_role || '').trim().toLowerCase();
+  return HIGHER_AUTHORITY_ROLES.includes(role);
+};

@@ -20,8 +20,7 @@ import ServicesComponent from '../components/Servicescomponent';
 import Trash from '../components/Trash';
 import Proformainvoice from '../Pages/InvoicePage';
 import { apiUrl } from '../components/LoginSignup';
-import EmployeeProfileHub from '../components/EmployeeProfileHub';
-import { EmployeeManagement } from '../components/EmployeeManagement';
+import { CreateProfile } from '../components/EmployeeProfileForm';
 import CompanyProfile from '../components/CompanyProfile';
 import DocumentsPage from '../components/DocumentsPage';
 import LeaveManagement from '../components/LeaveManagement';
@@ -216,8 +215,7 @@ const Dashboard = () => {
           <Route path="trash" element={<FeatureGuard userSession={userSession} feature="trash"><Trash /></FeatureGuard>} />
           <Route path="Proformainvoice" element={<FeatureGuard userSession={userSession} feature="proforma_invoice"><Proformainvoice /></FeatureGuard>} />
           <Route path="Agreementsgenerator" element={<FeatureGuard userSession={userSession} feature="agreements_generator"><AgreementGeneratorPage /></FeatureGuard>} />
-          <Route path="employee-profile" element={<EmployeeProfileHub apiUrl={apiUrl} userSession={userSession} />} />
-          <Route path="manage-employees" element={<FeatureGuard userSession={userSession} feature="manage_employees"><EmployeeManagement apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
+          <Route path="employee-profile" element={<FeatureGuard userSession={userSession} feature="employee_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
           <Route path="leave-management" element={<FeatureGuard userSession={userSession} feature="leave_management"><LeaveManagement /></FeatureGuard>} />
