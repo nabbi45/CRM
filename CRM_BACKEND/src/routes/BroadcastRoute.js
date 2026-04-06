@@ -64,4 +64,23 @@ BroadcastRoutes.patch("/:id/read", authenticateUser, async (req, res) => {
     }
 });
 
+// Mark all broadcasts as read for the current user
+BroadcastRoutes.patch("/read-all", authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const joinDate = getUserJoinDate(userId);
+        
+        // Add current user to read_by for all broadcasts since they joined
+        await BroadcastModel.updateMany(
+            { createdAt: { $gte: joinDate }, "read_by.user_id": { $ne: userId } },
+            { $addToSet: { read_by: { user_id: userId } } }
+        );
+        
+        return res.status(200).send({ message: "All broadcasts marked as read." });
+    } catch (error) {
+        console.error("Clear all broadcasts error:", error);
+        return res.status(500).send({ message: error.message });
+    }
+});
+
 export default BroadcastRoutes;

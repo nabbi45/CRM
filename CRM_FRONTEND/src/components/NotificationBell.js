@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Badge, IconButton, Popover, Box, Typography, Button, TextField,
-    Divider, Chip, List, ListItem, ListItemText, Tab, Tabs,
+    Divider, Chip, List, ListItem, ListItemText, Tab, Tabs, useTheme
 } from '@mui/material';
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
@@ -9,7 +9,7 @@ import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import CircleIcon from '@mui/icons-material/Circle';
 import { apiUrl } from './LoginSignup';
 
-const ACCENT = '#111827';
+
 const POLL_INTERVAL = 30000;
 
 // Programmatic notification sound (Web Audio API — no file needed)
@@ -32,6 +32,9 @@ const playNotificationSound = () => {
 };
 
 const NotificationBell = () => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const ACCENT = isDark ? '#fff' : '#111827';
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
 
@@ -114,6 +117,27 @@ const NotificationBell = () => {
         } catch (e) { /* silent */ }
     };
 
+    const clearAllBroadcasts = async () => {
+        try {
+            const res = await fetch(`${apiUrl}/broadcasts/read-all`, { method: 'PATCH', headers });
+            if (res.ok) {
+                setBroadcasts(prev => prev.map(b => ({
+                    ...b,
+                    read_by: [...(b.read_by || []), { user_id: session.user_id }]
+                })));
+            }
+        } catch (e) { /* silent */ }
+    };
+
+    const clearAllNotifications = async () => {
+        try {
+            const res = await fetch(`${apiUrl}/leaves/notifications/clear-all`, { method: 'DELETE', headers });
+            if (res.ok) {
+                setNotifications([]);
+            }
+        } catch (e) { /* silent */ }
+    }; 
+
     const sendBroadcast = async () => {
         if (!newMessage.trim()) return;
         setSending(true);
@@ -157,10 +181,20 @@ const NotificationBell = () => {
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                 PaperProps={{ sx: { width: 380, maxHeight: 520, borderRadius: 2 } }}
             >
-                <Box sx={{ p: 2, pb: 1 }}>
+                <Box sx={{ p: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                         Notifications
                     </Typography>
+                    {tab === 0 && broadcasts.some(b => b.sender_id !== session.user_id && !b.read_by?.some(r => r.user_id === session.user_id)) && (
+                        <Button size="tiny" sx={{ fontSize: '0.65rem', textTransform: 'none' }} onClick={clearAllBroadcasts}>
+                            Mark all as read
+                        </Button>
+                    )}
+                    {tab === 1 && notifications.length > 0 && (
+                        <Button size="tiny" color="error" sx={{ fontSize: '0.65rem', textTransform: 'none' }} onClick={clearAllNotifications}>
+                            Clear all
+                        </Button>
+                    )}
                 </Box>
                 <Tabs
                     value={tab}
@@ -250,8 +284,10 @@ const NotificationBell = () => {
                                 onClick={() => !n.read && markNotifRead(n._id)}
                                 sx={{
                                     cursor: !n.read ? 'pointer' : 'default',
-                                    bgcolor: !n.read ? 'rgba(232,124,42,0.06)' : 'inherit',
+                                    bgcolor: !n.read ? 'action.selected' : 'inherit',
                                     '&:hover': { bgcolor: 'action.hover' },
+                                    borderBottom: '1px solid',
+                                    borderColor: 'divider'
                                 }}
                             >
                                 <ListItemText

@@ -3,7 +3,7 @@ import {
     Box, Typography, TextField, Button, Select, MenuItem, InputLabel, FormControl,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Chip, Dialog, DialogTitle, DialogContent, DialogActions, Grid, Card, CardContent,
-    Tab, Tabs, Avatar, IconButton, Tooltip, Stack, CircularProgress
+    Tab, Tabs, Avatar, IconButton, Tooltip, Stack, CircularProgress, useTheme
 } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
@@ -16,8 +16,6 @@ import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from './LoginSignup';
 import Loader from './Loader';
 import { canAccessFeature } from '../utils/featureAccess';
-
-const ACCENT = '#111827';
 
 const statusColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
 const statusIcons = {
@@ -41,6 +39,9 @@ const ATTENDANCE_COLORS = {
 };
 
 const Timecard = () => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const ACCENT = isDark ? '#fff' : '#111827';
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
     const isApprover = canAccessFeature(session, 'timecard_edit') || ['admin', 'dev', 'srdev', 'senior admin', 'super admin', 'hr'].includes(session.user_role?.toLowerCase());
@@ -308,7 +309,7 @@ const Timecard = () => {
                     </Box>
                     
                     <Grid container spacing={2} sx={{ mb: 4 }}>
-                        {[
+                        { [
                             { label: 'Present Days', val: stats.present, color: '#10b981' },
                             { label: 'Week Off', val: stats.weekOff, color: '#6366f1' },
                             { label: 'Holiday', val: stats.holiday, color: '#ec4899' },
@@ -316,10 +317,14 @@ const Timecard = () => {
                             { label: 'Half Day', val: stats.halfDay, color: '#f59e0b' },
                             { label: 'Total Leaves', val: stats.totalLeave, color: '#ef4444' },
                             { label: 'EL Taken', val: stats.elTaken, color: '#06b6d4' },
-                            { label: 'Payable Days', val: stats.payableDays, color: '#111827', main: true }
+                            { label: 'Payable Days', val: stats.payableDays, color: isDark ? '#fff' : '#111827', main: true }
                         ].map((s, i) => (
                             <Grid item xs={6} sm={3} key={i}>
-                                <Card sx={{ bgcolor: s.main ? '#f3f4f6' : 'white', border: s.main ? '2px solid #111827' : '1px solid #e5e7eb' }}>
+                                <Card sx={{ 
+                                    bgcolor: s.main ? (isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6') : (isDark ? 'background.paper' : 'white'), 
+                                    border: s.main ? `2px solid ${isDark ? '#fff' : '#111827'}` : '1px solid',
+                                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#e5e7eb'
+                                }}>
                                     <CardContent sx={{ textAlign: 'center', py: 2, '&:last-child': { pb: 2 } }}>
                                         <Typography variant="h4" sx={{ fontWeight: 800, color: s.color }}>{s.val}</Typography>
                                         <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>{s.label}</Typography>
@@ -330,9 +335,9 @@ const Timecard = () => {
                     </Grid>
 
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Daily Records</Typography>
-                    <TableContainer component={Paper} variant="outlined">
+                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
-                            <TableHead sx={{ bgcolor: '#f9fafb' }}>
+                            <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                                 <TableRow>
                                     <TableCell>Date</TableCell>
                                     <TableCell>Status</TableCell>
@@ -363,7 +368,7 @@ const Timecard = () => {
 
             {/* TAB: APPLY FOR LEAVE */}
             {activeTabLabel === 'Apply for Leave' && (
-                <Card>
+                <Card sx={{ bgcolor: isDark ? 'background.paper' : 'white' }}>
                     <CardContent>
                         <form onSubmit={handleSubmitLeave}>
                             <Grid container spacing={2}>
@@ -399,9 +404,9 @@ const Timecard = () => {
 
             {/* TAB: MY LEAVES HISTORY */}
             {activeTabLabel === 'My Leave History' && (
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                     <Table size="small">
-                        <TableHead sx={{ bgcolor: '#f9fafb' }}>
+                        <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                             <TableRow>
                                 <TableCell>Type</TableCell><TableCell>From</TableCell><TableCell>To</TableCell>
                                 <TableCell>Days</TableCell><TableCell>Status</TableCell><TableCell>Notes</TableCell>
@@ -428,7 +433,7 @@ const Timecard = () => {
             {activeTabLabel === 'Organization Holidays' && (
                 <Box>
                     {isApprover && (
-                        <Card sx={{ mb: 3 }}>
+                        <Card sx={{ mb: 3, bgcolor: isDark ? 'background.paper' : 'white' }}>
                             <CardContent>
                                 <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Add New Holiday</Typography>
                                 <form onSubmit={handleAddHoliday}>
@@ -447,9 +452,9 @@ const Timecard = () => {
                             </CardContent>
                         </Card>
                     )}
-                    <TableContainer component={Paper} variant="outlined">
+                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
-                            <TableHead sx={{ bgcolor: '#f9fafb' }}>
+                            <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                                 <TableRow>
                                     <TableCell>Date</TableCell>
                                     <TableCell>Holiday Name</TableCell>
@@ -480,9 +485,9 @@ const Timecard = () => {
 
             {/* TAB: MANAGE LEAVES */}
             {activeTabLabel === 'Manage Leaves' && isApprover && (
-                <TableContainer component={Paper} variant="outlined">
+                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                     <Table size="small">
-                        <TableHead sx={{ bgcolor: '#f9fafb' }}>
+                        <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                             <TableRow>
                                 <TableCell>Employee</TableCell><TableCell>Type</TableCell><TableCell>From</TableCell>
                                 <TableCell>To</TableCell><TableCell>Reason</TableCell><TableCell>Status</TableCell>
@@ -529,9 +534,9 @@ const Timecard = () => {
                         <Typography variant="body2" color="text.secondary">Select a date to view and mark attendance records.</Typography>
                     </Box>
 
-                    <TableContainer component={Paper} variant="outlined">
+                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
-                            <TableHead sx={{ bgcolor: '#f9fafb' }}>
+                            <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                                 <TableRow>
                                     <TableCell>Employee Name</TableCell>
                                     <TableCell>Attendance</TableCell>
@@ -541,7 +546,7 @@ const Timecard = () => {
                                 {employees.map(emp => {
                                     const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
                                     return (
-                                        <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: '#f9fafb' } }}>
+                                        <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f9fafb' } }}>
                                             <TableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
                                                 <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>

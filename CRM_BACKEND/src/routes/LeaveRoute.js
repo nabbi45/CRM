@@ -142,4 +142,15 @@ LeaveRoutes.patch("/notifications/:id/read", authenticateUser, async (req, res) 
     }
 });
 
+// Clear all notifications for user
+LeaveRoutes.delete("/notifications/clear-all", authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        await NotificationModel.deleteMany({ user_id: userId });
+        return res.status(200).send({ message: "All alerts cleared." });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
 export default LeaveRoutes;
