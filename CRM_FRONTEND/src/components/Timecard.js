@@ -184,17 +184,34 @@ const Timecard = () => {
 
     // ─── TIMECARD ACTIONS ─────────────────────────────────────────────
     const handleMarkAttendance = async (userId, status) => {
+        // Optimistic update: reflect change immediately in UI
+        setDailyAttendance(prev => {
+            const exists = prev.find(a => (a.userId?._id || a.userId)?.toString() === userId.toString());
+            if (exists) {
+                return prev.map(a =>
+                    (a.userId?._id || a.userId)?.toString() === userId.toString()
+                        ? { ...a, status }
+                        : a
+                );
+            } else {
+                return [...prev, { userId, date: attendanceDate, status }];
+            }
+        });
         try {
             const res = await fetch(`${apiUrl}/timecard/attendance/mark`, {
                 method: 'POST', headers, body: JSON.stringify({ userId, date: attendanceDate, status })
             });
             if (res.ok) {
                 enqueueSnackbar('Attendance updated', { variant: 'success' });
-                fetchDailyAttendance();
+                fetchDailyAttendance(); // sync with server
             } else {
                 enqueueSnackbar('Failed to update attendance', { variant: 'error' });
+                fetchDailyAttendance(); // revert on failure
             }
-        } catch (e) { enqueueSnackbar('Failed to update attendance', { variant: 'error' }); }
+        } catch (e) {
+            enqueueSnackbar('Failed to update attendance', { variant: 'error' });
+            fetchDailyAttendance(); // revert on error
+        }
     };
 
     const handleAddHoliday = async (e) => {
@@ -522,7 +539,7 @@ const Timecard = () => {
                             </TableHead>
                             <TableBody>
                                 {employees.map(emp => {
-                                    const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId) === emp._id) || {};
+                                    const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
                                     return (
                                         <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: '#f9fafb' } }}>
                                             <TableCell>
