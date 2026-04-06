@@ -22,7 +22,8 @@ const FEATURE_KEYS = [
   'manage_services',
   'company_profile',
   'manage_employees',
-  'leave_management',
+  'timecard',
+  'timecard_edit',
   'communication',
   'my_profile',
   'create_profile',
@@ -46,7 +47,8 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_users',
     'manage_services',
     'company_profile',
-    'leave_management',
+    'timecard',
+    'timecard_edit',
     'communication',
     'my_profile',
     'create_profile',
@@ -62,12 +64,13 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_users',
     'manage_services',
     'company_profile',
-    'leave_management',
+    'timecard',
+    'timecard_edit',
     'communication',
     'my_profile',
     'create_profile',
   ],
-  hr: ['manage_employees', 'leave_management', 'communication', 'my_profile', 'create_profile'],
+  hr: ['manage_employees', 'timecard', 'timecard_edit', 'communication', 'my_profile', 'create_profile'],
   bdm: [
     'dashboard_overview',
     'new_booking',
@@ -75,7 +78,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'all_bookings',
     'proforma_invoice',
     'generated_documents',
-    'leave_management',
+    'timecard',
     'communication',
     'my_profile',
     'create_profile',
@@ -84,14 +87,16 @@ const DEFAULT_ROLE_PERMISSIONS = {
 
 const sanitizeFeaturePermissions = (permissions = []) => {
   if (!Array.isArray(permissions)) return [];
-  return [...new Set(permissions.filter((key) => FEATURE_KEYS.includes(key)))];
+  let list = [...permissions];
+  if (list.includes('leave_management')) list.push('timecard');
+  return [...new Set(list.filter((key) => FEATURE_KEYS.includes(key)))];
 };
 
 const getDefaultFeaturePermissionsForRole = (role) => {
   const normalized = normalizeRole(role);
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
-  return ['dashboard_overview', 'projection_leads', 'leave_management', 'communication', 'my_profile', 'create_profile'];
+  return ['dashboard_overview', 'projection_leads', 'timecard', 'communication', 'my_profile', 'create_profile'];
 };
 
 const UserRoutes = express.Router();

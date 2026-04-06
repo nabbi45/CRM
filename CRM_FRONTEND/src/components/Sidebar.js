@@ -186,8 +186,8 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'company_profile')) {
       items.push({ text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile', color: '#6366f1' });
     }
-    if (canAccessFeature(userSession, 'leave_management')) {
-      items.push({ text: 'Leave Management', icon: <EventNoteOutlinedIcon />, path: '/dashboard/leave-management', color: '#14b8a6' });
+    if (canAccessFeature(userSession, 'timecard')) {
+      items.push({ text: 'Timecard', icon: <EventNoteOutlinedIcon />, path: '/dashboard/timecard', color: '#14b8a6' });
     }
     if (canAccessFeature(userSession, 'communication')) {
       items.push({

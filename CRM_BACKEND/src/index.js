@@ -11,6 +11,7 @@ import AgreementRoute from "./routes/AgreementRoute.js";
 import DocumentMailRoute from "./routes/DocumentMailRoute.js";
 import BroadcastRoutes from "./routes/BroadcastRoute.js";
 import LeaveRoutes from "./routes/LeaveRoute.js";
+import TimecardRoutes from "./routes/TimecardRoute.js";
 import ChatRoutes from "./routes/ChatRoute.js"; // New Chat Route
 import ChatUploadRoutes from "./routes/ChatUploadRoute.js"; // New Chat Upload Route
 import ContactSalesRoute from "./routes/ContactSalesRoute.js"; // Inbound Sales Route
@@ -94,6 +95,7 @@ app.use("/generate-agreement", AgreementRoute);
 app.use("/document-mail", DocumentMailRoute);
 app.use("/broadcasts", BroadcastRoutes);
 app.use("/leaves", LeaveRoutes);
+app.use("/timecard", TimecardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/chat-upload", ChatUploadRoutes);
 app.use("/sales", ContactSalesRoute);

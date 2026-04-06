@@ -23,7 +23,7 @@ import { apiUrl } from '../components/LoginSignup';
 import { CreateProfile } from '../components/EmployeeProfileForm';
 import CompanyProfile from '../components/CompanyProfile';
 import DocumentsPage from '../components/DocumentsPage';
-import LeaveManagement from '../components/LeaveManagement';
+import Timecard from '../components/Timecard';
 import NotificationBell from '../components/NotificationBell';
 import DynamicHead from '../components/DynamicHead';
 import TeamInbox from '../components/TeamInbox';
@@ -218,7 +218,7 @@ const Dashboard = () => {
           <Route path="employee-profile" element={<FeatureGuard userSession={userSession} feature="employee_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
-          <Route path="leave-management" element={<FeatureGuard userSession={userSession} feature="leave_management"><LeaveManagement /></FeatureGuard>} />
+          <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="timecard"><Timecard /></FeatureGuard>} />
           <Route path="communication" element={<FeatureGuard userSession={userSession} feature="communication"><TeamInbox /></FeatureGuard>} />
         </Routes>
       </Box>

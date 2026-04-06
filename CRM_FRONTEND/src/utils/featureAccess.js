@@ -9,7 +9,8 @@ export const FEATURE_KEYS = [
   'manage_users',
   'manage_services',
   'company_profile',
-  'leave_management',
+  'timecard',
+  'timecard_edit',
   'communication',
   'employee_profile',
   'trash',
@@ -26,7 +27,8 @@ export const FEATURE_LABELS = {
   manage_users: 'Manage User',
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
-  leave_management: 'Leave Management',
+  timecard: 'Timecard',
+  timecard_edit: 'Manage/Edit Timecards',
   communication: 'Communication',
   employee_profile: 'Employee Profile',
   trash: 'Trash',
@@ -59,7 +61,8 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_users',
     'manage_services',
     'company_profile',
-    'leave_management',
+    'timecard',
+    'timecard_edit',
     'communication',
     'employee_profile',
   ],
@@ -74,11 +77,12 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_users',
     'manage_services',
     'company_profile',
-    'leave_management',
+    'timecard',
+    'timecard_edit',
     'communication',
     'employee_profile',
   ],
-  hr: ['leave_management', 'communication', 'employee_profile'],
+  hr: ['timecard', 'timecard_edit', 'communication', 'employee_profile'],
   bdm: [
     'dashboard_overview',
     'new_booking',
@@ -86,7 +90,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'all_bookings',
     'proforma_invoice',
     'generated_documents',
-    'leave_management',
+    'timecard',
     'communication',
     'employee_profile',
   ],
@@ -97,7 +101,7 @@ export const getDefaultFeaturePermissionsForRole = (role) => {
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
 
-  return ['dashboard_overview', 'projection_leads', 'leave_management', 'communication', 'employee_profile'];
+  return ['dashboard_overview', 'projection_leads', 'timecard', 'communication', 'employee_profile'];
 };
 
 export const applyRoleTemplate = (roleKey) => ({
@@ -110,6 +114,9 @@ export const sanitizeFeaturePermissions = (permissions = []) => {
   // Migrate old profile keys to the new unified key
   if (list.includes('create_profile') || list.includes('my_profile') || list.includes('manage_employees')) {
     list.push('employee_profile');
+  }
+  if (list.includes('leave_management')) {
+    list.push('timecard');
   }
   return [...new Set(list.filter((key) => FEATURE_KEYS.includes(key)))];
 };
