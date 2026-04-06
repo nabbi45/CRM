@@ -30,6 +30,16 @@ const ATTENDANCE_STATUSES = [
     "Present", "Full Day Leave", "Half Day Leave", "WFH", "Week Off", "Holiday", "EL Taken"
 ];
 
+const ATTENDANCE_COLORS = {
+    "Present":        { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+    "WFH":            { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
+    "Half Day Leave": { bg: '#fef9c3', color: '#a16207', border: '#fde047' },
+    "EL Taken":       { bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
+    "Full Day Leave": { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },
+    "Week Off":       { bg: '#f3e8ff', color: '#7e22ce', border: '#d8b4fe' },
+    "Holiday":        { bg: '#fce7f3', color: '#be185d', border: '#f9a8d4' },
+};
+
 const Timecard = () => {
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
@@ -507,34 +517,50 @@ const Timecard = () => {
                             <TableHead sx={{ bgcolor: '#f9fafb' }}>
                                 <TableRow>
                                     <TableCell>Employee Name</TableCell>
-                                    <TableCell>Status</TableCell>
-                                    <TableCell>Action</TableCell>
+                                    <TableCell>Attendance</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {employees.map(emp => {
                                     const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId) === emp._id) || {};
                                     return (
-                                        <TableRow key={emp._id}>
+                                        <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: '#f9fafb' } }}>
                                             <TableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary">{emp.user_role}</Typography>
+                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
                                             </TableCell>
-                                            <TableCell>
-                                                {currRecord.status ? (
-                                                    <Chip size="small" label={currRecord.status} color={currRecord.status === 'Present' ? 'success' : currRecord.status.includes('Leave') ? 'error' : 'default'} />
-                                                ) : <Typography variant="caption" color="text.secondary">Not Marked</Typography>}
-                                            </TableCell>
-                                            <TableCell>
+                                            <TableCell sx={{ minWidth: 190 }}>
                                                 <Select
                                                     size="small"
                                                     displayEmpty
-                                                    value={""}
+                                                    value={currRecord.status || ''}
                                                     onChange={(e) => handleMarkAttendance(emp._id, e.target.value)}
-                                                    sx={{ minWidth: 150 }}
+                                                    sx={{
+                                                        minWidth: 170,
+                                                        fontWeight: 600,
+                                                        fontSize: '0.8rem',
+                                                        ...(currRecord.status && ATTENDANCE_COLORS[currRecord.status] ? {
+                                                            bgcolor: ATTENDANCE_COLORS[currRecord.status].bg,
+                                                            color: ATTENDANCE_COLORS[currRecord.status].color,
+                                                            border: `1px solid ${ATTENDANCE_COLORS[currRecord.status].border}`,
+                                                            borderRadius: 2,
+                                                            '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+                                                            '& .MuiSvgIcon-root': { color: ATTENDANCE_COLORS[currRecord.status].color }
+                                                        } : {})
+                                                    }}
                                                 >
-                                                    <MenuItem value="" disabled>Update Status</MenuItem>
-                                                    {ATTENDANCE_STATUSES.map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                                                    <MenuItem value="" disabled sx={{ color: 'text.secondary' }}>— Not Marked —</MenuItem>
+                                                    {ATTENDANCE_STATUSES.map(s => (
+                                                        <MenuItem key={s} value={s} sx={{
+                                                            fontWeight: 600,
+                                                            color: ATTENDANCE_COLORS[s]?.color || 'inherit',
+                                                            bgcolor: ATTENDANCE_COLORS[s]?.bg || 'inherit',
+                                                            '&:hover': { filter: 'brightness(0.95)' },
+                                                            '&.Mui-selected': { bgcolor: ATTENDANCE_COLORS[s]?.bg || 'inherit' },
+                                                        }}>
+                                                            {s}
+                                                        </MenuItem>
+                                                    ))}
                                                 </Select>
                                             </TableCell>
                                         </TableRow>
