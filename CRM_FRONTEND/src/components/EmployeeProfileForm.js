@@ -73,8 +73,9 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const [detailForm, setDetailForm] = useState({ docType: "", title: "", notes: "" });
   const [additionalDetails, setAdditionalDetails] = useState([]);
 
-  // Create profile form
+  // Create / Edit profile form
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -275,25 +276,83 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const nextStep = () => { if (validateStep(currentStep)) setCurrentStep(currentStep + 1); };
   const prevStep = () => setCurrentStep(currentStep - 1);
 
+  const handleEditProfile = () => {
+    if (!myProfile) return;
+    setFormData({
+      employeeFullName: myProfile.employeeFullName || "",
+      designation: myProfile.designation || "",
+      department: myProfile.department || "",
+      branch: myProfile.branch || "",
+      gender: myProfile.gender || "",
+      maritalStatus: myProfile.maritalStatus || "",
+      dateOfBirth: myProfile.dateOfBirth ? new Date(myProfile.dateOfBirth).toISOString().split("T")[0] : "",
+      personalContactNumber: myProfile.personalContactNumber || "",
+      personalEmailAddress: myProfile.personalEmailAddress || "",
+      workEmail: myProfile.workEmail || "",
+      workPhoneNumber: myProfile.workPhoneNumber || "",
+      permanentAddress: myProfile.permanentAddress || "",
+      currentAddress: myProfile.currentAddress || "",
+      emergencyContactName: myProfile.emergencyContactName || "",
+      emergencyContactNumber: myProfile.emergencyContactNumber || "",
+      emergencyContactRelationship: myProfile.emergencyContactRelationship || "",
+      dateOfJoining: myProfile.dateOfJoining ? new Date(myProfile.dateOfJoining).toISOString().split("T")[0] : "",
+      reportingManager: myProfile.reportingManager || "",
+      offeredSalary: myProfile.offeredSalary || "",
+      educationQualification: myProfile.educationQualification || "",
+      previousEmployer: myProfile.previousEmployer || "",
+      totalWorkExperience: myProfile.totalWorkExperience || "",
+      accountNumber: myProfile.accountNumber || "",
+      bankName: myProfile.bankName || "",
+      ifscCode: myProfile.ifscCode || "",
+      panNumber: myProfile.panNumber || "",
+      aadharNumber: myProfile.aadharNumber || "",
+      dateOfLastPromotion: myProfile.dateOfLastPromotion ? new Date(myProfile.dateOfLastPromotion).toISOString().split("T")[0] : ""
+    });
+    setPhotoPreview(myProfile.employeePhoto || null);
+    setAadhaarPreview(myProfile.aadhaarCardPhoto || null);
+    setEditMode(true);
+    setShowCreateForm(true);
+    setCurrentStep(0);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateStep(currentStep)) return;
     setSubmitting(true);
-    const data = new FormData();
-    Object.entries(formData).forEach(([key, value]) => { if (value) data.append(key, value); });
-    data.append("employeePhoto", photo);
-    data.append("aadhaarCardPhoto", aadhaar);
-    try {
-      await axios.post(`${apiUrl}/employee/profile`, data, {
-        headers: { authorization: userSession?.token || "", "Content-Type": "multipart/form-data" }
-      });
-      setShowCreateForm(false);
-      fetchMyProfile();
-    } catch (err) {
-      console.error("Error creating profile:", err);
-      setErrors({ submit: err?.response?.data?.error || "Failed to create profile." });
-    } finally {
-      setSubmitting(false);
+
+    if (editMode) {
+      // Update existing profile
+      try {
+        await axios.put(`${apiUrl}/employee/employee-update/${userSession.user_id}`, formData, {
+          headers: { authorization: userSession?.token || "" }
+        });
+        setShowCreateForm(false);
+        setEditMode(false);
+        fetchMyProfile();
+      } catch (err) {
+        console.error("Error updating profile:", err);
+        setErrors({ submit: err?.response?.data?.error || err?.response?.data?.message || "Failed to update profile." });
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Create new profile
+      const data = new FormData();
+      Object.entries(formData).forEach(([key, value]) => { if (value) data.append(key, value); });
+      data.append("employeePhoto", photo);
+      data.append("aadhaarCardPhoto", aadhaar);
+      try {
+        await axios.post(`${apiUrl}/employee/profile`, data, {
+          headers: { authorization: userSession?.token || "", "Content-Type": "multipart/form-data" }
+        });
+        setShowCreateForm(false);
+        fetchMyProfile();
+      } catch (err) {
+        console.error("Error creating profile:", err);
+        setErrors({ submit: err?.response?.data?.error || "Failed to create profile." });
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -366,11 +425,12 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
           <div className="form-navigation">
             {currentStep > 0 && <button type="button" onClick={prevStep} className="nav-button prev-button">Previous</button>}
             <div className="nav-spacer" />
+            {editMode && <button type="button" onClick={() => { setShowCreateForm(false); setEditMode(false); }} className="nav-button prev-button" style={{ marginRight: 8 }}>Cancel</button>}
             {currentStep < steps.length - 1 ? (
               <button type="button" onClick={nextStep} className="nav-button next-button">Next</button>
             ) : (
               <button type="submit" disabled={submitting} className={`nav-button submit-button ${submitting ? "loading" : ""}`}>
-                {submitting ? (<><HourglassEmptyIcon className="button-spinner" />Creating...</>) : (<><CheckCircleIcon className="button-icon" />Create Profile</>)}
+                {submitting ? (<><HourglassEmptyIcon className="button-spinner" />{editMode ? "Updating..." : "Creating..."}</>) : (<><CheckCircleIcon className="button-icon" />{editMode ? "Update Profile" : "Create Profile"}</>)}
               </button>
             )}
           </div>
@@ -687,10 +747,11 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
       <Box>
         {renderProfileCard(myProfile, <>
           <Tooltip title="View Full Details"><IconButton color="primary" onClick={() => { setViewProfile(myProfile); fetchAdditionalDetails(myProfile.userId); }}><VisibilityIcon /></IconButton></Tooltip>
+          <Tooltip title="Edit Profile"><IconButton color="secondary" onClick={handleEditProfile}><EditIcon /></IconButton></Tooltip>
         </>)}
 
         {myProfile.profileCompletionStatus === "rejected" && (
-          <Alert severity="error" sx={{ mb: 2. }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             Your profile was rejected. Reason: <strong>{myProfile.rejectionRemark}</strong>. Please update your profile and resubmit.
           </Alert>
         )}
@@ -702,7 +763,64 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
         {myProfile.profileCompletionStatus === "approved" && (
           <Alert severity="success" sx={{ mb: 2 }}>Your profile has been approved!</Alert>
         )}
+
+        {/* Additional Details (read-only for employees) */}
+        <AdditionalDetailsReadOnly apiUrl={apiUrl} userSession={userSession} userId={myProfile.userId} isAuthority={isAuthority} />
       </Box>
     );
   }
+};
+
+// ─── ADDITIONAL DETAILS READ-ONLY COMPONENT ──────────────────────────
+const DOC_TYPE_LABELS_SUB = {
+  offer_letter: "Offer Letter",
+  promotion_letter: "Promotion Letter",
+  marksheet: "Marksheet",
+  experience_letter: "Experience Letter",
+  other: "Other",
+};
+
+const AdditionalDetailsReadOnly = ({ apiUrl, userSession, userId, isAuthority }) => {
+  const [details, setDetails] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const res = await axios.get(`${apiUrl}/employee/additional-details/${userId}`, {
+          headers: { authorization: userSession.token }
+        });
+        setDetails(res.data.additionalDetails || []);
+      } catch { setDetails([]); }
+      setLoading(false);
+    };
+    if (userId) fetch();
+  }, [apiUrl, userSession, userId]);
+
+  if (loading) return <CircularProgress size={24} sx={{ display: "block", mx: "auto", my: 3 }} />;
+  if (details.length === 0) return null;
+
+  return (
+    <Paper sx={{ p: 3, mt: 3, borderRadius: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+        <InsertDriveFileIcon color="primary" /> Documents & Additional Details
+      </Typography>
+      <Stack spacing={1.5}>
+        {details.map((d, i) => (
+          <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2, display: "flex", alignItems: "center", gap: 2 }}>
+            <InsertDriveFileIcon sx={{ color: "#a855f7" }} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{d.title}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {DOC_TYPE_LABELS_SUB[d.docType] || d.docType} • Added {new Date(d.addedAt).toLocaleDateString("en-IN")}
+                {d.addedByName && ` by ${d.addedByName}`}
+              </Typography>
+              {d.notes && <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>{d.notes}</Typography>}
+            </Box>
+            <Button size="small" variant="outlined" href={d.fileUrl} target="_blank">View</Button>
+          </Paper>
+        ))}
+      </Stack>
+    </Paper>
+  );
 };
