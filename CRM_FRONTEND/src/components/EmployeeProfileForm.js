@@ -72,6 +72,8 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const [detailFile, setDetailFile] = useState(null);
   const [detailForm, setDetailForm] = useState({ docType: "", title: "", notes: "" });
   const [additionalDetails, setAdditionalDetails] = useState([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadDocError, setUploadDocError] = useState("");
 
   // Create / Edit profile form
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -181,6 +183,8 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
 
   const handleAddDetails = async () => {
     if (!detailFile || !detailForm.docType || !detailForm.title) return;
+    setUploadingDoc(true);
+    setUploadDocError("");
     const fd = new FormData();
     fd.append("file", detailFile);
     fd.append("docType", detailForm.docType);
@@ -196,6 +200,9 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
       if (viewProfile) fetchAdditionalDetails(viewProfile.userId);
     } catch (err) {
       console.error("Add details error:", err);
+      setUploadDocError("Failed to upload document. Ensure file format is valid (PDF/DOCX/JPG/PNG).");
+    } finally {
+      setUploadingDoc(false);
     }
   };
 
@@ -713,15 +720,18 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
             </FormControl>
             <TextField fullWidth size="small" label="Title *" value={detailForm.title} onChange={(e) => setDetailForm({ ...detailForm, title: e.target.value })} />
             <TextField fullWidth size="small" label="Notes (optional)" multiline rows={2} value={detailForm.notes} onChange={(e) => setDetailForm({ ...detailForm, notes: e.target.value })} />
-            <Button variant="outlined" component="label" startIcon={<UploadFileIcon />}>
+            <Button variant="outlined" component="label" startIcon={<UploadFileIcon />} disabled={uploadingDoc}>
               {detailFile ? detailFile.name : "Upload File *"}
               <input type="file" hidden onChange={(e) => setDetailFile(e.target.files[0])} />
             </Button>
+            {uploadDocError && <Alert severity="error">{uploadDocError}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDetailsDialog({ open: false, userId: null })}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddDetails} disabled={!detailFile || !detailForm.docType || !detailForm.title}>Upload</Button>
+          <Button onClick={() => setAddDetailsDialog({ open: false, userId: null })} disabled={uploadingDoc}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddDetails} disabled={!detailFile || !detailForm.docType || !detailForm.title || uploadingDoc}>
+            {uploadingDoc ? <CircularProgress size={24} color="inherit" /> : "Upload"}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

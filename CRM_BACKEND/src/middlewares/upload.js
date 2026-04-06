@@ -19,7 +19,7 @@ const storage = new CloudinaryStorage({
     return {
       folder: 'employee_profiles',
       public_id: filename,
-      allowed_formats: ['jpg', 'jpeg', 'png'],
+      allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
     };
   },
 });
