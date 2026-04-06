@@ -57,14 +57,23 @@ const Timecard = () => {
     const [holidays, setHolidays] = useState([]);
     const [holidayForm, setHolidayForm] = useState({ date: '', name: '' });
 
+    // One-time load: employees, leaves, holidays
     useEffect(() => {
         fetchData();
-        fetchMyAttendance();
         fetchHolidays();
         if (isApprover) {
             fetchEmployees();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Re-fetch when month or date changes
+    useEffect(() => {
+        fetchMyAttendance();
+        if (isApprover) {
             fetchDailyAttendance();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMonth, attendanceDate]);
 
     // ─── DATA FETCHING ─────────────────────────────────────────────
@@ -109,8 +118,12 @@ const Timecard = () => {
             if (res.ok) {
                 const data = await res.json();
                 setEmployees(data.users || []);
+            } else {
+                const err = await res.json().catch(() => ({}));
+                console.error('fetchEmployees failed:', res.status, err);
+                enqueueSnackbar(`Failed to load employees: ${err.error || res.status}`, { variant: 'error' });
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error('fetchEmployees error:', e); }
     };
 
     const fetchDailyAttendance = async () => {

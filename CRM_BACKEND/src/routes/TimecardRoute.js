@@ -10,7 +10,16 @@ router.use(authenticateUser);
 
 const isTimecardAdmin = (userSession) => {
   const permissions = userSession.feature_permissions || [];
-  return permissions.includes("timecard_edit") || userSession.user_role === "super admin" || userSession.user_role === "admin" || userSession.user_role === "dev" || userSession.user_role === "hr";
+  const role = (userSession.user_role || '').toLowerCase().trim();
+  return (
+    permissions.includes("timecard_edit") ||
+    role === "super admin" ||
+    role === "admin" ||
+    role === "senior admin" ||
+    role === "dev" ||
+    role === "srdev" ||
+    role === "hr"
+  );
 };
 
 // =================== HOLIDAYS ===================
