@@ -45,7 +45,11 @@ const isOriginAllowed = (origin) => {
   if (allowedOrigins.includes(origin)) return true;
   try {
     const { hostname } = new URL(origin);
-    return hostname === "vercel.app" || hostname.endsWith(".vercel.app");
+    return (
+      hostname === "vercel.app" || 
+      hostname.endsWith(".vercel.app") || 
+      hostname.endsWith(".luminaracorp.com")
+    );
   } catch {
     return false;
   }
