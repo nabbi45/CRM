@@ -83,9 +83,10 @@ const DEFAULT_ROLE_PERMISSIONS = {
 const sanitizeFeaturePermissions = (permissions = []) => {
   if (!Array.isArray(permissions)) return [];
   let list = [...permissions];
-  // Force essential tabs
-  list.push('employee_profile');
-  list.push('dashboard_overview');
+  // Migrate old keys
+  if (list.includes('my_profile') || list.includes('create_profile') || list.includes('manage_employees')) {
+    list.push('employee_profile');
+  }
   if (list.includes('leave_management')) list.push('timecard');
   return [...new Set(list.filter((key) => FEATURE_KEYS.includes(key)))];
 };

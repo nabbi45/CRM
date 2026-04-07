@@ -115,17 +115,26 @@ export const sanitizeFeaturePermissions = (permissions = []) => {
   if (list.includes('create_profile') || list.includes('my_profile') || list.includes('manage_employees')) list.push('employee_profile');
   if (list.includes('leave_management')) list.push('timecard');
 
-  // Force essential tabs
-  list.push('employee_profile');
-  list.push('dashboard_overview');
-
   return [...new Set(list.filter((key) => FEATURE_KEYS.includes(key)))];
 };
 
 export const resolveFeaturePermissions = (userSession = {}) => {
+  let final = [];
   const explicit = sanitizeFeaturePermissions(userSession?.feature_permissions);
-  if (explicit.length) return explicit;
-  return getDefaultFeaturePermissionsForRole(userSession?.user_role);
+  const defaults = getDefaultFeaturePermissionsForRole(userSession?.user_role);
+
+  // Use explicit if it exists and has items (after sanitization), otherwise use defaults
+  if (explicit.length > 0) {
+    final = [...explicit];
+  } else {
+    final = [...defaults];
+  }
+
+  // Force essential tabs for everyone regardless of role or explicit setting
+  if (!final.includes('dashboard_overview')) final.push('dashboard_overview');
+  if (!final.includes('employee_profile')) final.push('employee_profile');
+
+  return [...new Set(final.filter(k => FEATURE_KEYS.includes(k)))];
 };
 
 export const canAccessFeature = (userSession, featureKey) =>
