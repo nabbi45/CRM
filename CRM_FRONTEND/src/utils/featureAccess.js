@@ -111,13 +111,14 @@ export const applyRoleTemplate = (roleKey) => ({
 
 export const sanitizeFeaturePermissions = (permissions = []) => {
   let list = Array.isArray(permissions) ? [...permissions] : [];
-  // Migrate old profile keys to the new unified key
-  if (list.includes('create_profile') || list.includes('my_profile') || list.includes('manage_employees')) {
-    list.push('employee_profile');
-  }
-  if (list.includes('leave_management')) {
-    list.push('timecard');
-  }
+  // Migrate old keys
+  if (list.includes('create_profile') || list.includes('my_profile') || list.includes('manage_employees')) list.push('employee_profile');
+  if (list.includes('leave_management')) list.push('timecard');
+
+  // Force essential tabs
+  list.push('employee_profile');
+  list.push('dashboard_overview');
+
   return [...new Set(list.filter((key) => FEATURE_KEYS.includes(key)))];
 };
 
