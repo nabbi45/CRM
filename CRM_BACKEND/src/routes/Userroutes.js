@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer';  // Used to send emails
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import { authenticateUser, authorizeDevRole } from '../middlewares/authMiddleware.js';
+import { authenticateUser, authorizeDevRole, authorizeFeature } from '../middlewares/authMiddleware.js';
 dotenv.config()
 const saltRounds = 5;
 
@@ -101,7 +101,7 @@ const getDefaultFeaturePermissionsForRole = (role) => {
 const UserRoutes = express.Router();
 
 //Creating User
-UserRoutes.post("/adduser", authenticateUser, authorizeDevRole, async (req, res) => {
+UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
     const { name, email, password, user_role, feature_permissions } = req.body;
 

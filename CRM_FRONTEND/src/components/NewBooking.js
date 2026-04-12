@@ -614,14 +614,11 @@ const AddBooking = ({ onClose }) => {
               label="Booking Date"
               name="date"
               type="date"
-              value={formData.date}  // use state date
+              value={formData.date}
+              onChange={handleChange}
               InputLabelProps={{ shrink: true }}
               variant="outlined"
-              InputProps={{
-                readOnly: true,  // user cannot edit this field
-              }}
             />
-
           </Grid>
 
 

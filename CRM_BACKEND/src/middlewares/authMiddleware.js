@@ -32,4 +32,27 @@ export const authorizeDevRole = (req, res, next) => {
   next();
 };
 
+// Middleware to check if user has a specific feature permission
+export const authorizeFeature = (featureKey) => {
+  return (req, res, next) => {
+    const userPermissions = req.user?.feature_permissions || [];
+    const normalizedRole = (req.user?.user_role || '').toString().trim().toLowerCase();
+    const adminRoles = ['srdev', 'dev', 'admin', 'senior admin', 'super admin'];
+
+    // Allow admin/dev roles full access
+    if (adminRoles.includes(normalizedRole)) {
+      return next();
+    }
+
+    // Check if user has the required feature permission
+    if (userPermissions.includes(featureKey)) {
+      return next();
+    }
+
+    return res.status(403).send({
+      message: `Access denied. You need '${featureKey}' permission to access this route.`,
+    });
+  };
+};
+
 
