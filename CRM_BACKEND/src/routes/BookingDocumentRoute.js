@@ -122,7 +122,7 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
         }
 
         const bookings = await BookingModel.find(bookingQuery)
-            .select("_id company_name contact_person contact_no services bdm date status")
+            .select("_id company_name contact_person contact_no services bdm date status total_amount term_1 term_2 term_3")
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .lean();

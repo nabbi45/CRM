@@ -306,7 +306,11 @@ UserRoutes.get('/options', authenticateUser, async (req, res) => {
 
 // Assuming you already have the user object after login
 export const generateToken = (user) => {
-  return jwt.sign({ userId: user._id, user_role: user.user_role }, process.env.JWT_SECRET, {
+  return jwt.sign({
+    userId: user._id,
+    user_role: user.user_role,
+    feature_permissions: user.feature_permissions || []
+  }, process.env.JWT_SECRET, {
     expiresIn: '24h', // Set token expiration time
   });
 };
