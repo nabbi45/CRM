@@ -7,8 +7,6 @@ import DocumentEmailModal from './DocumentEmailModal';
 import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from "./LoginSignup";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
-
 const BookingAgreementGenerator = () => {
     const [bookings, setBookings] = useState([]);
     const [selectedBooking, setSelectedBooking] = useState(null);
@@ -25,7 +23,7 @@ const BookingAgreementGenerator = () => {
         try {
             const userSession = JSON.parse(localStorage.getItem("userSession"));
             const res = await fetch(`${apiUrl}/documents/all`, {
-                headers: { "Authorization": userSession?.token, "user-role": userSession?.user_role }
+                headers: { "Authorization": userSession?.token }
             });
             const data = await res.json();
             if (res.ok && data.documents) {
@@ -38,7 +36,7 @@ const BookingAgreementGenerator = () => {
                     }));
                 setDownloadHistory(agreements);
             }
-        } catch (err) { console.error('Error fetching agreements history', err); }
+        } catch (err) { /* Silent fail - not critical */ }
     };
 
     // Load bookings from backend
@@ -57,9 +55,6 @@ const BookingAgreementGenerator = () => {
                 throw new Error('User is not authenticated. Please log in.');
             }
 
-            // Log for debugging
-            console.log('Requesting all bookings with token:', userSession.token);
-
             // API request with authorization token
             const response = await fetch(`${apiUrl}/booking/all`, {
                 method: "GET",
@@ -69,16 +64,11 @@ const BookingAgreementGenerator = () => {
                 },
             });
 
-            // Log the response status
-            console.log('Response status:', response.status);
-
             if (!response.ok) {
                 throw new Error(`Failed to fetch bookings. Status: ${response.status}`);
             }
 
             const data = await response.json();
-
-            console.log("Returned data from /booking/all:", data);
 
             // Handle data
             if (data && Array.isArray(data.Allbookings)) {
@@ -96,7 +86,6 @@ const BookingAgreementGenerator = () => {
                 throw new Error(`Invalid response format. Expected an array of bookings. Received: ${textData}`);
             }
         } catch (error) {
-            console.error('Error fetching bookings:', error);
             setError(`Failed to load bookings. Please try again. ${error.message}`);
         } finally {
             setIsLoadingBookings(false);
@@ -117,18 +106,20 @@ const BookingAgreementGenerator = () => {
             setShowPreview(true);
         } catch (err) {
             setError('Failed to generate agreement preview. Please try again.');
-            console.error('Error generating agreement:', err);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleDownloadPDF = async () => {
+    const handleDownloadPDF = async (customHtmlContent = null) => {
         if (!selectedBooking || !agreementHtml) return;
+
+        // Use custom HTML if provided, otherwise use the original
+        const htmlToUse = customHtmlContent || agreementHtml;
 
         try {
             setIsLoading(true);
-            await generatePDF(agreementHtml, `Booking-Agreement-${selectedBooking._id}`);
+            await generatePDF(htmlToUse, `Booking-Agreement-${selectedBooking._id}`);
 
             // Save to database
             const userSession = JSON.parse(localStorage.getItem("userSession"));
@@ -137,13 +128,12 @@ const BookingAgreementGenerator = () => {
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": userSession?.token,
-                    "user-role": userSession?.user_role,
                 },
                 body: JSON.stringify({
                     bookingId: selectedBooking._id,
                     title: `Booking-Agreement-${selectedBooking._id}`,
                     type: 'Agreement',
-                    htmlContent: agreementHtml
+                    htmlContent: htmlToUse
                 }),
             });
 
@@ -156,12 +146,18 @@ const BookingAgreementGenerator = () => {
             setDownloadHistory(prev => [downloadEntry, ...prev]);
 
             setError(null);
+            enqueueSnackbar('PDF downloaded successfully!', { variant: 'success' });
         } catch (err) {
             setError('Failed to generate PDF or save history. Please try again.');
-            console.error('Error:', err);
+            enqueueSnackbar('Failed to download PDF', { variant: 'error' });
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleSaveAgreement = (editedHtml) => {
+        setAgreementHtml(editedHtml);
+        enqueueSnackbar('Agreement updated successfully!', { variant: 'success' });
     };
 
     const filteredBookings = bookings.filter((booking) => {
@@ -385,7 +381,15 @@ const BookingAgreementGenerator = () => {
                                         isLoading={isLoading}
                                         onClose={() => setShowPreview(false)}
                                         onDownload={handleDownloadPDF}
-                                        onSendEmail={() => { setShowPreview(false); setShowEmailModal(true); }}
+                                        onSendEmail={(customHtml) => { 
+                                            setShowPreview(false); 
+                                            setShowEmailModal(true); 
+                                            // Store the custom HTML for email
+                                            if (customHtml) {
+                                                setAgreementHtml(customHtml);
+                                            }
+                                        }}
+                                        onSave={handleSaveAgreement}
                                     />
                                 )}
 

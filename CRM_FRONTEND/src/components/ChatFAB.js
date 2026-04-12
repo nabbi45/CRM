@@ -2,12 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Badge, Fab } from '@mui/material';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiUrl } from './LoginSignup';
-import { io } from 'socket.io-client';
+import { socket } from '../socket'; // Use shared socket instance
 import { useColorMode } from '../context/AppThemeProvider';
-
-const socketUrl = apiUrl.replace('/api', ''); // Adjust if apiUrl points to /api exactly
-const socket = io(socketUrl, { autoConnect: false });
 
 const playMessageSound = () => {
     try {

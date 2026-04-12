@@ -510,10 +510,19 @@ const History = () => {
   };
 
   const downloadDocument = (doc) => {
+    if (!doc || !doc.fileUrl) {
+      enqueueSnackbar('Invalid document or no file available', { variant: 'error' });
+      return;
+    }
     window.open(doc.fileUrl, '_blank');
   };
 
   const handleDeleteDocument = async (doc) => {
+    if (!doc || !doc._id) {
+      enqueueSnackbar('Invalid document', { variant: 'error' });
+      return;
+    }
+
     const canDelete = isHigherAuthority(userSession) || 
                      canAccessFeature(userSession, 'manage_documents') ||
                      canAccessFeature(userSession, 'edit_documents');
@@ -538,7 +547,6 @@ const History = () => {
         enqueueSnackbar('Failed to delete document', { variant: 'error' });
       }
     } catch (error) {
-      console.error('Error deleting document:', error);
       enqueueSnackbar('Error deleting document', { variant: 'error' });
     }
   };

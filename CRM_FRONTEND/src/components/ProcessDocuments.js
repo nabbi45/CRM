@@ -74,6 +74,7 @@ const ProcessDocuments = () => {
   const [uploadType, setUploadType] = useState('others');
   const [documentNotes, setDocumentNotes] = useState('');
   const [selectedDocumentForNotes, setSelectedDocumentForNotes] = useState(null);
+  const [documentTypeFilter, setDocumentTypeFilter] = useState(null);
 
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('userSession'));
@@ -103,8 +104,7 @@ const ProcessDocuments = () => {
         setBookings(bookingsData);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
-      enqueueSnackbar('Error loading data', { variant: 'error' });
+      enqueueSnackbar('Error loading documents data. Please try again.', { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -127,7 +127,7 @@ const ProcessDocuments = () => {
         setBookings(data);
       }
     } catch (error) {
-      console.error('Error searching:', error);
+      enqueueSnackbar('Error searching documents. Please try again.', { variant: 'error' });
     } finally {
       setLoading(false);
     }
@@ -153,8 +153,9 @@ const ProcessDocuments = () => {
     setNotesDialogOpen(true);
   };
 
-  const openViewDocumentsDialog = async (booking) => {
+  const openViewDocumentsDialog = async (booking, docTypeFilter = null) => {
     setSelectedBooking(booking);
+    setDocumentTypeFilter(docTypeFilter);
     setLoading(true);
     try {
       const res = await fetch(`${apiUrl}/booking-documents/booking/${booking._id}`, {
@@ -162,11 +163,14 @@ const ProcessDocuments = () => {
       });
       if (res.ok) {
         const docs = await res.json();
-        setSelectedDocuments(docs);
+        // Filter by document type if specified
+        const filteredDocs = docTypeFilter 
+          ? docs.filter(d => d.documentType === docTypeFilter)
+          : docs;
+        setSelectedDocuments(filteredDocs);
         setViewDocumentsDialogOpen(true);
       }
     } catch (error) {
-      console.error('Error fetching documents:', error);
       enqueueSnackbar('Error loading documents', { variant: 'error' });
     } finally {
       setLoading(false);
@@ -204,7 +208,6 @@ const ProcessDocuments = () => {
           failed++;
         }
       } catch (err) {
-        console.error('Upload error:', err);
         failed++;
       }
     }
@@ -243,12 +246,16 @@ const ProcessDocuments = () => {
         enqueueSnackbar('Failed to save notes', { variant: 'error' });
       }
     } catch (error) {
-      console.error('Error saving notes:', error);
       enqueueSnackbar('Error saving notes', { variant: 'error' });
     }
   };
 
   const handleDeleteDocument = async (doc) => {
+    if (!doc || !doc._id) {
+      enqueueSnackbar('Invalid document', { variant: 'error' });
+      return;
+    }
+
     if (!canManageDocuments()) {
       enqueueSnackbar('You do not have permission to delete documents', { variant: 'warning' });
       return;
@@ -270,12 +277,15 @@ const ProcessDocuments = () => {
         enqueueSnackbar('Failed to delete document', { variant: 'error' });
       }
     } catch (error) {
-      console.error('Error deleting document:', error);
       enqueueSnackbar('Error deleting document', { variant: 'error' });
     }
   };
 
   const downloadDocument = (doc) => {
+    if (!doc || !doc.fileUrl) {
+      enqueueSnackbar('Invalid document or no file available', { variant: 'error' });
+      return;
+    }
     window.open(doc.fileUrl, '_blank');
   };
 
@@ -531,19 +541,46 @@ const ProcessDocuments = () => {
                   <TableCell>
                     {booking.date ? new Date(booking.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                   </TableCell>
-                  {DOCUMENT_TYPES.map(type => (
-                    <TableCell key={type.key} align="center">
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: (booking.documentCounts?.[type.key] || 0) > 0 ? type.color : 'text.disabled',
-                          fontWeight: (booking.documentCounts?.[type.key] || 0) > 0 ? 600 : 400
-                        }}
-                      >
-                        {booking.documentCounts?.[type.key] || 0}
-                      </Typography>
-                    </TableCell>
-                  ))}
+                  {DOCUMENT_TYPES.map(type => {
+                    const count = booking.documentCounts?.[type.key] || 0;
+                    const hasDocs = count > 0;
+                    
+                    return (
+                      <TableCell key={type.key} align="center">
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            if (hasDocs) {
+                              // View documents filtered by type
+                              openViewDocumentsDialog(booking, type.key);
+                            } else {
+                              // Open upload dialog with this type pre-selected
+                              setSelectedBooking(booking);
+                              setUploadType(type.key);
+                              setUploadDialogOpen(true);
+                            }
+                          }}
+                          sx={{
+                            minWidth: 32,
+                            height: 28,
+                            px: 1,
+                            fontSize: '0.85rem',
+                            fontWeight: hasDocs ? 600 : 400,
+                            color: hasDocs ? type.color : 'text.disabled',
+                            backgroundColor: hasDocs ? `${type.color}15` : 'transparent',
+                            border: `1px solid ${hasDocs ? type.color : 'transparent'}`,
+                            borderRadius: 1.5,
+                            '&:hover': {
+                              backgroundColor: hasDocs ? `${type.color}25` : 'action.hover',
+                              borderColor: hasDocs ? type.color : 'divider',
+                            },
+                          }}
+                        >
+                          {count}
+                        </Button>
+                      </TableCell>
+                    );
+                  })}
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Tooltip title="View Documents">
@@ -671,9 +708,31 @@ const ProcessDocuments = () => {
         </DialogTitle>
         <DialogContent>
           {selectedDocuments.length === 0 ? (
-            <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-              No documents found for this booking
-            </Typography>
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                {documentTypeFilter 
+                  ? `No ${DOCUMENT_TYPES.find(t => t.key === documentTypeFilter)?.label} documents found for this booking`
+                  : 'No documents found for this booking'
+                }
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<CloudUploadIcon />}
+                onClick={() => {
+                  setViewDocumentsDialogOpen(false);
+                  setUploadType(documentTypeFilter || 'others');
+                  setUploadDialogOpen(true);
+                }}
+                sx={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  },
+                }}
+              >
+                Upload Document
+              </Button>
+            </Box>
           ) : (
             <TableContainer>
               <Table size="small">

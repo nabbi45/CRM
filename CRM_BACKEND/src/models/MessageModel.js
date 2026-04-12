@@ -8,6 +8,7 @@ const MessageSchema = new mongoose.Schema({
     message: { type: String, required: false },
     attachment_url: { type: String, default: null },
     attachment_type: { type: String, default: null }, // e.g. "image", "video", "raw"
+    edited_at: { type: Date, default: null }, // Track when message was edited
     read_by: [
         {
             user_id: { type: String },

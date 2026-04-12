@@ -124,4 +124,66 @@ ChatRoutes.get("/unreads", authenticateUser, async (req, res) => {
     }
 });
 
+// Edit a message
+ChatRoutes.patch("/messages/:messageId", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const { messageId } = req.params;
+        const { message: newMessage } = req.body;
+
+        if (!newMessage || newMessage.trim().length === 0) {
+            return res.status(400).send({ message: "Message content cannot be empty" });
+        }
+
+        // Find the message
+        const msg = await MessageModel.findById(messageId);
+        if (!msg) {
+            return res.status(404).send({ message: "Message not found" });
+        }
+
+        // Only allow sender to edit their own message
+        if (msg.sender_id !== currentUserId) {
+            return res.status(403).send({ message: "You can only edit your own messages" });
+        }
+
+        // Update the message
+        msg.message = newMessage.trim();
+        msg.edited_at = new Date();
+        await msg.save();
+
+        return res.status(200).send({ 
+            message: "Message updated successfully",
+            updatedMessage: msg 
+        });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
+// Delete a message
+ChatRoutes.delete("/messages/:messageId", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const { messageId } = req.params;
+
+        // Find the message
+        const msg = await MessageModel.findById(messageId);
+        if (!msg) {
+            return res.status(404).send({ message: "Message not found" });
+        }
+
+        // Only allow sender to delete their own message
+        if (msg.sender_id !== currentUserId) {
+            return res.status(403).send({ message: "You can only delete your own messages" });
+        }
+
+        // Delete the message
+        await MessageModel.findByIdAndDelete(messageId);
+
+        return res.status(200).send({ message: "Message deleted successfully" });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
 export default ChatRoutes;

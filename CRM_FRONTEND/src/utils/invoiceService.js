@@ -8,7 +8,6 @@ export const saveInvoiceToDatabase = async (invoiceData) => {
       headers: {
         "Content-Type": "application/json",
         "Authorization": userSession?.token,
-        "user-role": userSession?.user_role,
       },
       body: JSON.stringify({
         bookingId: null, // Since we don't have a booking ID for manual invoices
@@ -47,7 +46,6 @@ export const getInvoices = async () => {
     const response = await fetch(`${apiUrl}/documents/all`, {
       headers: {
         "Authorization": userSession?.token,
-        "user-role": userSession?.user_role,
       }
     });
 

@@ -14,10 +14,17 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DoneIcon from '@mui/icons-material/Done';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import EmojiPicker from 'emoji-picker-react';
 import { apiUrl } from './LoginSignup';
 import { socket } from '../socket';
 import bgChat from '../assets/bg_chat.jpg';
+import { enqueueSnackbar } from 'notistack';
 
 const ACCENT = '#ff3b1f';
 
@@ -54,6 +61,10 @@ const TeamInbox = () => {
     const [typingUsers, setTypingUsers] = useState({});
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [editingMessageId, setEditingMessageId] = useState(null);
+    const [editMessageText, setEditMessageText] = useState('');
+    const [messageMenuAnchor, setMessageMenuAnchor] = useState(null);
+    const [selectedMessage, setSelectedMessage] = useState(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
 
@@ -244,6 +255,98 @@ const TeamInbox = () => {
 
     const formatTime = (ts) => {
         return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    };
+
+    // Handle message menu open
+    const handleMessageMenuOpen = (event, message) => {
+        // Only allow edit/delete for own messages
+        if (message.sender_id !== session.user_id) return;
+        setMessageMenuAnchor(event.currentTarget);
+        setSelectedMessage(message);
+    };
+
+    // Handle message menu close
+    const handleMessageMenuClose = () => {
+        setMessageMenuAnchor(null);
+        setSelectedMessage(null);
+    };
+
+    // Start editing a message
+    const handleStartEdit = () => {
+        if (!selectedMessage) return;
+        setEditingMessageId(selectedMessage._id);
+        setEditMessageText(selectedMessage.message || '');
+        handleMessageMenuClose();
+    };
+
+    // Cancel editing
+    const handleCancelEdit = () => {
+        setEditingMessageId(null);
+        setEditMessageText('');
+    };
+
+    // Save edited message
+    const handleSaveEdit = async () => {
+        if (!editingMessageId || !editMessageText.trim()) return;
+
+        try {
+            const res = await fetch(`${apiUrl}/chat/messages/${editingMessageId}`, {
+                method: 'PATCH',
+                headers: { ...headers },
+                body: JSON.stringify({ message: editMessageText.trim() })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Update the message in the local state
+                setMessages(prev => prev.map(m => 
+                    m._id === editingMessageId 
+                        ? { ...m, message: editMessageText.trim(), edited_at: new Date().toISOString() }
+                        : m
+                ));
+                enqueueSnackbar('Message updated', { variant: 'success' });
+            } else {
+                const error = await res.json();
+                enqueueSnackbar(error.message || 'Failed to update message', { variant: 'error' });
+            }
+        } catch (error) {
+            console.error('Error updating message:', error);
+            enqueueSnackbar('Error updating message', { variant: 'error' });
+        } finally {
+            setEditingMessageId(null);
+            setEditMessageText('');
+        }
+    };
+
+    // Delete a message
+    const handleDeleteMessage = async () => {
+        if (!selectedMessage) return;
+
+        if (!window.confirm('Are you sure you want to delete this message?')) {
+            handleMessageMenuClose();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${apiUrl}/chat/messages/${selectedMessage._id}`, {
+                method: 'DELETE',
+                headers: { ...headers }
+            });
+
+            if (res.ok) {
+                // Remove the message from local state
+                setMessages(prev => prev.filter(m => m._id !== selectedMessage._id));
+                enqueueSnackbar('Message deleted', { variant: 'success' });
+            } else {
+                const error = await res.json();
+                enqueueSnackbar(error.message || 'Failed to delete message', { variant: 'error' });
+            }
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            enqueueSnackbar('Error deleting message', { variant: 'error' });
+        } finally {
+            handleMessageMenuClose();
+        }
     };
 
     const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
@@ -483,8 +586,88 @@ const TeamInbox = () => {
                                                 )}
                                             </Box>
                                         )}
-                                        {m.message && m.message !== "Sent an attachment" && (
-                                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: isMe ? '#ffffff' : 'inherit' }}>{m.message}</Typography>
+                                        
+                                        {/* Edit Mode or Message Display */}
+                                        {editingMessageId === m._id ? (
+                                            <Box sx={{ minWidth: 200 }}>
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    value={editMessageText}
+                                                    onChange={(e) => setEditMessageText(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            handleSaveEdit();
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                            handleCancelEdit();
+                                                        }
+                                                    }}
+                                                    autoFocus
+                                                    sx={{
+                                                        '& .MuiInputBase-root': {
+                                                            bgcolor: 'rgba(255,255,255,0.9)',
+                                                            borderRadius: 1,
+                                                        }
+                                                    }}
+                                                />
+                                                <Box sx={{ display: 'flex', gap: 0.5, mt: 1, justifyContent: 'flex-end' }}>
+                                                    <IconButton size="small" onClick={handleSaveEdit} sx={{ color: '#10b981' }}>
+                                                        <CheckIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton size="small" onClick={handleCancelEdit} sx={{ color: '#ef4444' }}>
+                                                        <CloseIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Box>
+                                            </Box>
+                                        ) : (
+                                            m.message && m.message !== "Sent an attachment" && (
+                                                <Typography 
+                                                    variant="body2" 
+                                                    sx={{ 
+                                                        whiteSpace: 'pre-wrap', 
+                                                        color: isMe ? '#ffffff' : 'inherit',
+                                                        cursor: isMe ? 'pointer' : 'default',
+                                                    }}
+                                                    onClick={(e) => isMe && handleMessageMenuOpen(e, m)}
+                                                >
+                                                    {m.message}
+                                                    {m.edited_at && (
+                                                        <Typography 
+                                                            component="span" 
+                                                            variant="caption" 
+                                                            sx={{ 
+                                                                ml: 0.5, 
+                                                                opacity: 0.7,
+                                                                fontSize: '0.7rem'
+                                                            }}
+                                                        >
+                                                            (edited)
+                                                        </Typography>
+                                                    )}
+                                                </Typography>
+                                            )
+                                        )}
+                                        
+                                        {/* Edit/Delete Menu for own messages */}
+                                        {isMe && editingMessageId !== m._id && (
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => handleMessageMenuOpen(e, m)}
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: -8,
+                                                    [isMe ? 'left' : 'right']: -8,
+                                                    opacity: 0,
+                                                    transition: 'opacity 0.2s',
+                                                    bgcolor: isDark ? 'rgba(30,41,59,0.9)' : 'rgba(255,255,255,0.9)',
+                                                    '&:hover': { opacity: 1 },
+                                                    '.MuiBox-root:hover &': { opacity: 0.7 },
+                                                }}
+                                            >
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
                                         )}
                                     </Paper>
                                 </Box>
@@ -588,6 +771,31 @@ const TeamInbox = () => {
                     </form>
                 </Box>
             </Box>
+
+            {/* Message Edit/Delete Menu */}
+            <Menu
+                anchorEl={messageMenuAnchor}
+                open={Boolean(messageMenuAnchor)}
+                onClose={handleMessageMenuClose}
+                PaperProps={{
+                    sx: {
+                        minWidth: 120,
+                        '& .MuiMenuItem-root': {
+                            fontSize: '0.875rem',
+                            gap: 1,
+                        }
+                    }
+                }}
+            >
+                <MenuItem onClick={handleStartEdit}>
+                    <EditIcon fontSize="small" sx={{ color: '#6366f1' }} />
+                    Edit
+                </MenuItem>
+                <MenuItem onClick={handleDeleteMessage} sx={{ color: '#ef4444' }}>
+                    <DeleteIcon fontSize="small" />
+                    Delete
+                </MenuItem>
+            </Menu>
 
         </Box>
     );
