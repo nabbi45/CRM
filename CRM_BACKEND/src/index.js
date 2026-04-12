@@ -16,6 +16,7 @@ import ChatRoutes from "./routes/ChatRoute.js"; // New Chat Route
 import ChatUploadRoutes from "./routes/ChatUploadRoute.js"; // New Chat Upload Route
 import ContactSalesRoute from "./routes/ContactSalesRoute.js"; // Inbound Sales Route
 import ProjectionLeadRoutes from "./routes/ProjectionLeadRoute.js";
+import BookingDocumentRoutes from "./routes/BookingDocumentRoute.js";
 
 import cors from "cors";
 import path from "path";
@@ -104,6 +105,7 @@ app.use("/chat", ChatRoutes);
 app.use("/chat-upload", ChatUploadRoutes);
 app.use("/sales", ContactSalesRoute);
 app.use("/projection-leads", ProjectionLeadRoutes);
+app.use("/booking-documents", BookingDocumentRoutes);
 
 // Keep track of connected users { userId: Set<socketId> }
 global.onlineUsers = new Map();

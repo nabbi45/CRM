@@ -475,4 +475,86 @@ BookingRoutes.get("/bookings/filter", authenticateUser, async (req, res) => {
 
 
 
+// Payment Reminders - Get bookings with pending payments
+BookingRoutes.get("/payment-reminders", authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const userRole = (req.user?.user_role || '').toString().trim().toLowerCase();
+    
+    // Admin roles can see all pending payments
+    const adminRoles = ['admin', 'senior admin', 'super admin', 'srdev', 'dev'];
+    const isAdmin = adminRoles.includes(userRole);
+    
+    // Build query to find bookings with pending payments
+    const query = {
+      isDeleted: { $ne: true },
+      $expr: {
+        $lt: [
+          { $add: [{ $ifNull: ["$term_1", 0] }, { $ifNull: ["$term_2", 0] }, { $ifNull: ["$term_3", 0] }] },
+          { $ifNull: ["$total_amount", 0] }
+        ]
+      }
+    };
+    
+    // Non-admin users only see their own bookings
+    if (!isAdmin) {
+      query.user_id = userId;
+    }
+    
+    const bookings = await BookingModel.find(query).sort({ date: 1 }); // Oldest first
+    
+    // Process bookings to add calculated fields
+    const processedBookings = bookings.map(booking => {
+      const totalReceived = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
+      const pendingAmount = (booking.total_amount || 0) - totalReceived;
+      const bookingDate = new Date(booking.date || booking.createdAt);
+      const daysWaiting = Math.floor((Date.now() - bookingDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Determine urgency level
+      let urgency = 'normal';
+      let alertMessage = '';
+      if (daysWaiting >= 180) {
+        urgency = 'critical';
+        alertMessage = `🚨 Red alert! ${daysWaiting} days overdue. Let's close this deal!`;
+      } else if (daysWaiting >= 90) {
+        urgency = 'high';
+        alertMessage = `🚨 Alert! ${daysWaiting} days waiting. Money doesn't grow on trees!`;
+      } else if (daysWaiting >= 30) {
+        urgency = 'medium';
+        alertMessage = `⚠️ ${daysWaiting} days pending. Follow up needed!`;
+      } else {
+        alertMessage = `⏳ ${daysWaiting} days pending`;
+      }
+      
+      return {
+        _id: booking._id,
+        company_name: booking.company_name,
+        contact_person: booking.contact_person,
+        services: booking.services,
+        total_amount: booking.total_amount,
+        received_amount: totalReceived,
+        pending_amount: pendingAmount,
+        booking_date: booking.date,
+        payment_date: booking.payment_date,
+        days_waiting: daysWaiting,
+        urgency: urgency,
+        alert_message: alertMessage,
+        bdm: booking.bdm,
+        status: booking.status
+      };
+    });
+    
+    // Sort by days waiting (longest first)
+    processedBookings.sort((a, b) => b.days_waiting - a.days_waiting);
+    
+    res.status(200).send({
+      count: processedBookings.length,
+      bookings: processedBookings
+    });
+  } catch (err) {
+    console.error("Error in /payment-reminders:", err.message);
+    res.status(500).send({ message: err.message });
+  }
+});
+
 export default BookingRoutes;

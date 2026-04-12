@@ -28,6 +28,10 @@ import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
+import PaymentReminders from "./PaymentReminders";
+import Popup from "./Popup";
+import EditBooking from "./EditBooking";
+import { enqueueSnackbar } from "notistack";
 
 const ACCENT = "#ff3b1f";
 const ACCENT_DARK = "#e03118";
@@ -49,6 +53,8 @@ const DashboardContent = () => {
   const [mostSoldService, setMostSoldService] = useState({ name: "-", count: 0 });
   const [mostRevenueService, setMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [loading, setLoading] = useState(true);
+  const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -498,13 +504,43 @@ const DashboardContent = () => {
 
   const medals = ["🥇", "🥈", "🥉"];
 
+  const handleOpenBooking = async (bookingId) => {
+    try {
+      // Fetch full booking details
+      const res = await fetch(`${apiUrl}/booking/all`, {
+        headers: { authorization: userSession?.token }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const bookings = data.Allbookings || data.bookings || [];
+        const booking = bookings.find(b => b._id === bookingId);
+        
+        if (booking) {
+          setSelectedBooking(booking);
+          setIsBookingPopupOpen(true);
+        } else {
+          enqueueSnackbar('Booking not found', { variant: 'error' });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching booking details:', error);
+      enqueueSnackbar('Error opening booking details', { variant: 'error' });
+    }
+  };
+
+  const handleCloseBookingPopup = () => {
+    setIsBookingPopupOpen(false);
+    setSelectedBooking(null);
+  };
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2 }, animation: "fadeSlideIn 320ms ease" }}>
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          mb: 3,
+          mb: 2,
           alignItems: "center",
         }}
       >
@@ -512,6 +548,9 @@ const DashboardContent = () => {
           Dashboard
         </Typography>
       </Box>
+
+      {/* ── Payment Reminders Banner ── */}
+      <PaymentReminders onOpenBooking={handleOpenBooking} />
 
       {/* ── Stat Cards ── */}
       <Grid container spacing={2.5}>
@@ -878,6 +917,16 @@ const DashboardContent = () => {
           </Table>
         </TableContainer>
       </Box>
+
+      {/* ── Booking Edit Popup ── */}
+      {isBookingPopupOpen && (
+        <Popup isOpen={isBookingPopupOpen} onClose={handleCloseBookingPopup}>
+          <EditBooking
+            initialData={selectedBooking}
+            onClose={handleCloseBookingPopup}
+          />
+        </Popup>
+      )}
     </Box>
   );
 };

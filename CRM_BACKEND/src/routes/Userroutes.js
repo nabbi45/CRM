@@ -18,6 +18,7 @@ const FEATURE_KEYS = [
   'proforma_invoice',
   'agreements_generator',
   'generated_documents',
+  'process_documents',
   'manage_users',
   'manage_services',
   'company_profile',
@@ -26,6 +27,8 @@ const FEATURE_KEYS = [
   'timecard_edit',
   'communication',
   'trash',
+  'manage_documents',
+  'edit_documents',
 ];
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
@@ -42,6 +45,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'proforma_invoice',
     'agreements_generator',
     'generated_documents',
+    'process_documents',
+    'manage_documents',
+    'edit_documents',
     'manage_users',
     'manage_services',
     'company_profile',
@@ -58,6 +64,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'proforma_invoice',
     'agreements_generator',
     'generated_documents',
+    'process_documents',
+    'manage_documents',
+    'edit_documents',
     'manage_users',
     'manage_services',
     'company_profile',

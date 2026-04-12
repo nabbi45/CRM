@@ -34,6 +34,7 @@ import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import FolderCopyOutlinedIcon from '@mui/icons-material/FolderCopyOutlined';
 import { socket } from '../socket';
 import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
@@ -176,6 +177,9 @@ const Sidebar = () => {
     }
     if (canAccessFeature(userSession, 'generated_documents')) {
       items.push({ text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents', color: '#06b6d4' });
+    }
+    if (canAccessFeature(userSession, 'process_documents')) {
+      items.push({ text: 'Process Documents', icon: <FolderCopyOutlinedIcon />, path: '/dashboard/process-documents', color: '#8b5cf6' });
     }
     if (canAccessFeature(userSession, 'manage_users')) {
       items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser', color: '#f97316' });

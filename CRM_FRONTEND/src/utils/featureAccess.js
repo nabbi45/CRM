@@ -6,6 +6,7 @@ export const FEATURE_KEYS = [
   'proforma_invoice',
   'agreements_generator',
   'generated_documents',
+  'process_documents',
   'manage_users',
   'manage_services',
   'company_profile',
@@ -14,6 +15,8 @@ export const FEATURE_KEYS = [
   'communication',
   'employee_profile',
   'trash',
+  'manage_documents',
+  'edit_documents',
 ];
 
 export const FEATURE_LABELS = {
@@ -24,6 +27,7 @@ export const FEATURE_LABELS = {
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
   generated_documents: 'Generated Documents',
+  process_documents: 'Process Documents',
   manage_users: 'Manage User',
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
@@ -32,6 +36,8 @@ export const FEATURE_LABELS = {
   communication: 'Communication',
   employee_profile: 'Employee Profile',
   trash: 'Trash',
+  manage_documents: 'Manage Documents (Delete/Reupload)',
+  edit_documents: 'Edit Documents',
 };
 
 export const ROLE_TEMPLATE_OPTIONS = [
@@ -58,6 +64,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'proforma_invoice',
     'agreements_generator',
     'generated_documents',
+    'process_documents',
+    'manage_documents',
+    'edit_documents',
     'manage_users',
     'manage_services',
     'company_profile',
@@ -74,6 +83,9 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'proforma_invoice',
     'agreements_generator',
     'generated_documents',
+    'process_documents',
+    'manage_documents',
+    'edit_documents',
     'manage_users',
     'manage_services',
     'company_profile',

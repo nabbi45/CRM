@@ -10,13 +10,19 @@ import {
   FormControl,
   Button,
   Typography,
-  CircularProgress, // Import CircularProgress for the loader
+  CircularProgress,
+  Chip,
+  IconButton,
+  Paper,
 } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
 import { useLocation } from "react-router-dom";
 import servicesList from "../Data/ServicesData";
 import ServiceDropdown from "./Servicesdropdown";
 import { apiUrl } from "./LoginSignup";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DescriptionIcon from "@mui/icons-material/Description";
 
 import Mailer from "./mail";
 
@@ -29,7 +35,7 @@ const AddBooking = ({ onClose }) => {
     contactNumber: "",
     email: "",
     date: new Date().toISOString().split("T")[0],
-    services: [], // Updated to handle multiple services
+    services: [],
     totalAmount: "",
     selectTerm: "",
     amount: "",
@@ -42,6 +48,10 @@ const AddBooking = ({ onClose }) => {
     state: "",
     funddisbursement: "",
   });
+  
+  // Document upload state
+  const [documents, setDocuments] = useState([]);
+  const [documentType, setDocumentType] = useState("others");
 
   const [errors, setErrors] = useState({});
   const [openDialog, setOpenDialog] = useState(false); // Dialog state for popup
@@ -410,7 +420,15 @@ const AddBooking = ({ onClose }) => {
 
         const res = await response.json();
         const bookingId = res.booking_id?.toUpperCase?.() || "N/A";
+        const bookingIdRaw = res.booking?._id;
         setBookingId(bookingId);
+        
+        // Upload documents after booking is created
+        if (bookingIdRaw && documents.length > 0) {
+          await uploadDocuments(bookingIdRaw);
+          setDocuments([]);
+        }
+        
         setOpenDialog(true);
 
         if (projectionLeadId) {
@@ -500,6 +518,64 @@ const AddBooking = ({ onClose }) => {
   const handleDialogClose = () => {
     setOpenDialog(false);
     if (onClose) onClose();
+  };
+
+  // Document upload handlers
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files);
+    const newDocs = files.map(file => ({
+      file,
+      type: documentType,
+      name: file.name,
+      size: file.size
+    }));
+    setDocuments(prev => [...prev, ...newDocs]);
+  };
+
+  const handleRemoveDocument = (index) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadDocuments = async (bookingId) => {
+    if (documents.length === 0) return;
+    
+    const userSession = JSON.parse(localStorage.getItem("userSession"));
+    let uploaded = 0;
+    let failed = 0;
+
+    for (const doc of documents) {
+      try {
+        const formData = new FormData();
+        formData.append("file", doc.file);
+        formData.append("bookingId", bookingId);
+        formData.append("documentType", doc.type);
+        formData.append("notes", `Uploaded during booking creation`);
+
+        const response = await fetch(`${apiUrl}/booking-documents/upload`, {
+          method: "POST",
+          headers: {
+            authorization: `${userSession.token}`,
+          },
+          body: formData,
+        });
+
+        if (response.ok) {
+          uploaded++;
+        } else {
+          failed++;
+        }
+      } catch (err) {
+        console.error("Document upload error:", err);
+        failed++;
+      }
+    }
+
+    if (uploaded > 0) {
+      enqueueSnackbar(`${uploaded} document(s) uploaded successfully`, { variant: "success" });
+    }
+    if (failed > 0) {
+      enqueueSnackbar(`${failed} document(s) failed to upload`, { variant: "warning" });
+    }
   };
 
   const bookingSearchLabel = (booking) => {
@@ -911,6 +987,79 @@ const AddBooking = ({ onClose }) => {
               rows={3}
               variant="outlined"
             />
+          </Grid>
+
+          {/* Document Upload Section */}
+          <Grid item xs={12}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                border: "1px dashed",
+                borderColor: "divider",
+                borderRadius: 2,
+                bgcolor: "background.paper",
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Upload Documents (Optional)
+              </Typography>
+              
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Document Type</InputLabel>
+                    <Select
+                      value={documentType}
+                      onChange={(e) => setDocumentType(e.target.value)}
+                      label="Document Type"
+                    >
+                      <MenuItem value="agreement">Agreement</MenuItem>
+                      <MenuItem value="pitch_deck">Pitch Deck</MenuItem>
+                      <MenuItem value="dpr">DPR</MenuItem>
+                      <MenuItem value="application">Application</MenuItem>
+                      <MenuItem value="others">Others</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<CloudUploadIcon />}
+                    fullWidth
+                    size="small"
+                  >
+                    Select Files
+                    <input
+                      type="file"
+                      hidden
+                      multiple
+                      onChange={handleFileSelect}
+                    />
+                  </Button>
+                </Grid>
+              </Grid>
+
+              {/* Selected Files List */}
+              {documents.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  {documents.map((doc, index) => (
+                    <Chip
+                      key={index}
+                      icon={<DescriptionIcon />}
+                      label={`${doc.name} (${doc.type})`}
+                      onDelete={() => handleRemoveDocument(index)}
+                      deleteIcon={<DeleteIcon />}
+                      sx={{ m: 0.5 }}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              )}
+            </Paper>
           </Grid>
 
           {/* Loader */}

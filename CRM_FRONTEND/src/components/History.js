@@ -13,11 +13,26 @@ import {
   FormControlLabel,
   Button,
   Box,
+  IconButton,
+  Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Typography,
 } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
 import servicesList from "../Data/ServicesData";
 import Loader from "./Loader";
 import { apiUrl } from "./LoginSignup";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import DownloadIcon from "@mui/icons-material/Download";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
+import { canAccessFeature, isHigherAuthority } from "../utils/featureAccess";
 import { jsonToCSV, downloadCSV } from "./exelData";
 import { useColorMode } from "../context/AppThemeProvider"; // Import for theming
 
@@ -87,6 +102,12 @@ const History = () => {
 
   // NEW State for Shared Bookings Toggle
   const [shareFilter, setShareFilter] = useState("All"); // "All" | "SharedByMe" | "SharedWithMe"
+
+  // Document viewing state
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  const [selectedBookingDocs, setSelectedBookingDocs] = useState(null);
+  const [bookingDocuments, setBookingDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
 
   useEffect(() => {
     if (userSession && userSession.user_id) {
@@ -457,6 +478,77 @@ const History = () => {
         variant: "success",
       });
     });
+  };
+
+  // Document handling functions
+  const handleViewDocuments = async (booking) => {
+    setSelectedBookingDocs(booking);
+    setDocumentsDialogOpen(true);
+    setDocsLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/booking-documents/booking/${booking._id}`, {
+        headers: { authorization: userSession.token }
+      });
+      if (res.ok) {
+        const docs = await res.json();
+        setBookingDocuments(docs);
+      } else {
+        setBookingDocuments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      setBookingDocuments([]);
+    } finally {
+      setDocsLoading(false);
+    }
+  };
+
+  const handleCloseDocumentsDialog = () => {
+    setDocumentsDialogOpen(false);
+    setSelectedBookingDocs(null);
+    setBookingDocuments([]);
+  };
+
+  const downloadDocument = (doc) => {
+    window.open(doc.fileUrl, '_blank');
+  };
+
+  const handleDeleteDocument = async (doc) => {
+    const canDelete = isHigherAuthority(userSession) || 
+                     canAccessFeature(userSession, 'manage_documents') ||
+                     canAccessFeature(userSession, 'edit_documents');
+    
+    if (!canDelete) {
+      enqueueSnackbar('You do not have permission to delete documents', { variant: 'warning' });
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/booking-documents/${doc._id}`, {
+        method: 'DELETE',
+        headers: { authorization: userSession.token }
+      });
+
+      if (res.ok) {
+        enqueueSnackbar('Document deleted successfully', { variant: 'success' });
+        handleViewDocuments(selectedBookingDocs);
+      } else {
+        enqueueSnackbar('Failed to delete document', { variant: 'error' });
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      enqueueSnackbar('Error deleting document', { variant: 'error' });
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (loading)
@@ -914,6 +1006,26 @@ const History = () => {
                   </tbody>
                 </table>
                 <div className="booking-footer">
+                  <button
+                    className="view-docs-link"
+                    onClick={() => handleViewDocuments(booking)}
+                    style={{
+                      backgroundColor: '#8b5cf6',
+                      color: 'white',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <FolderOpenIcon fontSize="small" />
+                    Documents
+                  </button>
+
                   {(userRole.includes("dev") ||
                     userRole.includes("senior admin")) && (
                       <button
@@ -1191,6 +1303,111 @@ const History = () => {
           )}
         </Popup>
       )}
+
+      {/* Documents Dialog */}
+      <Dialog 
+        open={documentsDialogOpen} 
+        onClose={handleCloseDocumentsDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Documents - {selectedBookingDocs?.company_name}
+          <IconButton
+            onClick={handleCloseDocumentsDialog}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {docsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <Loader />
+            </Box>
+          ) : bookingDocuments.length === 0 ? (
+            <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+              No documents found for this booking
+            </Typography>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Type</TableCell>
+                    <TableCell>File Name</TableCell>
+                    <TableCell>Size</TableCell>
+                    <TableCell>Uploaded By</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {bookingDocuments.map((doc) => (
+                    <TableRow key={doc._id}>
+                      <TableCell>
+                        <Chip
+                          label={doc.documentType.replace('_', ' ').toUpperCase()}
+                          size="small"
+                          sx={{
+                            bgcolor: 
+                              doc.documentType === 'agreement' ? '#8b5cf620' :
+                              doc.documentType === 'pitch_deck' ? '#06b6d420' :
+                              doc.documentType === 'dpr' ? '#f59e0b20' :
+                              doc.documentType === 'application' ? '#10b98120' :
+                              '#64748b20',
+                            color:
+                              doc.documentType === 'agreement' ? '#8b5cf6' :
+                              doc.documentType === 'pitch_deck' ? '#06b6d4' :
+                              doc.documentType === 'dpr' ? '#f59e0b' :
+                              doc.documentType === 'application' ? '#10b981' :
+                              '#64748b',
+                            fontWeight: 500,
+                            fontSize: '0.7rem'
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>{doc.fileName}</TableCell>
+                      <TableCell>{formatFileSize(doc.fileSize)}</TableCell>
+                      <TableCell>{doc.uploadedByName}</TableCell>
+                      <TableCell>
+                        {new Date(doc.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Download">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => downloadDocument(doc)}
+                            sx={{ color: '#3b82f6' }}
+                          >
+                            <DownloadIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {(isHigherAuthority(userSession) || 
+                          canAccessFeature(userSession, 'manage_documents') ||
+                          canAccessFeature(userSession, 'edit_documents')) && (
+                          <Tooltip title="Delete">
+                            <IconButton 
+                              size="small"
+                              onClick={() => handleDeleteDocument(doc)}
+                              sx={{ color: '#ef4444' }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDocumentsDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
