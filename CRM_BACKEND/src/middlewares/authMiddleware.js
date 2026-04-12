@@ -49,8 +49,15 @@ export const authorizeFeature = (featureKey) => {
       return next();
     }
 
+    // User doesn't have permission - provide helpful error message
+    const readableFeature = featureKey
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
     return res.status(403).send({
-      message: `Access denied. You need '${featureKey}' permission to access this route.`,
+      message: `Access denied. You need "${readableFeature}" permission to perform this action. Please contact an administrator if you believe you should have access.`,
+      requiredPermission: featureKey,
+      currentPermissions: userPermissions,
     });
   };
 };

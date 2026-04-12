@@ -144,8 +144,8 @@ UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), 
   }
 });
 
-//edit user
-UserRoutes.patch('/edituser/:id', authenticateUser, authorizeDevRole, async (req, res) => {
+//edit user (requires manage_users permission)
+UserRoutes.patch('/edituser/:id', authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -245,8 +245,8 @@ UserRoutes.put('/update-profile', authenticateUser, async (req, res) => {
 });
 
 
-// Deleting User
-UserRoutes.delete("/deleteuser/:id", authenticateUser, authorizeDevRole, async (req, res) => {
+// Deleting User (requires manage_users permission)
+UserRoutes.delete("/deleteuser/:id", authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
     const { id } = req.params; // Assuming you are using a unique ID for the user
 
@@ -265,8 +265,8 @@ UserRoutes.delete("/deleteuser/:id", authenticateUser, authorizeDevRole, async (
     return res.status(500).send({ message: error.message });
   }
 });
-//listing all users
-UserRoutes.get('/all', authenticateUser, authorizeDevRole, async (req, res) => {
+//listing all users (requires manage_users permission)
+UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
     const Users = await UserModel.find({}).select("-password");
     if (Users.length === 0) {

@@ -1,7 +1,7 @@
 import express from "express";
 import { upload } from "../middlewares/upload.js";
 import { EmployeeModel } from "../models/EmployeeProfile.js";
-import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { authenticateUser, authorizeFeature } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -9,10 +9,12 @@ const router = express.Router();
 const HIGHER_ROLES = ["admin", "senior admin", "super admin", "hr", "dev", "srdev"];
 
 /**
- * Check if user is a higher authority
+ * Check if user is a higher authority or has employee_profile feature permission
  */
-const isHigherAuthority = (role) => {
-  return HIGHER_ROLES.includes((role || "").trim().toLowerCase());
+const isHigherAuthority = (user) => {
+  const role = (user?.user_role || "").trim().toLowerCase();
+  const permissions = user?.feature_permissions || [];
+  return HIGHER_ROLES.includes(role) || permissions.includes('employee_profile');
 };
 
 /**
@@ -20,7 +22,7 @@ const isHigherAuthority = (role) => {
  */
 const authorizeSelfOrAuthority = (req, res, next) => {
   const requestedUserId = req.params.id;
-  if (req.user.userId !== requestedUserId && !isHigherAuthority(req.user.user_role)) {
+  if (req.user.userId !== requestedUserId && !isHigherAuthority(req.user)) {
     return res.status(403).json({ 
       message: "Access denied. You can only access your own profile or need higher authority privileges." 
     });
@@ -29,10 +31,10 @@ const authorizeSelfOrAuthority = (req, res, next) => {
 };
 
 /**
- * Higher authority only authorization
+ * Higher authority only authorization (uses employee_profile feature permission)
  */
 const authorizeHigherAuthority = (req, res, next) => {
-  if (!isHigherAuthority(req.user.user_role)) {
+  if (!isHigherAuthority(req.user)) {
     return res.status(403).json({ 
       message: "Access denied. Only higher authorities can perform this action." 
     });
@@ -174,7 +176,7 @@ router.get("/pending-approvals", authorizeHigherAuthority, async (req, res) => {
  */
 router.get("/profile/:id", authorizeSelfOrAuthority, async (req, res) => {
   try {
-    const isAuthority = isHigherAuthority(req.user.user_role);
+    const isAuthority = isHigherAuthority(req.user);
     const selectFields = isAuthority 
       ? '-updateHistory' 
       : '-updateHistory -compensationDetails -authorityNotes -offeredSalary';
@@ -291,7 +293,7 @@ router.put("/employee-update/:id", authorizeSelfOrAuthority, async (req, res) =>
     }
 
     const isSelf = req.user.userId === req.params.id;
-    const authority = isHigherAuthority(req.user.user_role);
+    const authority = isHigherAuthority(req.user);
 
     // Track changes for audit
     const changes = new Map();
@@ -539,7 +541,7 @@ router.get("/additional-details/:id", authorizeSelfOrAuthority, async (req, res)
     };
 
     // Only include authority notes for authorities
-    if (isHigherAuthority(req.user.user_role)) {
+    if (isHigherAuthority(req.user)) {
       response.authorityNotes = profile.authorityNotes || [];
     }
 

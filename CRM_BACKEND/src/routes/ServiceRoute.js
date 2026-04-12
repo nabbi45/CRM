@@ -6,8 +6,8 @@ import { authenticateUser, authorizeDevRole } from "../middlewares/authMiddlewar
 
 const ServiceRoutes = express.Router();
 
-// Route to add a new service
-ServiceRoutes.post('/api/services',authenticateUser,async (req, res) => {
+// Route to add a new service (admin/dev only)
+ServiceRoutes.post('/api/services', authenticateUser, authorizeDevRole, async (req, res) => {
     const { name, value, status } = req.body;
 
     // Validate input

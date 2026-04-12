@@ -1,10 +1,12 @@
 import express from "express";
 import nodemailer from "nodemailer";
 import { CompanyProfileModel } from "../models/CompanyProfileModel.js";
+import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const welcomeRoutes = express.Router();
 
-welcomeRoutes.post("/api/welcome", async (req, res) => {
+// Send welcome email (authenticated users only)
+welcomeRoutes.post("/api/welcome", authenticateUser, async (req, res) => {
   const { email, name } = req.body;
 
   if (!email || !name) {

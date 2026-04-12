@@ -60,8 +60,9 @@ DocumentRoutes.get("/:id", authenticateUser, async (req, res) => {
 // Delete a document
 DocumentRoutes.delete("/:id", authenticateUser, async (req, res) => {
     try {
-        const userRole = req.headers["user-role"];
-        if (userRole !== "admin" && userRole !== "srdev" && userRole !== "dev") {
+        const userRole = req.user?.user_role;
+        const allowedRoles = ["admin", "srdev", "dev", "super admin", "senior admin"];
+        if (!allowedRoles.includes(userRole)) {
             return res.status(403).send({ message: "Not authorized to delete documents" });
         }
 

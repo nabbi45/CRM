@@ -68,8 +68,9 @@ CompanyProfileRoutes.get("/public", async (req, res) => {
 // Update or Create the company profile
 CompanyProfileRoutes.post("/update", authenticateUser, async (req, res) => {
     try {
-        const userRole = req.headers["user-role"];
-        if (userRole !== "admin" && userRole !== "srdev" && userRole !== "dev") {
+        const userRole = req.user?.user_role;
+        const allowedRoles = ["admin", "srdev", "dev", "super admin", "senior admin"];
+        if (!allowedRoles.includes(userRole)) {
             return res.status(403).send({ message: "Not authorized to update company profile." });
         }
 
@@ -96,8 +97,9 @@ CompanyProfileRoutes.post("/update", authenticateUser, async (req, res) => {
 // Upload Company Logo
 CompanyProfileRoutes.post('/upload-logo', authenticateUser, upload.single('logo'), async (req, res) => {
     try {
-        const userRole = req.headers["user-role"];
-        if (userRole !== "admin" && userRole !== "srdev" && userRole !== "dev") {
+        const userRole = req.user?.user_role;
+        const allowedRoles = ["admin", "srdev", "dev", "super admin", "senior admin"];
+        if (!allowedRoles.includes(userRole)) {
             return res.status(403).send({ message: "Not authorized to upload company logo." });
         }
 
@@ -124,8 +126,9 @@ CompanyProfileRoutes.post('/upload-logo', authenticateUser, upload.single('logo'
 // Upload Company Seal
 CompanyProfileRoutes.post('/upload-seal', authenticateUser, upload.single('seal'), async (req, res) => {
     try {
-        const userRole = req.headers["user-role"];
-        if (userRole !== "admin" && userRole !== "srdev" && userRole !== "dev") {
+        const userRole = req.user?.user_role;
+        const allowedRoles = ["admin", "srdev", "dev", "super admin", "senior admin"];
+        if (!allowedRoles.includes(userRole)) {
             return res.status(403).send({ message: "Not authorized to upload company seal." });
         }
 

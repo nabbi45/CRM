@@ -10,12 +10,30 @@ const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
 const ROLES_WITH_ALL_ACCESS = ["admin", "super admin", "dev", "srdev", "senior admin"];
 const ROLES_WITH_EDIT_ALL = ["bdm", ...ROLES_WITH_ALL_ACCESS];
 
-const canViewAllLeads = (role) => ROLES_WITH_ALL_ACCESS.includes(normalizeRole(role));
+/**
+ * Check if user can view all leads (has role OR projection_leads feature permission)
+ */
+const canViewAllLeads = (user) => {
+  const role = normalizeRole(user?.user_role);
+  const permissions = user?.feature_permissions || [];
+  return ROLES_WITH_ALL_ACCESS.includes(role) || permissions.includes('projection_leads');
+};
 
-const canEditLead = (role, lead, userId) => {
+/**
+ * Check if user can edit a lead (has role, permission, or is the creator)
+ */
+const canEditLead = (user, lead, userId) => {
   if (!lead) return false;
-  const normalized = normalizeRole(role);
-  if (ROLES_WITH_EDIT_ALL.includes(normalized)) return true;
+  const role = normalizeRole(user?.user_role);
+  const permissions = user?.feature_permissions || [];
+  
+  // Full access roles can edit any lead
+  if (ROLES_WITH_EDIT_ALL.includes(role)) return true;
+  
+  // Users with projection_leads permission can edit any lead
+  if (permissions.includes('projection_leads')) return true;
+  
+  // Creator can edit their own lead
   return lead.created_by === userId;
 };
 
@@ -68,7 +86,7 @@ ProjectionLeadRoutes.post("/", authenticateUser, async (req, res) => {
 
 ProjectionLeadRoutes.get("/", authenticateUser, async (req, res) => {
   try {
-    const shouldViewAll = canViewAllLeads(req.user?.user_role);
+    const shouldViewAll = canViewAllLeads(req.user);
     const includeTransferred = req.query?.include_transferred === "true";
 
     if (includeTransferred && !shouldViewAll) {
@@ -95,7 +113,7 @@ ProjectionLeadRoutes.patch("/:id", authenticateUser, async (req, res) => {
       return res.status(404).send({ message: "Projection lead not found." });
     }
 
-    if (!canEditLead(req.user?.user_role, lead, req.user.userId)) {
+    if (!canEditLead(req.user, lead, req.user.userId)) {
       return res.status(403).send({ message: "You do not have permission to edit this lead." });
     }
 
@@ -147,7 +165,7 @@ ProjectionLeadRoutes.patch("/:id/mark-transferred", authenticateUser, async (req
       return res.status(404).send({ message: "Projection lead not found." });
     }
 
-    if (!canEditLead(req.user?.user_role, lead, req.user.userId)) {
+    if (!canEditLead(req.user, lead, req.user.userId)) {
       return res.status(403).send({ message: "You do not have permission to transfer this lead." });
     }
 
