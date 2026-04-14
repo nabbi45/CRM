@@ -62,7 +62,11 @@ const Timecard = () => {
     const [myAttendance, setMyAttendance] = useState([]);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
     const [dailyAttendance, setDailyAttendance] = useState([]);
+    
+    // Activity Log State
+    const [activityDate, setActivityDate] = useState(new Date().toISOString().slice(0, 10));
     const [dailyActivities, setDailyActivities] = useState([]);
+    
     const [employees, setEmployees] = useState([]);
     
     // Holiday State
@@ -84,10 +88,15 @@ const Timecard = () => {
         fetchMyAttendance();
         if (isApprover) {
             fetchDailyAttendance();
-            fetchDailyActivities();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMonth, attendanceDate]);
+
+    // Re-fetch activities when activity date changes
+    useEffect(() => {
+        if (isApprover) fetchDailyActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activityDate]);
 
     // ─── DATA FETCHING ─────────────────────────────────────────────
     const fetchData = async () => {
@@ -151,9 +160,9 @@ const Timecard = () => {
     };
 
     const fetchDailyActivities = async () => {
-        if (!attendanceDate) return;
+        if (!activityDate) return;
         try {
-            const res = await fetch(`${apiUrl}/user/activities/${attendanceDate}`, { headers });
+            const res = await fetch(`${apiUrl}/user/activities/${activityDate}`, { headers });
             if (res.ok) {
                 const data = await res.json();
                 setDailyActivities(data.activities || []);
@@ -164,6 +173,27 @@ const Timecard = () => {
     const formatTime = (dateString) => {
         if (!dateString) return '--:--';
         return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const getOnlineDuration = (first, last) => {
+        if (!first || !last) return '--:--';
+        const firstD = new Date(first);
+        const lastD = new Date(last);
+        if (isNaN(firstD) || isNaN(lastD)) return '--:--';
+        const msDiff = Math.abs(lastD - firstD);
+        if (msDiff < 60000 && lastD > firstD) return 'Just logged in';
+        const minsDiff = Math.floor(msDiff / 60000);
+        const hours = Math.floor(minsDiff / 60);
+        const mins = minsDiff % 60;
+        return `${hours}h ${mins}m`;
+    };
+
+    const isUserOnline = (lastOnline) => {
+        if (!lastOnline) return false;
+        const msDiff = new Date() - new Date(lastOnline);
+        const minsDiff = msDiff / 60000;
+        const isToday = new Date(lastOnline).toISOString().slice(0,10) === new Date().toISOString().slice(0,10);
+        return isToday && minsDiff <= 8; // Ping is 5 mins, allow up to 8 mins delay
     };
 
     // ─── LEAVE ACTIONS ─────────────────────────────────────────────
@@ -285,6 +315,7 @@ const Timecard = () => {
         { label: "My Leave History", show: true },
         { label: "Organization Holidays", show: true },
         { label: "Manage Leaves", show: isApprover },
+        { label: "Login Activity Logs", show: isApprover },
         { label: "Mark Attendance", show: isApprover }
     ];
     
@@ -557,29 +588,17 @@ const Timecard = () => {
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                                 <TableRow>
                                     <TableCell>Employee Name</TableCell>
-                                    <TableCell>Login Activity</TableCell>
                                     <TableCell>Attendance</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {employees.map(emp => {
                                     const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
-                                    const actRecord = dailyActivities.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
                                     return (
                                         <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f9fafb' } }}>
                                             <TableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
                                                 <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
-                                            </TableCell>
-                                            <TableCell>
-                                                {actRecord.firstOnline ? (
-                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                        <Chip size="small" label={`In: ${formatTime(actRecord.firstOnline)}`} sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600, fontSize: '0.75rem', height: '22px' }} />
-                                                        <Chip size="small" label={`Last: ${formatTime(actRecord.lastOnline)}`} sx={{ bgcolor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', fontWeight: 600, fontSize: '0.75rem', height: '22px' }} />
-                                                    </Box>
-                                                ) : (
-                                                    <Typography variant="caption" color="text.secondary">— No Activity —</Typography>
-                                                )}
                                             </TableCell>
                                             <TableCell sx={{ minWidth: 190 }}>
                                                 <Select
@@ -626,6 +645,84 @@ const Timecard = () => {
                                                         </MenuItem>
                                                     ))}
                                                 </Select>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
+            )}
+
+            {/* TAB: LOGIN ACTIVITY LOGS */}
+            {activeTabLabel === 'Login Activity Logs' && isApprover && (
+                <Box>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
+                        <TextField 
+                            label="Activity Date" 
+                            type="date" 
+                            size="small" 
+                            value={activityDate} 
+                            onChange={(e) => setActivityDate(e.target.value)} 
+                            InputLabelProps={{ shrink: true }}
+                        />
+                        <Typography variant="body2" color="text.secondary">Select a date to view employee login/logout activities and durations.</Typography>
+                    </Box>
+
+                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
+                        <Table size="small">
+                            <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+                                <TableRow>
+                                    <TableCell>Employee Details</TableCell>
+                                    <TableCell>Current Status</TableCell>
+                                    <TableCell>First Login Time</TableCell>
+                                    <TableCell>Last Activity Time</TableCell>
+                                    <TableCell>Total Online Duration</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {employees.map(emp => {
+                                    const actRecord = dailyActivities.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
+                                    const online = actRecord.lastOnline ? isUserOnline(actRecord.lastOnline) : false;
+                                    return (
+                                        <TableRow key={`act-${emp._id}`} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f9fafb' } }}>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
+                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip 
+                                                    size="small" 
+                                                    label={online ? "Online Now" : (actRecord.firstOnline ? "Offline" : "No Activity")} 
+                                                    sx={{ 
+                                                        bgcolor: online ? 'rgba(16, 185, 129, 0.15)' : (actRecord.firstOnline ? 'rgba(107, 114, 128, 0.15)' : 'transparent'), 
+                                                        color: online ? '#10b981' : '#6b7280', 
+                                                        fontWeight: 600,
+                                                        ...( !actRecord.firstOnline ? { border: '1px dashed' } : {} )
+                                                    }} 
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                {actRecord.firstOnline ? (
+                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                        {formatTime(actRecord.firstOnline)}
+                                                    </Typography>
+                                                ) : <Typography variant="caption" color="text.secondary">—</Typography>}
+                                            </TableCell>
+                                            <TableCell>
+                                                {actRecord.lastOnline ? (
+                                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                        {formatTime(actRecord.lastOnline)}
+                                                    </Typography>
+                                                ) : <Typography variant="caption" color="text.secondary">—</Typography>}
+                                            </TableCell>
+                                            <TableCell>
+                                                {actRecord.firstOnline ? (
+                                                    <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>
+                                                        {getOnlineDuration(actRecord.firstOnline, actRecord.lastOnline)}
+                                                    </Typography>
+                                                ) : <Typography variant="caption" color="text.secondary">—</Typography>}
                                             </TableCell>
                                         </TableRow>
                                     );
