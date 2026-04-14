@@ -108,6 +108,25 @@ const History = () => {
   const [selectedBookingDocs, setSelectedBookingDocs] = useState(null);
   const [bookingDocuments, setBookingDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [usersMap, setUsersMap] = useState({});
+
+  useEffect(() => {
+    // Retroactively map user IDs to names for older bookings
+    if (userSession && userSession.token) {
+      fetch(`${apiUrl}/user/options`, {
+        headers: { 'Authorization': userSession.token }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.users) {
+          const map = {};
+          data.users.forEach(u => map[u._id] = u.name);
+          setUsersMap(map);
+        }
+      })
+      .catch(err => console.error("Error fetching users options:", err));
+    }
+  }, []);
 
   useEffect(() => {
     if (userSession && userSession.user_id) {
@@ -881,7 +900,7 @@ const History = () => {
                           <ul style={{ paddingLeft: '20px', margin: 0 }}>
                             {booking.shared_with.map((sw, idx) => (
                               <li key={idx}>
-                                <strong>{sw.user_name || "Coworker"}</strong> – {sw.percentage}%
+                                <strong>{sw.user_name || usersMap[sw.user_id] || "Coworker"}</strong> – {sw.percentage}%
                               </li>
                             ))}
                           </ul>

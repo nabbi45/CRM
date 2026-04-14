@@ -345,6 +345,12 @@ const DashboardContent = () => {
             authorization: session.token,
           },
         }),
+        fetch(`${apiUrl}/user/options`, {
+          headers: {
+            "Content-Type": "application/json",
+            authorization: session.token,
+          },
+        })
       ];
 
       if (isAdmin) {
@@ -360,13 +366,24 @@ const DashboardContent = () => {
 
       const results = await Promise.all(fetches);
       const bookingsRes = results[0];
+      const usersOptionsRes = results[1];
+
       if (!bookingsRes.ok) throw new Error("Failed API call");
 
       const bookingsData = await bookingsRes.json();
       const bookings = bookingsData.Allbookings || bookingsData;
 
-      if (isAdmin && results[1]) {
-        const usersData = await results[1].json();
+      // Extract options users map to patch up older "Coworker" bug fields
+      let activeUsersMap = {};
+      if (usersOptionsRes.ok) {
+        const usersOptData = await usersOptionsRes.json();
+        if (usersOptData && usersOptData.users) {
+          usersOptData.users.forEach(u => activeUsersMap[u._id] = u.name);
+        }
+      }
+
+      if (isAdmin && results[2]) {
+        const usersData = await results[2].json();
         setTotalUsers(usersData.Users?.length || 0);
       }
 
@@ -440,7 +457,7 @@ const DashboardContent = () => {
               const sharedAmt = rawRev * ((Number(sw.percentage) || 0) / 100);
               sharedTotalRev += sharedAmt;
               shareFractionCount += 1;
-              const sharedBdmName = sw.user_name || "Coworker";
+              const sharedBdmName = sw.user_name || activeUsersMap[sw.user_id] || "Coworker";
               if (!bdmRevMap[sharedBdmName]) bdmRevMap[sharedBdmName] = { revenue: 0, count: 0 };
               bdmRevMap[sharedBdmName].revenue += sharedAmt;
               bdmRevMap[sharedBdmName].count += 1; 
