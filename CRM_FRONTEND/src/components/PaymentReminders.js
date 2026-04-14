@@ -114,8 +114,10 @@ const PaymentReminders = ({ onOpenBooking }) => {
     <Paper
       elevation={0}
       sx={{
-        background: 'linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)',
-        border: '1px solid #fecaca',
+        background: theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)'
+          : 'linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)',
+        border: `1px solid ${theme.palette.mode === 'dark' ? '#991b1b' : '#fecaca'}`,
         borderRadius: 3,
         p: 2,
         mb: 3,
@@ -126,7 +128,9 @@ const PaymentReminders = ({ onOpenBooking }) => {
         flexWrap: { xs: 'wrap', sm: 'nowrap' },
         transition: 'all 0.3s ease',
         '&:hover': {
-          boxShadow: '0 4px 20px rgba(220, 38, 38, 0.1)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(220, 38, 38, 0.3)'
+            : '0 4px 20px rgba(220, 38, 38, 0.1)',
           transform: 'translateY(-1px)',
         },
       }}
@@ -151,7 +155,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
             variant="h6"
             sx={{
               fontWeight: 700,
-              color: '#991b1b',
+              color: theme.palette.mode === 'dark' ? '#fca5a5' : '#991b1b',
               fontSize: { xs: '1rem', sm: '1.25rem' },
               display: 'flex',
               alignItems: 'center',
@@ -163,7 +167,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
           <Typography
             variant="body2"
             sx={{
-              color: '#7f1d1d',
+              color: theme.palette.mode === 'dark' ? '#fca5a5' : '#7f1d1d',
               fontSize: '0.85rem',
               mt: 0.3,
             }}
@@ -296,8 +300,8 @@ const PaymentReminders = ({ onOpenBooking }) => {
           label={Array.isArray(booking.services) ? booking.services[0] : booking.services}
           size="small"
           sx={{
-            background: 'rgba(139, 92, 246, 0.15)',
-            color: '#7c3aed',
+            background: theme.palette.mode === 'dark' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.15)',
+            color: theme.palette.mode === 'dark' ? '#a78bfa' : '#7c3aed',
             fontWeight: 500,
             fontSize: '0.75rem',
           }}

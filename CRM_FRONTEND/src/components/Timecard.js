@@ -561,6 +561,8 @@ const Timecard = () => {
                                                         minWidth: 170,
                                                         fontWeight: 600,
                                                         fontSize: '0.8rem',
+                                                        bgcolor: isDark ? 'background.paper' : 'background.default',
+                                                        color: isDark ? 'text.primary' : 'inherit',
                                                         ...(currRecord.status && ATTENDANCE_COLORS[currRecord.status] ? {
                                                             bgcolor: ATTENDANCE_COLORS[currRecord.status].bg,
                                                             color: ATTENDANCE_COLORS[currRecord.status].color,
@@ -570,15 +572,25 @@ const Timecard = () => {
                                                             '& .MuiSvgIcon-root': { color: ATTENDANCE_COLORS[currRecord.status].color }
                                                         } : {})
                                                     }}
+                                                    MenuProps={{
+                                                        PaperProps: {
+                                                            sx: {
+                                                                bgcolor: isDark ? 'background.paper' : 'background.default',
+                                                                '& .MuiMenuItem-root': {
+                                                                    color: isDark ? 'text.primary' : 'inherit',
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
                                                 >
-                                                    <MenuItem value="" disabled sx={{ color: 'text.secondary' }}>— Not Marked —</MenuItem>
+                                                    <MenuItem value="" disabled sx={{ color: isDark ? 'text.secondary' : 'text.secondary' }}>— Not Marked —</MenuItem>
                                                     {ATTENDANCE_STATUSES.map(s => (
                                                         <MenuItem key={s} value={s} sx={{
                                                             fontWeight: 600,
-                                                            color: ATTENDANCE_COLORS[s]?.color || 'inherit',
-                                                            bgcolor: ATTENDANCE_COLORS[s]?.bg || 'inherit',
+                                                            color: ATTENDANCE_COLORS[s]?.color || (isDark ? 'text.primary' : 'inherit'),
+                                                            bgcolor: ATTENDANCE_COLORS[s]?.bg || (isDark ? 'background.paper' : 'inherit'),
                                                             '&:hover': { filter: 'brightness(0.95)' },
-                                                            '&.Mui-selected': { bgcolor: ATTENDANCE_COLORS[s]?.bg || 'inherit' },
+                                                            '&.Mui-selected': { bgcolor: ATTENDANCE_COLORS[s]?.bg || (isDark ? 'action.selected' : 'inherit') },
                                                         }}>
                                                             {s}
                                                         </MenuItem>
