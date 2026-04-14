@@ -81,7 +81,7 @@ const DashboardContent = () => {
       console.error("User session not found.");
       setLoading(false);
     }
-    
+
     // Fetch company branches
     fetch(`${apiUrl}/company/public`)
       .then(res => res.json())
@@ -95,15 +95,15 @@ const DashboardContent = () => {
 
     // Ping activity for realistic "Last Online"
     if (userSession?.token) {
-       const pingActivity = () => {
-         fetch(`${apiUrl}/user/ping`, {
-           method: 'POST',
-           headers: { 'Authorization': userSession.token }
-         }).catch(() => {});
-       };
-       pingActivity(); // initial ping
-       const interval = setInterval(pingActivity, 5 * 60 * 1000); // 5 mins
-       return () => clearInterval(interval);
+      const pingActivity = () => {
+        fetch(`${apiUrl}/user/ping`, {
+          method: 'POST',
+          headers: { 'Authorization': userSession.token }
+        }).catch(() => { });
+      };
+      pingActivity(); // initial ping
+      const interval = setInterval(pingActivity, 5 * 60 * 1000); // 5 mins
+      return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -387,8 +387,8 @@ const DashboardContent = () => {
         bookingCount++;
         const rev = Number(
           (booking.term_1 || 0) +
-            (booking.term_2 || 0) +
-            (booking.term_3 || 0)
+          (booking.term_2 || 0) +
+          (booking.term_3 || 0)
         );
         const bookingDate = new Date(booking.date || booking.createdAt || booking.payment_date);
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
@@ -535,12 +535,12 @@ const DashboardContent = () => {
       const res = await fetch(`${apiUrl}/booking/all`, {
         headers: { authorization: userSession?.token }
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         const bookings = data.Allbookings || data.bookings || [];
         const booking = bookings.find(b => b._id === bookingId);
-        
+
         if (booking) {
           setSelectedBooking(booking);
           setIsBookingPopupOpen(true);
@@ -578,19 +578,19 @@ const DashboardContent = () => {
       {companyBranches.length > 0 && (
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
           <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mr: 1, fontWeight: 600 }}>
-            Active Branches:
+            Current Branch:
           </Typography>
           {companyBranches.map((branch, idx) => (
-            <Chip 
-              key={idx} 
-              label={branch} 
-              size="small" 
-              sx={{ 
+            <Chip
+              key={idx}
+              label={branch}
+              size="small"
+              sx={{
                 bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
                 color: theme.palette.mode === 'dark' ? '#cbd5e1' : '#475569',
                 fontWeight: 600,
                 border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
-              }} 
+              }}
             />
           ))}
         </Box>

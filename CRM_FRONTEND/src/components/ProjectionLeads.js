@@ -71,6 +71,7 @@ const ProjectionLeads = () => {
   const [tab, setTab] = useState(0);
   const [editingLeadId, setEditingLeadId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [companyBranches, setCompanyBranches] = useState([]);
 
   const canViewAll = useMemo(() => ROLES_WITH_ALL_ACCESS.includes(userRole), [userRole]);
 
@@ -115,6 +116,19 @@ const ProjectionLeads = () => {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/company/public`);
+      const data = await res.json();
+      if (res.ok && data.branches) {
+        const branchesArray = data.branches.split(',').map(b => b.trim()).filter(Boolean);
+        setCompanyBranches(branchesArray);
+      }
+    } catch (error) {
+      console.error("Failed to fetch branches:", error);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -123,6 +137,7 @@ const ProjectionLeads = () => {
         await fetchLeads(true);
       }
       await fetchUsers();
+      await fetchBranches();
       setLoading(false);
     };
 
@@ -240,7 +255,7 @@ const ProjectionLeads = () => {
       state: {
         projectionLeadId: lead._id,
         prefill: {
-          branch: "Main Branch",
+          branch: companyBranches[0] || "",
           companyName: lead.company_name || "",
           contactPerson: lead.name || "",
           contactNumber: lead.phone_number || "",

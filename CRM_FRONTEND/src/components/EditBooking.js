@@ -51,6 +51,7 @@ const EditBooking = ({ initialData, onClose }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [companyBranches, setCompanyBranches] = useState([]);
 
   const nextReceivableTerm = Number(initialData?.term_1 || 0) > 0 && Number(initialData?.term_2 || 0) <= 0
     ? 'Term 2'
@@ -86,6 +87,19 @@ const EditBooking = ({ initialData, onClose }) => {
       });
     }
   }, [initialData]);
+
+  // Fetch company branches
+  useEffect(() => {
+    fetch(`${apiUrl}/company/public`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.branches) {
+          const branchesArray = data.branches.split(',').map(b => b.trim()).filter(Boolean);
+          setCompanyBranches(branchesArray);
+        }
+      })
+      .catch(err => console.error("Error fetching branches:", err));
+  }, []);
 
   // Handle multiple services selection
   const handleServiceChange = (selectedOptions) => {
@@ -237,7 +251,9 @@ const EditBooking = ({ initialData, onClose }) => {
                   onChange={handleChange}
                 >
                   <MenuItem value="">Select branch</MenuItem>
-                  <MenuItem value="Main Branch">Main Branch</MenuItem>
+                  {companyBranches.map((branch, idx) => (
+                    <MenuItem key={idx} value={branch}>{branch}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>

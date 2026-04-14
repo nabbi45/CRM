@@ -57,6 +57,7 @@ const AddBooking = ({ onClose }) => {
   const [openDialog, setOpenDialog] = useState(false); // Dialog state for popup
   const [bookingId, setBookingId] = useState(null); // Store booking ID
   const [loading, setLoading] = useState(false); // State to manage the loading spinner
+  const [companyBranches, setCompanyBranches] = useState([]);
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -239,6 +240,19 @@ const AddBooking = ({ onClose }) => {
       }
     };
     fetchUsers();
+  }, []);
+
+  // Fetch company branches
+  useEffect(() => {
+    fetch(`${apiUrl}/company/public`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.branches) {
+          const branchesArray = data.branches.split(',').map(b => b.trim()).filter(Boolean);
+          setCompanyBranches(branchesArray);
+        }
+      })
+      .catch(err => console.error("Error fetching branches:", err));
   }, []);
 
   // Handle multiple services selection
@@ -622,7 +636,9 @@ const AddBooking = ({ onClose }) => {
                 variant="outlined"
               >
                 <MenuItem value="">Select branch</MenuItem>
-                <MenuItem value="Main Branch">Main Branch</MenuItem>
+                {companyBranches.map((branch, idx) => (
+                  <MenuItem key={idx} value={branch}>{branch}</MenuItem>
+                ))}
               </Select>
               {errors.branch && <Typography color="error" variant="caption">{errors.branch}</Typography>}
             </FormControl>
