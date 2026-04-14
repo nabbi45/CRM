@@ -36,6 +36,7 @@ const Scorecard = () => {
         return response.json();
       })
       .then((data) => {
+        const bookingsData = data.Allbookings || data;
         // Calculate the total received amount by summing term_1, term_2, and term_3, considering sharing
         const totalReceived = bookingsData.reduce((acc, booking) => {
           const rawRev = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
