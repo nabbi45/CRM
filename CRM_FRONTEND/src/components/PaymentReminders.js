@@ -89,15 +89,16 @@ const PaymentReminders = ({ onOpenBooking }) => {
   };
 
   const getUrgencyBgColor = (urgency) => {
+    const isDark = theme.palette.mode === 'dark';
     switch (urgency) {
       case 'critical':
-        return 'rgba(220, 38, 38, 0.08)';
+        return isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(220, 38, 38, 0.08)';
       case 'high':
-        return 'rgba(234, 88, 12, 0.08)';
+        return isDark ? 'rgba(249, 115, 22, 0.15)' : 'rgba(234, 88, 12, 0.08)';
       case 'medium':
-        return 'rgba(202, 138, 4, 0.08)';
+        return isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(202, 138, 4, 0.08)';
       default:
-        return 'rgba(22, 163, 74, 0.08)';
+        return isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(22, 163, 74, 0.08)';
     }
   };
 
@@ -210,7 +211,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
         elevation={0}
         sx={{
           background: urgencyBgColor,
-          border: `1px solid ${urgencyColor}30`,
+          border: `1px solid ${urgencyColor}${theme.palette.mode === 'dark' ? '40' : '30'}`,
           borderRadius: 3,
           p: 2.5,
           mb: 2,
@@ -218,7 +219,9 @@ const PaymentReminders = ({ onOpenBooking }) => {
           cursor: 'pointer',
           '&:hover': {
             transform: 'translateX(4px)',
-            boxShadow: `0 4px 12px ${urgencyColor}20`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? `0 4px 12px rgba(0,0,0,0.4)`
+              : `0 4px 12px ${urgencyColor}20`,
           },
         }}
         onClick={() => handleBookingClick(booking._id)}

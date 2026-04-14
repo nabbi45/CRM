@@ -29,13 +29,13 @@ const ATTENDANCE_STATUSES = [
 ];
 
 const ATTENDANCE_COLORS = {
-    "Present":        { bg: '#dcfce7', color: '#15803d', border: '#86efac' },
-    "WFH":            { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
-    "Half Day Leave": { bg: '#fef9c3', color: '#a16207', border: '#fde047' },
-    "EL Taken":       { bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
-    "Full Day Leave": { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' },
-    "Week Off":       { bg: '#f3e8ff', color: '#7e22ce', border: '#d8b4fe' },
-    "Holiday":        { bg: '#fce7f3', color: '#be185d', border: '#f9a8d4' },
+    "Present":        { bg: 'rgba(22, 163, 74, 0.15)', color: '#16a34a', border: 'rgba(22, 163, 74, 0.3)' },
+    "WFH":            { bg: 'rgba(37, 99, 235, 0.15)', color: '#2563eb', border: 'rgba(37, 99, 235, 0.3)' },
+    "Half Day Leave": { bg: 'rgba(202, 138, 4, 0.15)', color: '#ca8a04', border: 'rgba(202, 138, 4, 0.3)' },
+    "EL Taken":       { bg: 'rgba(8, 145, 178, 0.15)', color: '#0891b2', border: 'rgba(8, 145, 178, 0.3)' },
+    "Full Day Leave": { bg: 'rgba(220, 38, 38, 0.15)', color: '#dc2626', border: 'rgba(220, 38, 38, 0.3)' },
+    "Week Off":       { bg: 'rgba(147, 51, 234, 0.15)', color: '#9333ea', border: 'rgba(147, 51, 234, 0.3)' },
+    "Holiday":        { bg: 'rgba(219, 39, 119, 0.15)', color: '#db2777', border: 'rgba(219, 39, 119, 0.3)' },
 };
 
 const Timecard = () => {

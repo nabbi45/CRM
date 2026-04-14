@@ -166,7 +166,8 @@ const AgreementPreview = ({
             /* Preview Mode */
             <div
               id="agreement-content"
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 shadow-inner min-h-[400px] text-gray-900 dark:text-gray-100"
+              className="bg-white border border-gray-200 dark:border-gray-700 rounded-lg p-8 shadow-inner min-h-[400px] text-gray-900 overflow-x-auto"
+              style={{ color: 'black' }} // Force black text for document content to match paper feel
               dangerouslySetInnerHTML={{ __html: editedHtml }}
             />
           )}
