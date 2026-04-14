@@ -14,6 +14,7 @@ import {
   Chip,
   IconButton,
   Paper,
+  useTheme
 } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
 import { useLocation } from "react-router-dom";
@@ -27,6 +28,8 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import Mailer from "./mail";
 
 const AddBooking = ({ onClose }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const location = useLocation();
   const [formData, setFormData] = useState({
     branch: "",
@@ -708,8 +711,13 @@ const AddBooking = ({ onClose }) => {
               type="date"
               value={formData.date}
               onChange={handleChange}
-              InputLabelProps={{ shrink: true }}
+               InputLabelProps={{ shrink: true }}
               variant="outlined"
+              sx={{
+                '& input::-webkit-calendar-picker-indicator': {
+                  filter: isDark ? 'invert(1)' : 'none',
+                }
+              }}
             />
           </Grid>
 
@@ -874,10 +882,15 @@ const AddBooking = ({ onClose }) => {
               type="date"
               value={formData.paymentDate}
               onChange={handleChange}
-              InputLabelProps={{ shrink: true }}
+               InputLabelProps={{ shrink: true }}
               variant="outlined"
               error={Boolean(errors.paymentDate)}
               helperText={errors.paymentDate}
+              sx={{
+                '& input::-webkit-calendar-picker-indicator': {
+                  filter: isDark ? 'invert(1)' : 'none',
+                }
+              }}
             />
           </Grid>
 

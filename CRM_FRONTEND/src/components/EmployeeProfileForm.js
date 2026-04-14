@@ -100,7 +100,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const [errors, setErrors] = useState({});
 
   const departments = ["Sales", "Digital", "Admin", "Legal", "Finance"];
-  const branches = ["1206", "808", "1512", "Admin", "Digital", "407 AMD", "408 AMD", "906"];
+  const [companyBranches, setCompanyBranches] = useState([]);
   const maritalStatuses = ["Single", "Married", "Divorced", "Widowed"];
   const relationships = ["Father", "Mother", "Spouse", "Brother", "Sister", "Friend", "Other"];
 
@@ -141,6 +141,19 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     };
     if (userSession?.user_id && userSession?.token) init();
   }, [fetchMyProfile, fetchPending, fetchAll, isAuthority, userSession]);
+
+  // Fetch branches
+  useEffect(() => {
+    fetch(`${apiUrl}/company/public`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.branches) {
+          const branchesArray = data.branches.split(',').map(b => b.trim()).filter(Boolean);
+          setCompanyBranches(branchesArray);
+        }
+      })
+      .catch(err => console.error("Error fetching branches:", err));
+  }, [apiUrl]);
 
   // ─── APPROVAL ACTIONS ──────────────────
   const handleApprove = async (userId) => {
@@ -512,7 +525,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
             <Grid item xs={12} md={6}><TextField {...inputProps("employeeFullName", "Full Name")} /></Grid>
             <Grid item xs={12} md={6}><TextField {...inputProps("designation", "Designation")} /></Grid>
             <Grid item xs={12} md={6}>{selectProps("department", "Department", departments)}</Grid>
-            <Grid item xs={12} md={6}>{selectProps("branch", "Branch", branches)}</Grid>
+            <Grid item xs={12} md={6}>{selectProps("branch", "Branch", companyBranches)}</Grid>
             <Grid item xs={12} md={4}>{selectProps("gender", "Gender", ["Male", "Female", "Other"])}</Grid>
             <Grid item xs={12} md={4}>{selectProps("maritalStatus", "Marital Status", maritalStatuses)}</Grid>
             <Grid item xs={12} md={4}><TextField {...inputProps("dateOfBirth", "Date of Birth", "date")} InputLabelProps={{ shrink: true }} /></Grid>

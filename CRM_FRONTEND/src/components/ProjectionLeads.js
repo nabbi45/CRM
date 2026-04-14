@@ -373,6 +373,11 @@ const ProjectionLeads = () => {
                   onChange={handleInputChange}
                   InputLabelProps={{ shrink: true }}
                   required
+                  sx={{
+                    '& input::-webkit-calendar-picker-indicator': {
+                      filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'none',
+                    }
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>

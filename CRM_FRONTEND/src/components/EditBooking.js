@@ -16,6 +16,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  useTheme
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import SelectMUI from 'react-select';
@@ -26,6 +27,8 @@ const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 const updatedBy = userSession.name || 'Unknown';
 
 const EditBooking = ({ initialData, onClose }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     branch: '',
@@ -312,6 +315,11 @@ const EditBooking = ({ initialData, onClose }) => {
                 value={formData.date}
                 onChange={handleChange}
                 InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& input::-webkit-calendar-picker-indicator': {
+                    filter: theme.palette.mode === 'dark' ? 'invert(1)' : 'none',
+                  }
+                }}
               />
             </Grid>
 
@@ -378,6 +386,11 @@ const EditBooking = ({ initialData, onClose }) => {
                 value={formData.paymentDate}
                 onChange={handleChange}
                 InputLabelProps={{ shrink: true }}
+                sx={{
+                  '& input::-webkit-calendar-picker-indicator': {
+                    filter: isDark ? 'invert(1)' : 'none',
+                  }
+                }}
               />
             </Grid>
 
