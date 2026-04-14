@@ -24,7 +24,8 @@ const CompanyProfile = () => {
         mail_port: '',
         mail_user: '',
         mail_password: '',
-        default_cc: ''
+        default_cc: '',
+        branches: ''
     });
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState(null);
@@ -271,6 +272,10 @@ const CompanyProfile = () => {
                     <div style={{ gridColumn: 'span 2' }}>
                         <label style={labelStyle}>Address</label>
                         <textarea name="address" value={profile.address} onChange={handleChange} style={{ ...inputStyle, height: '80px', resize: 'vertical' }} required disabled={!canEditProfile} />
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                        <label style={labelStyle}>Branches (Comma Separated)</label>
+                        <textarea name="branches" value={profile.branches || ''} placeholder="e.g. Noida, Delhi, Mumbai" onChange={handleChange} style={{ ...inputStyle, height: '60px', resize: 'vertical' }} disabled={!canEditProfile} />
                     </div>
                 </div>
 

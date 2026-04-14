@@ -58,7 +58,8 @@ CompanyProfileRoutes.get("/public", async (req, res) => {
         }
         return res.status(200).send({
             company_name: profile.company_name || "My Company",
-            logo_url: profile.logo_url || fallbackLogo
+            logo_url: profile.logo_url || fallbackLogo,
+            branches: profile.branches || ""
         });
     } catch (error) {
         return res.status(500).send({ message: error.message });

@@ -19,6 +19,7 @@ const companyProfileSchema = mongoose.Schema(
         mail_user: { type: String },
         mail_password: { type: String },
         default_cc: { type: String },
+        branches: { type: String },
         updatedBy: { type: String }
     },
     { versionKey: false, timestamps: true }

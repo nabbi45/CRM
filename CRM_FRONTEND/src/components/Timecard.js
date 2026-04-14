@@ -62,6 +62,7 @@ const Timecard = () => {
     const [myAttendance, setMyAttendance] = useState([]);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().slice(0, 10));
     const [dailyAttendance, setDailyAttendance] = useState([]);
+    const [dailyActivities, setDailyActivities] = useState([]);
     const [employees, setEmployees] = useState([]);
     
     // Holiday State
@@ -83,6 +84,7 @@ const Timecard = () => {
         fetchMyAttendance();
         if (isApprover) {
             fetchDailyAttendance();
+            fetchDailyActivities();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMonth, attendanceDate]);
@@ -146,6 +148,22 @@ const Timecard = () => {
                 setDailyAttendance(data.records || []);
             }
         } catch (e) { console.error(e); }
+    };
+
+    const fetchDailyActivities = async () => {
+        if (!attendanceDate) return;
+        try {
+            const res = await fetch(`${apiUrl}/user/activities/${attendanceDate}`, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                setDailyActivities(data.activities || []);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const formatTime = (dateString) => {
+        if (!dateString) return '--:--';
+        return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     // ─── LEAVE ACTIONS ─────────────────────────────────────────────
@@ -539,17 +557,29 @@ const Timecard = () => {
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                                 <TableRow>
                                     <TableCell>Employee Name</TableCell>
+                                    <TableCell>Login Activity</TableCell>
                                     <TableCell>Attendance</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {employees.map(emp => {
                                     const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
+                                    const actRecord = dailyActivities.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
                                     return (
                                         <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f9fafb' } }}>
                                             <TableCell>
                                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
                                                 <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                {actRecord.firstOnline ? (
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                        <Chip size="small" label={`In: ${formatTime(actRecord.firstOnline)}`} sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600, fontSize: '0.75rem', height: '22px' }} />
+                                                        <Chip size="small" label={`Last: ${formatTime(actRecord.lastOnline)}`} sx={{ bgcolor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', fontWeight: 600, fontSize: '0.75rem', height: '22px' }} />
+                                                    </Box>
+                                                ) : (
+                                                    <Typography variant="caption" color="text.secondary">— No Activity —</Typography>
+                                                )}
                                             </TableCell>
                                             <TableCell sx={{ minWidth: 190 }}>
                                                 <Select

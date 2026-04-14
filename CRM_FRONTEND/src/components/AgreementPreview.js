@@ -164,12 +164,24 @@ const AgreementPreview = ({
             </div>
           ) : (
             /* Preview Mode */
-            <div
-              id="agreement-content"
-              className="bg-white border border-gray-200 dark:border-gray-700 rounded-lg p-8 shadow-inner min-h-[400px] text-gray-900 overflow-x-auto"
-              style={{ color: 'black' }} // Force black text for document content to match paper feel
-              dangerouslySetInnerHTML={{ __html: editedHtml }}
-            />
+            <div className="relative">
+              <style>
+                {`
+                  #agreement-content * {
+                    color: #1a1a1a !important;
+                    background-color: transparent !important;
+                  }
+                  #agreement-content h1, #agreement-content h2, #agreement-content h3 {
+                    color: #1e3a8a !important; /* Deep blue for headings */
+                  }
+                `}
+              </style>
+              <div
+                id="agreement-content"
+                className="bg-white border border-gray-200 dark:border-gray-700 rounded-lg p-8 shadow-inner min-h-[400px] overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: editedHtml }}
+              />
+            </div>
           )}
         </div>
 

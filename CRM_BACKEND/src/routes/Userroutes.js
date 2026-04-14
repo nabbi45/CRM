@@ -1,6 +1,7 @@
 import express from "express";
 import { UserModel } from "../models/UserModel.js";
 import { BookingModel } from "../models/bookingModel.js";
+import DailyActivityModel from "../models/DailyActivityModel.js";
 import crypto from 'crypto';  // Used to generate random tokens
 import nodemailer from 'nodemailer';  // Used to send emails
 import bcrypt from 'bcrypt';
@@ -346,6 +347,17 @@ UserRoutes.post('/login', async (req, res) => {
     }
     const token = generateToken(user); // Generate JWT token
 
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    await DailyActivityModel.findOneAndUpdate(
+      { userId: user._id, date: today },
+      { 
+        $setOnInsert: { firstOnline: now },
+        $set: { lastOnline: now } 
+      },
+      { upsert: true, new: true }
+    );
+
     // If credentials are valid, send a success response
     res.status(200).send({
       token, user
@@ -359,22 +371,60 @@ UserRoutes.post('/login', async (req, res) => {
 
 //logout
 UserRoutes.patch('/logout/:id', async (req, res) => {
-  const { id } = req.params
+  const { id } = req.params;
   try {
-    const user = await UserModel.findByIdAndUpdate(id, { isActive: false })
+    const user = await UserModel.findByIdAndUpdate(id, { isActive: false });
 
     if (!user) {
       return res.status(404).send({
         message: "User not found.",
       });
     }
-    res.send(user)
+
+    const today = new Date().toISOString().split('T')[0];
+    await DailyActivityModel.findOneAndUpdate(
+      { userId: id, date: today },
+      { $set: { lastOnline: new Date() } }
+    );
+
+    res.send(user);
   } catch (error) {
     return res.status(500).send({ message: error.message });
   }
 });
 
+// Ping activity endpoint
+UserRoutes.post('/ping', authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    
+    await DailyActivityModel.findOneAndUpdate(
+      { userId: userId, date: today },
+      { 
+        $setOnInsert: { firstOnline: now },
+        $set: { lastOnline: now } 
+      },
+      { upsert: true, new: true }
+    );
+    res.status(200).send({ message: "Ping successful" });
+  } catch (error) {
+    res.status(500).send({ message: error.message });
+  }
+});
 
+
+// Get daily activities for a given date
+UserRoutes.get('/activities/:date', authenticateUser, authorizeFeature('timecard'), async (req, res) => {
+  try {
+    const { date } = req.params;
+    const activities = await DailyActivityModel.find({ date });
+    res.status(200).send({ activities });
+  } catch (error) {
+    res.status(500).send({ message: error.message });
+  }
+});
 
 //getting all the bookings for specific user
 
