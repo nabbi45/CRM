@@ -385,11 +385,26 @@ const DashboardContent = () => {
 
       for (const booking of bookings) {
         bookingCount++;
-        const rev = Number(
+        const rawRev = Number(
           (booking.term_1 || 0) +
           (booking.term_2 || 0) +
           (booking.term_3 || 0)
         );
+
+        let userSpecificRev = rawRev;
+        if (!isAdmin) {
+          if (String(booking.user_id) === String(session.user_id)) {
+            const sharedTotal = (booking.shared_with || []).reduce((sum, sw) => sum + (Number(sw.percentage) || 0), 0);
+            userSpecificRev = rawRev * ((100 - sharedTotal) / 100);
+          } else {
+            const sharedData = (booking.shared_with || []).find(sw => String(sw.user_id) === String(session.user_id));
+            const percentage = sharedData ? (Number(sharedData.percentage) || 0) : 0;
+            userSpecificRev = rawRev * (percentage / 100);
+          }
+        }
+
+        const rev = userSpecificRev;
+
         const bookingDate = new Date(booking.date || booking.createdAt || booking.payment_date);
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
         const bookingTotalAmount = Number(booking.total_amount || 0);
@@ -417,9 +432,25 @@ const DashboardContent = () => {
           paymentDate.getMonth() === currentMonth &&
           paymentDate.getFullYear() === currentYear
         ) {
+          let creatorRev = rawRev;
+          if (booking.shared_with && booking.shared_with.length > 0) {
+            let sharedTotalRev = 0;
+            let shareFractionCount = 0;
+            for (const sw of booking.shared_with) {
+              const sharedAmt = rawRev * ((Number(sw.percentage) || 0) / 100);
+              sharedTotalRev += sharedAmt;
+              shareFractionCount += 1;
+              const sharedBdmName = sw.user_name || "Coworker";
+              if (!bdmRevMap[sharedBdmName]) bdmRevMap[sharedBdmName] = { revenue: 0, count: 0 };
+              bdmRevMap[sharedBdmName].revenue += sharedAmt;
+              bdmRevMap[sharedBdmName].count += 1; 
+            }
+            creatorRev = rawRev - sharedTotalRev;
+          }
+
           const bdm = booking.bdm || "Unknown";
           if (!bdmRevMap[bdm]) bdmRevMap[bdm] = { revenue: 0, count: 0 };
-          bdmRevMap[bdm].revenue += rev;
+          bdmRevMap[bdm].revenue += creatorRev;
           bdmRevMap[bdm].count += 1;
         }
 

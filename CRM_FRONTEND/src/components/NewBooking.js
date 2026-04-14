@@ -415,10 +415,14 @@ const AddBooking = ({ onClose }) => {
           state: formData.state,
           status: "Pending",
           after_disbursement: formData.funddisbursement || "",
-          shared_with: sharedPersons.map((person) => ({
-            user_id: person.userId,
-            percentage: Number(person.percentage),
-          })),
+          shared_with: sharedPersons.filter((p) => p.userId && p.percentage).map((person) => {
+            const userObj = users.find(u => String(u._id) === String(person.userId));
+            return {
+              user_id: person.userId,
+              user_name: userObj ? userObj.name : "Coworker",
+              percentage: Number(person.percentage),
+            };
+          }),
         };
 
         const response = await fetch(`${apiUrl}/booking/addbooking`, {

@@ -28,6 +28,7 @@ const bookingSchema = mongoose.Schema(
     status: { type: String },
     shared_with: [{
       user_id: { type: String },
+      user_name: { type: String },
       percentage: { type: Number }
     }],
     updatedhistory: [

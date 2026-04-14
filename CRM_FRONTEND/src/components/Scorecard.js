@@ -36,13 +36,23 @@ const Scorecard = () => {
         return response.json();
       })
       .then((data) => {
-        const bookingsData = data.Allbookings || data;
+        // Calculate the total received amount by summing term_1, term_2, and term_3, considering sharing
+        const totalReceived = bookingsData.reduce((acc, booking) => {
+          const rawRev = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
+          
+          if (['admin', 'dev', 'senior admin'].includes(userSession.user_role)) {
+            return acc + rawRev;
+          }
 
-        // Calculate the total received amount by summing term_1, term_2, and term_3
-        const totalReceived = bookingsData.reduce(
-          (acc, booking) => acc + (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0),
-          0
-        );
+          if (booking.user_id === userSession.user_id) {
+            const sharedTotal = (booking.shared_with || []).reduce((sum, sw) => sum + (Number(sw.percentage) || 0), 0);
+            return acc + (rawRev * ((100 - sharedTotal) / 100));
+          } else {
+            const sharedData = (booking.shared_with || []).find(sw => String(sw.user_id) === String(userSession.user_id));
+            const percentage = sharedData ? (Number(sharedData.percentage) || 0) : 0;
+            return acc + (rawRev * (percentage / 100));
+          }
+        }, 0);
 
         setTotalReceivedAmount(totalReceived); // Set total received amount (revenue) in state
         setLoading(false);

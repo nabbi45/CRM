@@ -1,6 +1,7 @@
 import express from "express";
 import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { NotificationModel } from "../models/NotificationModel.js";
 
 const BookingRoutes = express.Router();
 //Addbooking
@@ -86,6 +87,21 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     };
 
     const booking = await BookingModel.create(new_booking);
+
+    if (new_booking.shared_with && new_booking.shared_with.length > 0) {
+      try {
+        const notifications = new_booking.shared_with.map(sw => ({
+          user_id: sw.user_id,
+          type: "booking_shared",
+          message: `${bdm || "A coworker"} shared a booking with you.`,
+          reference_id: booking._id.toString()
+        }));
+        await NotificationModel.insertMany(notifications);
+      } catch (notifErr) {
+        console.error("Error creating notifications:", notifErr);
+      }
+    }
+
     return res.status(201).send({
       Message: "Booking Created Successfully",
       booking_id: booking._id,
@@ -165,6 +181,26 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
         { new: true }
       );
 
+      // Check for newly added shared_with users and notify them
+      if (updates.shared_with && Array.isArray(updates.shared_with)) {
+        const oldSharedIds = (oldBooking.shared_with || []).map(sw => String(sw.user_id));
+        const newSharedUsers = updates.shared_with.filter(sw => !oldSharedIds.includes(String(sw.user_id)));
+        
+        if (newSharedUsers.length > 0) {
+          try {
+            const notifications = newSharedUsers.map(sw => ({
+              user_id: sw.user_id,
+              type: "booking_shared",
+              message: `${oldBooking.bdm || "A coworker"} shared a booking with you.`,
+              reference_id: updatedBooking._id.toString()
+            }));
+            await NotificationModel.insertMany(notifications);
+          } catch (notifErr) {
+            console.error("Error creating notifications on edit:", notifErr);
+          }
+        }
+      }
+
       return res.status(200).send({
         message: "Booking Updated Successfully",
         updatedBooking,
@@ -174,11 +210,12 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     const continuationAllowedKeys = ["term_2", "term_3", "payment_date"];
     const updateKeys = Object.keys(updates);
     const isOwner = String(oldBooking.user_id || "") === String(requesterId || "");
+    const isSharedUser = oldBooking.shared_with && oldBooking.shared_with.some(sw => String(sw.user_id) === String(requesterId || ""));
     const isContinuationUpdate =
       updateKeys.length > 0 &&
       updateKeys.every((key) => continuationAllowedKeys.includes(key));
 
-    if (isOwner && isContinuationUpdate) {
+    if ((isOwner || isSharedUser) && isContinuationUpdate) {
       const updatedBooking = await BookingModel.findByIdAndUpdate(
         id,
         {
@@ -444,7 +481,7 @@ BookingRoutes.get("/bookings/filter", authenticateUser, async (req, res) => {
           message: "Access forbidden. No valid role or user ID provided.",
         });
       }
-      query.user_id = userId;
+      query.$or = [{ user_id: userId }, { "shared_with.user_id": userId }];
     }
 
     // Exclude trashed bookings
@@ -496,9 +533,9 @@ BookingRoutes.get("/payment-reminders", authenticateUser, async (req, res) => {
       }
     };
     
-    // Non-admin users only see their own bookings
+    // Non-admin users only see their own bookings or those shared with them
     if (!isAdmin) {
-      query.user_id = userId;
+      query.$or = [{ user_id: userId }, { "shared_with.user_id": userId }];
     }
     
     const bookings = await BookingModel.find(query).sort({ date: 1 }); // Oldest first
