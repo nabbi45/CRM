@@ -34,6 +34,7 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
 
   const requiredFields = {
     branch_name,
+    company_name,
     contact_person,
     user_id,
     bdm,
@@ -43,6 +44,8 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     pan,
     state,
     date,
+    bank,
+    funddisbursement,
   };
 
   const missingFields = Object.entries(requiredFields)
@@ -136,14 +139,6 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
 
     const rolesWithFullAccess = ["dev", "senior admin", "super admin", "director", "srdev", "sr dev"];
     const requesterId = req.user?.userId || req.user?.user_id;
-
-    const includesContinuationTerm = Object.prototype.hasOwnProperty.call(updates, "term_2") ||
-      Object.prototype.hasOwnProperty.call(updates, "term_3");
-
-    if (user_role === "admin" && !includesContinuationTerm) {
-      const { services, ...allowedUpdates } = updates;
-      updates = allowedUpdates;
-    }
 
     // Detect changed fields
     const changedFields = {};
@@ -456,6 +451,13 @@ BookingRoutes.get("/bookings/filter", authenticateUser, async (req, res) => {
     // Payment mode filter
     if (paymentmode) {
       const validPaymentModes = [
+        "Axis Bank",
+        "IDFC BANK",
+        "IDFC Bank",
+        "Razor Pay",
+        "Cashfree",
+        "Cheque IDFC Bank",
+        "Cheque Axis Bank",
         "Kotak Mahindra Bank",
         "HDFC Bank",
         "Razorpay",

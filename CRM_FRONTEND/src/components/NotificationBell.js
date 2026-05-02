@@ -46,7 +46,7 @@ const NotificationBell = () => {
     const [sending, setSending] = useState(false);
     const prevUnreadCount = useRef(0);
 
-    const canBroadcast = ['admin', 'dev', 'srdev', 'senior admin', 'HR'].includes(session.user_role);
+    const canBroadcast = ['admin', 'super admin', 'director', 'dev', 'srdev', 'sr dev', 'senior admin', 'hr'].includes((session.user_role || '').toLowerCase());
 
     const fetchBroadcasts = useCallback(async () => {
         try {

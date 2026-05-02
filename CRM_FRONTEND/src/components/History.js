@@ -510,7 +510,12 @@ const History = () => {
       });
       if (res.ok) {
         const docs = await res.json();
-        setBookingDocuments(docs);
+        const bdmUploadedIdentityDocs = docs.filter((doc) => {
+          const type = (doc.documentType || "").toLowerCase();
+          return ["aadhaar", "adhar", "pan"].includes(type) &&
+            String(doc.uploadedBy || "") === String(booking.user_id || "");
+        });
+        setBookingDocuments(bdmUploadedIdentityDocs);
       } else {
         setBookingDocuments([]);
       }
@@ -698,6 +703,45 @@ const History = () => {
         >
           Reset
         </button>
+      </div>
+      <div className="filter-container" style={{ margin: '0 auto 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
+        <select value={dateType} onChange={(e) => setDateType(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
+          <option value="booking">Booking Date</option>
+          <option value="payment">Payment Date</option>
+        </select>
+        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
+        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
+        <input type="month" onChange={(e) => {
+          if (!e.target.value) return;
+          const [year, month] = e.target.value.split('-').map(Number);
+          const first = `${e.target.value}-01`;
+          const lastDate = new Date(year, month, 0).getDate();
+          setStartDate(first);
+          setEndDate(`${e.target.value}-${String(lastDate).padStart(2, '0')}`);
+        }} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
+        <input type="text" placeholder="BDM name" value={bdmSearch} onChange={(e) => setBdmSearch(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
+        <select value={paymentmode} onChange={(e) => setPaymentmode(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
+          <option value="">Payment Method</option>
+          <option value="Axis Bank">Axis Bank</option>
+          <option value="IDFC BANK">IDFC Bank</option>
+          <option value="Razor Pay">Razor Pay</option>
+          <option value="Cashfree">Cashfree</option>
+          <option value="Cheque IDFC Bank">Cheque IDFC Bank</option>
+          <option value="Cheque Axis Bank">Cheque Axis Bank</option>
+          <option value="Cash">Cash</option>
+        </select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
+          <option value="">Status</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select>
+        <select value={services} onChange={(e) => setService(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
+          <option value="">Service</option>
+          {servicesList.map((service) => (
+            <option key={service.value || service.label} value={service.value || service.label}>{service.label || service.value}</option>
+          ))}
+        </select>
       </div>
       <div className="booking-list">
         {bookings
@@ -1354,7 +1398,7 @@ const History = () => {
             </Box>
           ) : bookingDocuments.length === 0 ? (
             <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-              No documents found for this booking
+              No BDM-uploaded Aadhaar/PAN documents found for this booking
             </Typography>
           ) : (
             <TableContainer>

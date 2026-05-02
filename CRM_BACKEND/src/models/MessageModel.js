@@ -5,6 +5,8 @@ const MessageSchema = new mongoose.Schema({
     sender_name: { type: String, required: true },
     receiver_id: { type: String, default: null }, // null means global chat
     is_global: { type: Boolean, default: false },
+    is_group: { type: Boolean, default: false },
+    group_id: { type: String, default: null },
     message: { type: String, required: false },
     attachment_url: { type: String, default: null },
     attachment_type: { type: String, default: null }, // e.g. "image", "video", "raw"
@@ -20,5 +22,6 @@ const MessageSchema = new mongoose.Schema({
 // Index for faster queries
 MessageSchema.index({ sender_id: 1, receiver_id: 1 });
 MessageSchema.index({ is_global: 1, createdAt: -1 });
+MessageSchema.index({ group_id: 1, createdAt: -1 });
 
 export const MessageModel = mongoose.model("Message", MessageSchema);

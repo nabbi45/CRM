@@ -73,11 +73,11 @@ const EditBooking = ({ initialData, onClose }) => {
         contactNumber: initialData.contact_no || '',
         email: initialData.email || '',
         date: initialData.date ? new Date(initialData.date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '', // format to 'dd-mm-yyyy',
-        services: initialData.services || '',
+        services: Array.isArray(initialData.services) ? initialData.services : [],
         totalAmount: initialData.total_amount || '',
         selectTerm: initialData.term_1 ? 'Term 1' : initialData.term_2 ? 'Term 2' : '',
         amount: initialData.term_1 || initialData.term_2 || '',
-        paymentDate: initialData.payment_date ? new Date(initialData.date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '',
+        paymentDate: initialData.payment_date ? new Date(initialData.payment_date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '',
         pan: initialData.pan || '',
         gst: initialData.gst || '',
         notes: initialData.remark || '',
@@ -427,7 +427,11 @@ const EditBooking = ({ initialData, onClose }) => {
                 >
                   <MenuItem value="">Select Bank</MenuItem>
                   <MenuItem value="Axis Bank">Axis Bank</MenuItem>
+                  <MenuItem value="IDFC BANK">IDFC Bank</MenuItem>
                   <MenuItem value="Razor Pay">Razor Pay</MenuItem>
+                  <MenuItem value="Cashfree">Cashfree</MenuItem>
+                  <MenuItem value="Cheque IDFC Bank">Cheque IDFC Bank</MenuItem>
+                  <MenuItem value="Cheque Axis Bank">Cheque Axis Bank</MenuItem>
                   <MenuItem value="Cash">Cash</MenuItem>
                 </Select>
               </FormControl>

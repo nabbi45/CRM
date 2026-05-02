@@ -274,7 +274,7 @@ const AddBooking = ({ onClose }) => {
 
     // Validation logic (unchanged)
     if (!formData.branch) validationErrors.branch = "Branch is required";
-    // if (!formData.companyName) validationErrors.companyName = "Company Name is required";
+    if (!formData.companyName) validationErrors.companyName = "Company Name is required";
     if (!formData.contactPerson)
       validationErrors.contactPerson = "Contact Person is required";
     const contactNumberRegex = /^\d{10}$/;
@@ -304,6 +304,8 @@ const AddBooking = ({ onClose }) => {
     }
     if (!formData.paymentDate)
       validationErrors.paymentDate = "Payment Date is required";
+    if (!formData.bank) validationErrors.bank = "Payment Mode is required";
+    if (!formData.funddisbursement) validationErrors.funddisbursement = "After Fund Disbursement is required";
     if (!formData.pan) {
       validationErrors.pan = "PAN Number is required";
     } else {
@@ -665,6 +667,8 @@ const AddBooking = ({ onClose }) => {
               onChange={handleChange}
               placeholder="Enter company name"
               variant="outlined"
+              error={Boolean(errors.companyName)}
+              helperText={errors.companyName}
             />
           </Grid>
 
@@ -948,6 +952,7 @@ const AddBooking = ({ onClose }) => {
                 <MenuItem value="Cheque Axis Bank">Cheque Axis Bank</MenuItem>
                 <MenuItem value="Cash">Cash</MenuItem>
               </Select>
+              {errors.bank && <Typography color="error" variant="caption">{errors.bank}</Typography>}
             </FormControl>
           </Grid>
 
@@ -960,6 +965,8 @@ const AddBooking = ({ onClose }) => {
               onChange={handleChange}
               placeholder="Enter percentage"
               variant="outlined"
+              error={Boolean(errors.funddisbursement)}
+              helperText={errors.funddisbursement}
             />
           </Grid>
 
@@ -1056,6 +1063,8 @@ const AddBooking = ({ onClose }) => {
                       <MenuItem value="pitch_deck">Pitch Deck</MenuItem>
                       <MenuItem value="dpr">DPR</MenuItem>
                       <MenuItem value="application">Application</MenuItem>
+                      <MenuItem value="aadhaar">Aadhaar</MenuItem>
+                      <MenuItem value="pan">PAN</MenuItem>
                       <MenuItem value="others">Others</MenuItem>
                     </Select>
                   </FormControl>

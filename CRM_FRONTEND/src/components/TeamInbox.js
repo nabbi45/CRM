@@ -4,6 +4,13 @@ import {
     ListItemAvatar, ListItemText, Divider, Paper, Badge, InputAdornment, CircularProgress,
     useMediaQuery,
     useTheme,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import SearchIcon from '@mui/icons-material/Search';
@@ -12,6 +19,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import SentimentSatisfiedAltIcon from '@mui/icons-material/SentimentSatisfiedAlt';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import DoneIcon from '@mui/icons-material/Done';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import EditIcon from '@mui/icons-material/Edit';
@@ -53,8 +61,12 @@ const TeamInbox = () => {
     const isDark = theme.palette.mode === 'dark';
 
     const [users, setUsers] = useState([]);
+    const [groups, setGroups] = useState([]);
     const [search, setSearch] = useState('');
     const [activeChat, setActiveChat] = useState({ id: 'global', name: 'All Company', isGlobal: true });
+    const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+    const [groupName, setGroupName] = useState('');
+    const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
     const [mobilePane, setMobilePane] = useState('list');
     const [messages, setMessages] = useState([]);
     const [inputMsg, setInputMsg] = useState('');
@@ -67,16 +79,30 @@ const TeamInbox = () => {
     const [selectedMessage, setSelectedMessage] = useState(null);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const normalizedRole = (session.user_role || '').toLowerCase().trim();
+    const canCreateGroup = ['admin', 'super admin', 'senior admin', 'director', 'hr', 'dev', 'srdev', 'sr dev'].includes(normalizedRole);
 
     // Load users
     useEffect(() => {
         fetchUsers();
+        fetchGroups();
     }, []);
 
     const fetchUsers = async () => {
         try {
             const res = await fetch(`${apiUrl}/chat/users`, { headers });
             if (res.ok) setUsers(await res.json());
+        } catch (e) { }
+    };
+
+    const fetchGroups = async () => {
+        try {
+            const res = await fetch(`${apiUrl}/chat/groups`, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                setGroups(data);
+                data.forEach((group) => socket.emit("joinGroup", group._id));
+            }
         } catch (e) { }
     };
 
@@ -90,9 +116,10 @@ const TeamInbox = () => {
         const handleReceiveMessage = (msg) => {
             // If message belongs to active chat, append it
             const belongsToGlobal = msg.is_global && activeChat.isGlobal;
-            const belongsToDirect = !msg.is_global && !activeChat.isGlobal && (msg.sender_id === activeChat.id || msg.receiver_id === activeChat.id);
+            const belongsToGroup = msg.is_group && activeChat.isGroup && msg.group_id === activeChat.id;
+            const belongsToDirect = !msg.is_global && !msg.is_group && !activeChat.isGlobal && !activeChat.isGroup && (msg.sender_id === activeChat.id || msg.receiver_id === activeChat.id);
 
-            if (belongsToGlobal || belongsToDirect) {
+            if (belongsToGlobal || belongsToGroup || belongsToDirect) {
                 setMessages(prev => [...prev, msg]);
                 scrollToBottom();
             }
@@ -104,14 +131,15 @@ const TeamInbox = () => {
 
             // Update sidebar previews
             fetchUsers();
+            fetchGroups();
         };
 
         const handleOnlineStatus = ({ userId, isOnline }) => {
             setUsers(prev => prev.map(u => u._id === userId ? { ...u, isOnline } : u));
         };
 
-        const handleTyping = ({ sender_id, sender_name, typing, is_global }) => {
-            const chatId = is_global ? 'global' : sender_id;
+        const handleTyping = ({ sender_id, sender_name, typing, is_global, is_group, group_id }) => {
+            const chatId = is_global ? 'global' : is_group ? group_id : sender_id;
             setTypingUsers(prev => {
                 const current = { ...prev };
                 if (typing) current[chatId] = sender_name;
@@ -153,12 +181,16 @@ const TeamInbox = () => {
         setMessages([]); // instantly clear old messages when switching chat
         const fetchHistory = async () => {
             try {
-                const endpoint = activeChat.isGlobal ? '/chat/global' : `/chat/direct/${activeChat.id}`;
+                const endpoint = activeChat.isGlobal
+                    ? '/chat/global'
+                    : activeChat.isGroup
+                        ? `/chat/groups/${activeChat.id}/messages`
+                        : `/chat/direct/${activeChat.id}`;
                 const res = await fetch(`${apiUrl}${endpoint}`, { headers });
                 if (res.ok) {
                     setMessages(await res.json());
                     scrollToBottom();
-                    if (!activeChat.isGlobal) {
+                    if (!activeChat.isGlobal && !activeChat.isGroup) {
                         socket.emit("messages_read", { reader_id: session.user_id, sender_id: activeChat.id });
                     }
                 }
@@ -183,16 +215,20 @@ const TeamInbox = () => {
         socket.emit("sendMessage", {
             sender_id: session.user_id,
             sender_name: session.name,
-            receiver_id: activeChat.isGlobal ? null : activeChat.id,
+            receiver_id: activeChat.isGlobal || activeChat.isGroup ? null : activeChat.id,
             is_global: activeChat.isGlobal,
+            is_group: Boolean(activeChat.isGroup),
+            group_id: activeChat.isGroup ? activeChat.id : null,
             message: inputMsg.trim()
         });
 
         socket.emit("typing", {
             sender_id: session.user_id,
             sender_name: session.name,
-            receiver_id: activeChat.isGlobal ? null : activeChat.id,
+            receiver_id: activeChat.isGlobal || activeChat.isGroup ? null : activeChat.id,
             is_global: activeChat.isGlobal,
+            is_group: Boolean(activeChat.isGroup),
+            group_id: activeChat.isGroup ? activeChat.id : null,
             typing: false
         });
 
@@ -209,8 +245,10 @@ const TeamInbox = () => {
         socket.emit("typing", {
             sender_id: session.user_id,
             sender_name: session.name,
-            receiver_id: activeChat.isGlobal ? null : activeChat.id,
+            receiver_id: activeChat.isGlobal || activeChat.isGroup ? null : activeChat.id,
             is_global: activeChat.isGlobal,
+            is_group: Boolean(activeChat.isGroup),
+            group_id: activeChat.isGroup ? activeChat.id : null,
             typing: e.target.value.length > 0
         });
     };
@@ -237,8 +275,10 @@ const TeamInbox = () => {
                 socket.emit("sendMessage", {
                     sender_id: session.user_id,
                     sender_name: session.name,
-                    receiver_id: activeChat.isGlobal ? null : activeChat.id,
+                    receiver_id: activeChat.isGlobal || activeChat.isGroup ? null : activeChat.id,
                     is_global: activeChat.isGlobal,
+                    is_group: Boolean(activeChat.isGroup),
+                    group_id: activeChat.isGroup ? activeChat.id : null,
                     message: inputMsg.trim() || "Sent an attachment",
                     attachment_url: data.attachment_url,
                     attachment_type: data.attachment_type
@@ -350,6 +390,39 @@ const TeamInbox = () => {
     };
 
     const filteredUsers = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
+    const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()));
+
+    const toggleGroupMember = (userId) => {
+        setSelectedGroupMembers((prev) =>
+            prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+        );
+    };
+
+    const handleCreateGroup = async () => {
+        if (!groupName.trim() || selectedGroupMembers.length === 0) {
+            enqueueSnackbar('Enter a group name and select members', { variant: 'warning' });
+            return;
+        }
+
+        try {
+            const res = await fetch(`${apiUrl}/chat/groups`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ name: groupName.trim(), memberIds: selectedGroupMembers }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Failed to create group');
+            setGroups((prev) => [data.group, ...prev]);
+            socket.emit("joinGroup", data.group._id);
+            setActiveChat({ id: data.group._id, name: data.group.name, isGroup: true });
+            setGroupDialogOpen(false);
+            setGroupName('');
+            setSelectedGroupMembers([]);
+            enqueueSnackbar('Group created', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to create group', { variant: 'error' });
+        }
+    };
 
     useEffect(() => {
         if (isTabletOrBelow) {
@@ -358,7 +431,7 @@ const TeamInbox = () => {
     }, [isTabletOrBelow]);
 
     // Determine active contact formatting
-    const activeUser = !activeChat.isGlobal ? users.find(u => u._id === activeChat.id) : null;
+    const activeUser = !activeChat.isGlobal && !activeChat.isGroup ? users.find(u => u._id === activeChat.id) : null;
 
     return (
         <Box
@@ -394,7 +467,14 @@ const TeamInbox = () => {
                 }}
             >
                 <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Team Inbox</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>Team Inbox</Typography>
+                        {canCreateGroup && (
+                            <IconButton size="small" onClick={() => setGroupDialogOpen(true)} sx={{ color: ACCENT }}>
+                                <GroupAddIcon fontSize="small" />
+                            </IconButton>
+                        )}
+                    </Box>
                     <TextField
                         size="small"
                         fullWidth
@@ -424,6 +504,42 @@ const TeamInbox = () => {
                         <ListItemText primary="All Company Group" secondary="Company-wide announcements" primaryTypographyProps={{ fontWeight: activeChat.isGlobal ? 700 : 500 }} />
                     </ListItem>
                     <Divider />
+
+                    {filteredGroups.length > 0 && (
+                        <>
+                            {filteredGroups.map((group) => {
+                                const isActive = activeChat.isGroup && activeChat.id === group._id;
+                                const lastMsg = group.lastMessage ? `${group.lastMessage.sender_name}: ${group.lastMessage.message || 'Attachment'}` : `${group.members?.length || 0} members`;
+                                return (
+                                    <ListItem
+                                        key={group._id}
+                                        button
+                                        onClick={() => {
+                                            setActiveChat({ id: group._id, name: group.name, isGroup: true, members: group.members || [] });
+                                            if (isTabletOrBelow) setMobilePane('chat');
+                                        }}
+                                        sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
+                                    >
+                                        <ListItemAvatar>
+                                            <Avatar sx={{ bgcolor: '#6366f1', color: '#fff' }}>{group.name.charAt(0)}</Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText
+                                            primary={group.name}
+                                            secondary={typingUsers[group._id] ? 'typing...' : lastMsg}
+                                            secondaryTypographyProps={{ noWrap: true, color: typingUsers[group._id] ? ACCENT : 'text.secondary' }}
+                                            primaryTypographyProps={{ fontWeight: isActive ? 700 : 500 }}
+                                        />
+                                        {group.lastMessage && (
+                                            <Typography variant="caption" color="text.secondary" sx={{ position: 'absolute', top: 12, right: 16 }}>
+                                                {formatTime(group.lastMessage.createdAt)}
+                                            </Typography>
+                                        )}
+                                    </ListItem>
+                                );
+                            })}
+                            <Divider />
+                        </>
+                    )}
 
                     {/* DMs List */}
                     {filteredUsers.map(u => {
@@ -490,8 +606,8 @@ const TeamInbox = () => {
                                 <ArrowBackRoundedIcon />
                             </IconButton>
                         )}
-                        <Avatar src={!activeChat.isGlobal && activeUser ? (activeUser.profilePicture || '') : ''} sx={{ bgcolor: activeChat.isGlobal ? ACCENT : 'primary.main' }}>
-                            {(!activeChat.isGlobal && activeUser?.profilePicture) ? null : activeChat.name.charAt(0)}
+                        <Avatar src={!activeChat.isGlobal && !activeChat.isGroup && activeUser ? (activeUser.profilePicture || '') : ''} sx={{ bgcolor: activeChat.isGlobal ? ACCENT : activeChat.isGroup ? '#6366f1' : 'primary.main' }}>
+                            {(!activeChat.isGlobal && !activeChat.isGroup && activeUser?.profilePicture) ? null : activeChat.name.charAt(0)}
                         </Avatar>
                         <Box>
                             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{activeChat.name}</Typography>
@@ -499,6 +615,11 @@ const TeamInbox = () => {
                                 <Typography variant="caption" color={activeUser.isOnline ? 'success.main' : 'text.secondary'} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                     <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: activeUser.isOnline ? '#44b700' : '#bdbdbd' }} />
                                     {activeUser.isOnline ? 'Active Now' : 'Offline'}
+                                </Typography>
+                            )}
+                            {activeChat.isGroup && (
+                                <Typography variant="caption" color="text.secondary">
+                                    {activeChat.members?.length || 0} members
                                 </Typography>
                             )}
                         </Box>
@@ -532,7 +653,7 @@ const TeamInbox = () => {
                     )}
                     {messages.map((m, i) => {
                         const isMe = m.sender_id === session.user_id;
-                        const showName = activeChat.isGlobal && !isMe;
+                        const showName = (activeChat.isGlobal || activeChat.isGroup) && !isMe;
                         const sender = users.find(u => u._id === m.sender_id);
                         const senderProfilePic = isMe ? session.profilePicture : sender?.profilePicture;
                         
@@ -673,7 +794,7 @@ const TeamInbox = () => {
                                 </Box>
                                 <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary', px: 1, display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
                                     {formatTime(m.createdAt || new Date())}
-                                    {isMe && !activeChat.isGlobal && (() => {
+                                    {isMe && !activeChat.isGlobal && !activeChat.isGroup && (() => {
                                         const isRead = m.read_by?.some(r => r.user_id === activeChat.id);
                                         const isDelivered = activeUser?.isOnline;
                                         if (isRead) return <DoneAllIcon sx={{ fontSize: 16, color: '#3b82f6' }} />;
@@ -796,6 +917,38 @@ const TeamInbox = () => {
                     Delete
                 </MenuItem>
             </Menu>
+
+            <Dialog open={groupDialogOpen} onClose={() => setGroupDialogOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Create Group</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        fullWidth
+                        label="Group name"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        sx={{ mt: 1, mb: 2 }}
+                    />
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Members</Typography>
+                    <Box sx={{ maxHeight: 280, overflowY: 'auto' }}>
+                        {users.filter((u) => u._id !== session.user_id).map((u) => (
+                            <FormControlLabel
+                                key={u._id}
+                                control={
+                                    <Checkbox
+                                        checked={selectedGroupMembers.includes(u._id)}
+                                        onChange={() => toggleGroupMember(u._id)}
+                                    />
+                                }
+                                label={u.name}
+                            />
+                        ))}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setGroupDialogOpen(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={handleCreateGroup}>Create</Button>
+                </DialogActions>
+            </Dialog>
 
         </Box>
     );

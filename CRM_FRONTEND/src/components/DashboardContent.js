@@ -52,6 +52,8 @@ const DashboardContent = () => {
   const [serviceRevenueData, setServiceRevenueData] = useState({ labels: [], values: [] });
   const [mostSoldService, setMostSoldService] = useState({ name: "-", count: 0 });
   const [mostRevenueService, setMostRevenueService] = useState({ name: "-", revenue: 0 });
+  const [personalMostSoldService, setPersonalMostSoldService] = useState({ name: "-", count: 0 });
+  const [personalMostRevenueService, setPersonalMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [loading, setLoading] = useState(true);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -68,8 +70,8 @@ const DashboardContent = () => {
   const revenuePieChartRef = useRef(null);
   const revenuePieChartInstance = useRef(null);
 
-  const isAdmin = ["admin", "dev", "senior admin", "srdev"].includes(
-    userSession?.user_role
+  const isAdmin = ["admin", "super admin", "director", "dev", "senior admin", "srdev", "sr dev"].includes(
+    (userSession?.user_role || "").toLowerCase()
   );
 
   const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -353,6 +355,17 @@ const DashboardContent = () => {
         })
       ];
 
+      if (!isAdmin) {
+        fetches.push(
+          fetch(`${apiUrl}/booking/all`, {
+            headers: {
+              "Content-Type": "application/json",
+              authorization: session.token,
+            },
+          })
+        );
+      }
+
       if (isAdmin) {
         fetches.push(
           fetch(`${apiUrl}/user/all`, {
@@ -382,6 +395,10 @@ const DashboardContent = () => {
         }
       }
 
+      const allCompanyBookings = !isAdmin && results[2]?.ok
+        ? ((await results[2].json()).Allbookings || [])
+        : bookings;
+
       if (isAdmin && results[2]) {
         const usersData = await results[2].json();
         setTotalUsers(usersData.Users?.length || 0);
@@ -390,6 +407,9 @@ const DashboardContent = () => {
       const today = getTodayDate();
       const currentMonth = new Date().getMonth();
       const currentYear = new Date().getFullYear();
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      threeMonthsAgo.setHours(0, 0, 0, 0);
 
       let bookingCount = 0;
       let currentMonthRevenue = 0;
@@ -422,14 +442,8 @@ const DashboardContent = () => {
 
         const rev = userSpecificRev;
 
-        const bookingDate = new Date(booking.date || booking.createdAt || booking.payment_date);
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
         const bookingTotalAmount = Number(booking.total_amount || 0);
-
-        const isCurrentMonthBooking =
-          !Number.isNaN(bookingDate.getTime()) &&
-          bookingDate.getMonth() === currentMonth &&
-          bookingDate.getFullYear() === currentYear;
 
         if (
           !Number.isNaN(paymentDate.getTime()) &&
@@ -471,7 +485,7 @@ const DashboardContent = () => {
           bdmRevMap[bdm].count += 1;
         }
 
-        if (isCurrentMonthBooking) {
+        if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= threeMonthsAgo) {
           const services = Array.isArray(booking.services)
             ? booking.services.filter((s) => typeof s === "string" && s.trim())
             : [];
@@ -525,6 +539,41 @@ const DashboardContent = () => {
         labels: months.map((m) => m.label),
         values: months.map((m) => m.value),
       });
+
+      if (!isAdmin) {
+        const companySoldMap = {};
+        const companyRevenueMap = {};
+        for (const booking of allCompanyBookings) {
+          const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
+          if (Number.isNaN(paymentDate.getTime()) || paymentDate < threeMonthsAgo) continue;
+          const services = Array.isArray(booking.services)
+            ? booking.services.filter((s) => typeof s === "string" && s.trim())
+            : [];
+          if (!services.length) continue;
+          const revenue = Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0)) || Number(booking.total_amount || 0);
+          const splitRevenue = revenue / services.length;
+          services.forEach((serviceNameRaw) => {
+            const serviceName = serviceNameRaw.trim();
+            companySoldMap[serviceName] = (companySoldMap[serviceName] || 0) + 1;
+            companyRevenueMap[serviceName] = (companyRevenueMap[serviceName] || 0) + splitRevenue;
+          });
+        }
+
+        const personalSoldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
+        const personalRevenueEntries = Object.entries(serviceRevenueMap).sort((a, b) => b[1] - a[1]);
+        const personalSoldTop = personalSoldEntries[0] || ["-", 0];
+        const personalRevenueTop = personalRevenueEntries[0] || ["-", 0];
+        setPersonalMostSoldService({ name: personalSoldTop[0], count: personalSoldTop[1] });
+        setPersonalMostRevenueService({ name: personalRevenueTop[0], revenue: Number(personalRevenueTop[1] || 0) });
+
+        Object.keys(serviceSoldMap).forEach((key) => delete serviceSoldMap[key]);
+        Object.assign(serviceSoldMap, companySoldMap);
+        Object.keys(serviceRevenueMap).forEach((key) => delete serviceRevenueMap[key]);
+        Object.assign(serviceRevenueMap, companyRevenueMap);
+      } else {
+        setPersonalMostSoldService({ name: "-", count: 0 });
+        setPersonalMostRevenueService({ name: "-", revenue: 0 });
+      }
 
       const soldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
       const revenueEntries = Object.entries(serviceRevenueMap).sort((a, b) => b[1] - a[1]);
@@ -892,7 +941,7 @@ const DashboardContent = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <LocalOfferOutlinedIcon sx={{ color: "#3b82f6" }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Most Sold Service (MTD)
+                    Most Sold Service (Last 3 Months)
                   </Typography>
                 </Box>
                 <Chip
@@ -901,11 +950,18 @@ const DashboardContent = () => {
                   sx={{ bgcolor: "rgba(59,130,246,0.14)", color: "#1d4ed8", fontWeight: 700 }}
                 />
               </Box>
+              {!isAdmin && (
+                <Chip
+                  size="small"
+                  label={`Mine: ${personalMostSoldService.name} - ${personalMostSoldService.count}`}
+                  sx={{ mb: 1.5, bgcolor: "rgba(16,185,129,0.14)", color: "#047857", fontWeight: 700 }}
+                />
+              )}
               <Box sx={{ height: 250 }}>
                 {serviceSoldData.labels.length > 0 ? (
                   <canvas ref={soldChartRef} />
                 ) : (
-                  <Typography variant="body2" color="text.secondary">No service sales this month yet.</Typography>
+                  <Typography variant="body2" color="text.secondary">No service sales in the last 3 months.</Typography>
                 )}
               </Box>
             </CardContent>
@@ -919,7 +975,7 @@ const DashboardContent = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <PaidOutlinedIcon sx={{ color: ACCENT }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Most Revenue Service (MTD)
+                    Most Revenue Service (Last 3 Months)
                   </Typography>
                 </Box>
                 <Chip
@@ -928,11 +984,18 @@ const DashboardContent = () => {
                   sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, fontWeight: 700 }}
                 />
               </Box>
+              {!isAdmin && (
+                <Chip
+                  size="small"
+                  label={`Mine: ${personalMostRevenueService.name} - Rs ${personalMostRevenueService.revenue.toLocaleString()}`}
+                  sx={{ mb: 1.5, bgcolor: "rgba(16,185,129,0.14)", color: "#047857", fontWeight: 700 }}
+                />
+              )}
               <Box sx={{ height: 250 }}>
                 {serviceRevenueData.labels.length > 0 ? (
                   <canvas ref={revenueChartRef} />
                 ) : (
-                  <Typography variant="body2" color="text.secondary">No service revenue this month yet.</Typography>
+                  <Typography variant="body2" color="text.secondary">No service revenue in the last 3 months.</Typography>
                 )}
               </Box>
             </CardContent>
@@ -948,7 +1011,7 @@ const DashboardContent = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <PaidOutlinedIcon sx={{ color: "#6366f1" }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Service Revenue Distribution (MTD)
+                    Company Service Revenue Distribution (Last 3 Months)
                   </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary">
@@ -960,7 +1023,7 @@ const DashboardContent = () => {
                   <canvas ref={revenuePieChartRef} />
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    No service revenue this month yet.
+                    No service revenue in the last 3 months.
                   </Typography>
                 )}
               </Box>

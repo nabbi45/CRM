@@ -1,10 +1,19 @@
 import express from "express";
 import { MessageModel } from "../models/MessageModel.js";
 import { UserModel } from "../models/UserModel.js";
+import { ChatGroupModel } from "../models/ChatGroupModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { getUserJoinDate } from "../utils/userJoinDate.js";
 
 const ChatRoutes = express.Router();
+
+const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
+const GROUP_CREATOR_ROLES = ["admin", "super admin", "senior admin", "director", "hr", "dev", "srdev", "sr dev"];
+
+const canCreateGroup = (user) => {
+    const role = normalizeRole(user?.user_role);
+    return GROUP_CREATOR_ROLES.includes(role);
+};
 
 // Get all users for the sidebar, including their last message with the current user
 ChatRoutes.get("/users", authenticateUser, async (req, res) => {
@@ -25,6 +34,7 @@ ChatRoutes.get("/users", authenticateUser, async (req, res) => {
 
                 const lastMsg = await MessageModel.findOne({
                     is_global: false,
+                    is_group: { $ne: true },
                     $or: isSelf 
                         ? [{ sender_id: currentUserId, receiver_id: currentUserId }]
                         : [
@@ -53,6 +63,70 @@ ChatRoutes.get("/users", authenticateUser, async (req, res) => {
         });
 
         return res.status(200).send(usersWithLastMsg);
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
+// Get groups current user belongs to
+ChatRoutes.get("/groups", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const groups = await ChatGroupModel.find({ "members.user_id": currentUserId })
+            .sort({ updatedAt: -1 })
+            .lean();
+
+        const groupsWithLastMsg = await Promise.all(groups.map(async (group) => {
+            const lastMessage = await MessageModel.findOne({
+                is_group: true,
+                group_id: group._id.toString(),
+            })
+                .sort({ createdAt: -1 })
+                .select("message createdAt sender_name sender_id read_by")
+                .lean();
+            return { ...group, lastMessage };
+        }));
+
+        return res.status(200).send(groupsWithLastMsg);
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
+// Create a group chat
+ChatRoutes.post("/groups", authenticateUser, async (req, res) => {
+    try {
+        if (!canCreateGroup(req.user)) {
+            return res.status(403).send({ message: "Only HR, super admin, and higher authorities can create groups." });
+        }
+
+        const { name, memberIds = [] } = req.body;
+        if (!name || !name.trim()) {
+            return res.status(400).send({ message: "Group name is required." });
+        }
+
+        const uniqueIds = [...new Set([req.user.userId, ...memberIds].filter(Boolean).map(String))];
+        if (uniqueIds.length < 2) {
+            return res.status(400).send({ message: "Select at least one group member." });
+        }
+
+        const users = await UserModel.find({ _id: { $in: uniqueIds } }).select("name").lean();
+        const nameById = users.reduce((acc, user) => {
+            acc[user._id.toString()] = user.name;
+            return acc;
+        }, {});
+
+        const group = await ChatGroupModel.create({
+            name: name.trim(),
+            created_by: req.user.userId,
+            created_by_name: nameById[req.user.userId] || "",
+            members: uniqueIds.map((id) => ({
+                user_id: id,
+                user_name: nameById[id] || "",
+            })),
+        });
+
+        return res.status(201).send({ message: "Group created successfully.", group });
     } catch (error) {
         return res.status(500).send({ message: error.message });
     }
@@ -98,6 +172,40 @@ ChatRoutes.get("/direct/:receiverId", authenticateUser, async (req, res) => {
         // Mark as read natively when fetching
         await MessageModel.updateMany(
             { sender_id: receiverId, receiver_id: currentUserId, "read_by.user_id": { $ne: currentUserId } },
+            { $addToSet: { read_by: { user_id: currentUserId, read_at: new Date() } } }
+        );
+
+        return res.status(200).send(messages);
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
+// Get group chat history
+ChatRoutes.get("/groups/:groupId/messages", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const groupId = req.params.groupId;
+
+        const group = await ChatGroupModel.findOne({
+            _id: groupId,
+            "members.user_id": currentUserId,
+        }).lean();
+
+        if (!group) {
+            return res.status(403).send({ message: "You are not a member of this group." });
+        }
+
+        const messages = await MessageModel.find({
+            is_group: true,
+            group_id: groupId,
+        })
+            .sort({ createdAt: 1 })
+            .limit(150)
+            .lean();
+
+        await MessageModel.updateMany(
+            { is_group: true, group_id: groupId, "read_by.user_id": { $ne: currentUserId } },
             { $addToSet: { read_by: { user_id: currentUserId, read_at: new Date() } } }
         );
 

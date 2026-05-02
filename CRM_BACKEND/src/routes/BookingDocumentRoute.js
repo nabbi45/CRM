@@ -15,7 +15,7 @@ const upload = multer({
 });
 
 // Document types mapping
-const DOCUMENT_TYPES = ["agreement", "pitch_deck", "dpr", "application", "others"];
+const DOCUMENT_TYPES = ["agreement", "pitch_deck", "dpr", "application", "aadhaar", "pan", "others"];
 
 /**
  * Upload a document for a booking
@@ -154,8 +154,10 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
                     agreement: (bookingDocs.agreement || []).length,
                     pitch_deck: (bookingDocs.pitch_deck || []).length,
                     dpr: (bookingDocs.dpr || []).length,
-                    application: (bookingDocs.application || []).length,
-                    others: (bookingDocs.others || []).length
+            application: (bookingDocs.application || []).length,
+            aadhaar: (bookingDocs.aadhaar || []).length,
+            pan: (bookingDocs.pan || []).length,
+            others: (bookingDocs.others || []).length
                 }
             };
         });
@@ -188,6 +190,8 @@ BookingDocumentRoutes.get("/stats", authenticateUser, async (req, res) => {
             pitch_deck: 0,
             dpr: 0,
             application: 0,
+            aadhaar: 0,
+            pan: 0,
             others: 0
         };
 

@@ -26,6 +26,7 @@ import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { MessageModel } from "./models/MessageModel.js";
+import { ChatGroupModel } from "./models/ChatGroupModel.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,7 +114,7 @@ global.onlineUsers = new Map();
 io.on("connection", (socket) => {
   console.log("New client connected: " + socket.id);
 
-  socket.on("join", (userId) => {
+  socket.on("join", async (userId) => {
     if (userId) {
       if (!global.onlineUsers.has(userId)) {
         global.onlineUsers.set(userId, new Set());
@@ -123,21 +124,41 @@ io.on("connection", (socket) => {
       socket.join("global_chat"); // Everyone joins the global room
       socket.join(`user_${userId}`); // Join personal room for DMs
 
+      try {
+        const groups = await ChatGroupModel.find({ "members.user_id": userId }).select("_id").lean();
+        groups.forEach((group) => socket.join(`group_${group._id.toString()}`));
+      } catch (error) {
+        console.error("Socket group join error:", error.message);
+      }
+
       // Broadcast to everyone that this user is online
       io.emit("user_online_status", { userId, isOnline: true });
     }
   });
 
+  socket.on("joinGroup", (groupId) => {
+    if (groupId) {
+      socket.join(`group_${groupId}`);
+    }
+  });
+
   socket.on("sendMessage", async (data) => {
     try {
-      const { sender_id, sender_name, receiver_id, is_global, message, attachment_url, attachment_type } = data;
+      const { sender_id, sender_name, receiver_id, is_global, is_group, group_id, message, attachment_url, attachment_type } = data;
+
+      if (is_group) {
+        const group = await ChatGroupModel.findOne({ _id: group_id, "members.user_id": sender_id }).lean();
+        if (!group) return;
+      }
 
       // Save to database
       const newMsg = await MessageModel.create({
         sender_id,
         sender_name,
-        receiver_id: is_global ? null : receiver_id,
-        is_global,
+        receiver_id: is_global || is_group ? null : receiver_id,
+        is_global: Boolean(is_global),
+        is_group: Boolean(is_group),
+        group_id: is_group ? group_id : null,
         message,
         attachment_url,
         attachment_type,
@@ -147,6 +168,11 @@ io.on("connection", (socket) => {
       if (is_global) {
         // Broadcast to "All Company"
         io.to("global_chat").emit("receiveMessage", newMsg);
+      } else if (is_group) {
+        const group = await ChatGroupModel.findById(group_id).lean();
+        (group?.members || []).forEach((member) => {
+          io.to(`user_${member.user_id}`).emit("receiveMessage", newMsg);
+        });
       } else {
         // Send to specific user if online
         io.to(`user_${receiver_id}`).emit("receiveMessage", newMsg);
@@ -159,9 +185,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typing", (data) => {
-    const { sender_id, sender_name, receiver_id, is_global, typing } = data;
+    const { sender_id, sender_name, receiver_id, is_global, is_group, group_id, typing } = data;
     if (is_global) {
       socket.to("global_chat").emit("user_typing", { sender_id, sender_name, typing, is_global: true });
+    } else if (is_group) {
+      socket.to(`group_${group_id}`).emit("user_typing", { sender_id, sender_name, typing, is_group: true, group_id });
     } else {
       socket.to(`user_${receiver_id}`).emit("user_typing", { sender_id, sender_name, typing, is_global: false });
     }
