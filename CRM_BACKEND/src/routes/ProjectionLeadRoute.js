@@ -7,8 +7,8 @@ const ProjectionLeadRoutes = express.Router();
 
 const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
 
-const ROLES_WITH_ALL_ACCESS = ["admin", "super admin", "dev", "srdev", "senior admin"];
-const ROLES_WITH_EDIT_ALL = ["bdm", ...ROLES_WITH_ALL_ACCESS];
+const ROLES_WITH_ALL_ACCESS = ["admin", "super admin", "director", "dev", "srdev", "sr dev"];
+const ROLES_WITH_EDIT_ALL = [...ROLES_WITH_ALL_ACCESS];
 
 /**
  * Check if user can view all leads (has role OR projection_leads feature permission)
@@ -16,7 +16,7 @@ const ROLES_WITH_EDIT_ALL = ["bdm", ...ROLES_WITH_ALL_ACCESS];
 const canViewAllLeads = (user) => {
   const role = normalizeRole(user?.user_role);
   const permissions = user?.feature_permissions || [];
-  return ROLES_WITH_ALL_ACCESS.includes(role) || permissions.includes('projection_leads');
+  return ROLES_WITH_ALL_ACCESS.includes(role) || permissions.includes('projection_leads_all');
 };
 
 /**
@@ -30,8 +30,8 @@ const canEditLead = (user, lead, userId) => {
   // Full access roles can edit any lead
   if (ROLES_WITH_EDIT_ALL.includes(role)) return true;
   
-  // Users with projection_leads permission can edit any lead
-  if (permissions.includes('projection_leads')) return true;
+  // Users with explicit all-leads permission can edit any lead
+  if (permissions.includes('projection_leads_all')) return true;
   
   // Creator can edit their own lead
   return lead.created_by === userId;

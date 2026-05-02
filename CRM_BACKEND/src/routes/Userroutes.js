@@ -15,6 +15,7 @@ const FEATURE_KEYS = [
   'dashboard_overview',
   'new_booking',
   'projection_leads',
+  'projection_leads_all',
   'all_bookings',
   'proforma_invoice',
   'agreements_generator',
@@ -42,6 +43,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'dashboard_overview',
     'new_booking',
     'projection_leads',
+    'projection_leads_all',
     'all_bookings',
     'proforma_invoice',
     'agreements_generator',
@@ -61,6 +63,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'dashboard_overview',
     'new_booking',
     'projection_leads',
+    'projection_leads_all',
     'all_bookings',
     'proforma_invoice',
     'agreements_generator',
@@ -105,7 +108,7 @@ const getDefaultFeaturePermissionsForRole = (role) => {
   const normalized = normalizeRole(role);
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
-  return ['dashboard_overview', 'projection_leads', 'timecard', 'communication', 'employee_profile'];
+  return ['dashboard_overview', 'timecard', 'communication', 'employee_profile'];
 };
 
 const UserRoutes = express.Router();

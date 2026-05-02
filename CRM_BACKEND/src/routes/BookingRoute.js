@@ -119,7 +119,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;
   let updates = req.body;
 
-  const user_role = req.headers["user-role"];
+  const user_role = (req.headers["user-role"] || "").toString().trim().toLowerCase();
   if (!user_role) {
     return res.status(400).send({ message: "User role is required" });
   }
@@ -134,10 +134,13 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       return res.status(404).send("Booking not found");
     }
 
-    const rolesWithFullAccess = ["dev", "senior admin", "srdev"];
-    const requesterId = req.user?.user_id;
+    const rolesWithFullAccess = ["dev", "senior admin", "super admin", "director", "srdev", "sr dev"];
+    const requesterId = req.user?.userId || req.user?.user_id;
 
-    if (user_role === "admin") {
+    const includesContinuationTerm = Object.prototype.hasOwnProperty.call(updates, "term_2") ||
+      Object.prototype.hasOwnProperty.call(updates, "term_3");
+
+    if (user_role === "admin" && !includesContinuationTerm) {
       const { services, ...allowedUpdates } = updates;
       updates = allowedUpdates;
     }
@@ -207,7 +210,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       });
     }
 
-    const continuationAllowedKeys = ["term_2", "term_3", "payment_date"];
+    const continuationAllowedKeys = ["term_2", "term_3", "payment_date", "services", "total_amount"];
     const updateKeys = Object.keys(updates);
     const isOwner = String(oldBooking.user_id || "") === String(requesterId || "");
     const isSharedUser = oldBooking.shared_with && oldBooking.shared_with.some(sw => String(sw.user_id) === String(requesterId || ""));

@@ -16,7 +16,7 @@ const employeeProfileSchema = mongoose.Schema(
     branch: { 
       type: String, 
       required: true,
-      enum: ["1206", "808", "1512", "Admin", "Digital", "407 AMD", "408 AMD", "906"]
+      trim: true
     },
     gender: { 
       type: String, 

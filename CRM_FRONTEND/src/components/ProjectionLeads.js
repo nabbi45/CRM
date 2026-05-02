@@ -37,8 +37,8 @@ import { useNavigate } from "react-router-dom";
 import { apiUrl } from "./LoginSignup";
 
 const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
-const ROLES_WITH_ALL_ACCESS = ["admin", "super admin", "dev", "srdev", "senior admin"];
-const ROLES_WITH_EDIT_ALL = ["bdm", ...ROLES_WITH_ALL_ACCESS];
+const ROLES_WITH_ALL_ACCESS = ["admin", "super admin", "director", "dev", "srdev", "sr dev"];
+const ROLES_WITH_EDIT_ALL = [...ROLES_WITH_ALL_ACCESS];
 
 const emptyForm = {
   date: new Date().toISOString().split("T")[0],
@@ -58,6 +58,10 @@ const ProjectionLeads = () => {
   const token = session?.token || "";
   const userId = session?.user_id || "";
   const userRole = normalizeRole(session?.user_role);
+  const featurePermissions = useMemo(
+    () => (Array.isArray(session?.feature_permissions) ? session.feature_permissions : []),
+    [session?.feature_permissions]
+  );
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -73,11 +77,15 @@ const ProjectionLeads = () => {
   const [form, setForm] = useState(emptyForm);
   const [companyBranches, setCompanyBranches] = useState([]);
 
-  const canViewAll = useMemo(() => ROLES_WITH_ALL_ACCESS.includes(userRole), [userRole]);
+  const canViewAll = useMemo(
+    () => ROLES_WITH_ALL_ACCESS.includes(userRole) || featurePermissions.includes("projection_leads_all"),
+    [userRole, featurePermissions]
+  );
 
   const canEditLead = (lead) => {
     if (!lead) return false;
     if (ROLES_WITH_EDIT_ALL.includes(userRole)) return true;
+    if (featurePermissions.includes("projection_leads_all")) return true;
     return lead.created_by === userId;
   };
 

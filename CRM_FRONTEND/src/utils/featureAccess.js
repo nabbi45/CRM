@@ -2,6 +2,7 @@ export const FEATURE_KEYS = [
   'dashboard_overview',
   'new_booking',
   'projection_leads',
+  'projection_leads_all',
   'all_bookings',
   'proforma_invoice',
   'agreements_generator',
@@ -23,6 +24,7 @@ export const FEATURE_LABELS = {
   dashboard_overview: 'Dashboard',
   new_booking: 'New Booking',
   projection_leads: 'Projection Lead',
+  projection_leads_all: 'View All Projection Leads',
   all_bookings: 'All Booking',
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
@@ -60,6 +62,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'dashboard_overview',
     'new_booking',
     'projection_leads',
+    'projection_leads_all',
     'all_bookings',
     'proforma_invoice',
     'agreements_generator',
@@ -79,6 +82,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'dashboard_overview',
     'new_booking',
     'projection_leads',
+    'projection_leads_all',
     'all_bookings',
     'proforma_invoice',
     'agreements_generator',
@@ -113,7 +117,7 @@ export const getDefaultFeaturePermissionsForRole = (role) => {
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
 
-  return ['dashboard_overview', 'projection_leads', 'timecard', 'communication', 'employee_profile'];
+  return ['dashboard_overview', 'timecard', 'communication', 'employee_profile'];
 };
 
 export const applyRoleTemplate = (roleKey) => ({
@@ -153,7 +157,7 @@ export const canAccessFeature = (userSession, featureKey) =>
   resolveFeaturePermissions(userSession).includes(featureKey);
 
 // Helper to check higher authority role on frontend
-export const HIGHER_AUTHORITY_ROLES = ['admin', 'senior admin', 'super admin', 'hr', 'dev', 'srdev'];
+export const HIGHER_AUTHORITY_ROLES = ['admin', 'senior admin', 'super admin', 'director', 'hr', 'dev', 'srdev', 'sr dev'];
 export const isHigherAuthority = (userSession) => {
   const role = (userSession?.user_role || '').trim().toLowerCase();
   return HIGHER_AUTHORITY_ROLES.includes(role);

@@ -354,6 +354,11 @@ const AddBooking = ({ onClose }) => {
         if (isContinuationTerm && selectedSourceBooking?._id) {
           const continuationPayload = {
             payment_date: formData.paymentDate,
+            services: Array.from(new Set([
+              ...(Array.isArray(selectedSourceBooking.services) ? selectedSourceBooking.services : []),
+              ...(Array.isArray(formData.services) ? formData.services : []),
+            ].filter(Boolean))),
+            total_amount,
             updatedBy: userSession.name || "Unknown",
             note: `${formData.selectTerm} added from continuation flow`,
           };
