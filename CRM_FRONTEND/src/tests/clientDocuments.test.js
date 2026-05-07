@@ -1,11 +1,11 @@
 /**
- * ProcessDocuments Component Tests
+ * ClientDocuments Component Tests
  * Tests: Document display, search, upload, delete functionality
  */
 
 import '@testing-library/jest-dom';
 
-describe('📄 PROCESS DOCUMENTS COMPONENT TESTS', () => {
+describe('📄 CLIENT DOCUMENTS COMPONENT TESTS', () => {
   describe('Test 26: Document Types Display', () => {
     const DOCUMENT_TYPES = [
       { key: 'agreement', label: 'Agreement', color: '#8b5cf6' },
@@ -94,4 +94,4 @@ describe('📄 PROCESS DOCUMENTS COMPONENT TESTS', () => {
   });
 });
 
-console.log('✅ ProcessDocuments tests loaded');
+console.log('✅ ClientDocuments tests loaded');

@@ -102,7 +102,7 @@ BookingDocumentRoutes.get("/booking/:bookingId", authenticateUser, async (req, r
 });
 
 /**
- * Get all documents with booking info (for Process Documents page)
+ * Get all documents with booking info (for Client Documents page)
  * GET /api/booking-documents/all
  */
 BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {

@@ -28,6 +28,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tabs,
+  Tab,
+  Collapse,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import SearchIcon from '@mui/icons-material/Search';
@@ -39,8 +42,11 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { apiUrl } from './LoginSignup';
 import { canAccessFeature, isHigherAuthority } from '../utils/featureAccess';
+import FileActivityTable from './FileActivityTable';
 
 const DOCUMENT_TYPES = [
   { key: 'agreement', label: 'Agreement', color: '#8b5cf6' },
@@ -50,7 +56,7 @@ const DOCUMENT_TYPES = [
   { key: 'others', label: 'Others', color: '#64748b' },
 ];
 
-const ProcessDocuments = () => {
+const ClientDocuments = () => {
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({
     agreement: 0,
@@ -63,6 +69,8 @@ const ProcessDocuments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [userSession, setUserSession] = useState(null);
+  const [currentTab, setCurrentTab] = useState(0);
+  const [expandedBookingId, setExpandedBookingId] = useState(null);
   
   // Dialog states
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -355,29 +363,42 @@ const ProcessDocuments = () => {
 
   return (
     <Box sx={{ p: 3, maxWidth: 1600, mx: 'auto' }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Process Documents
+          Client Documents
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {stats.totalBookings} bookings found
         </Typography>
+        
+        <Tabs 
+          value={currentTab} 
+          onChange={(e, newValue) => setCurrentTab(newValue)}
+          sx={{
+            '& .MuiTab-root': { fontWeight: 600, fontSize: '0.95rem', textTransform: 'none' }
+          }}
+        >
+          <Tab label="Document Vault" />
+          <Tab label="File Activity" />
+        </Tabs>
       </Box>
 
-      {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {DOCUMENT_TYPES.map((type) => (
-          <Grid item xs={12} sm={6} md={2.4} key={type.key}>
-            <StatCard
-              title={type.label}
-              count={stats[type.key] || 0}
-              total={Object.values(stats).reduce((a, b) => a + b, 0) - stats.totalBookings}
-              color={type.color}
-            />
+      {/* Tab 0: Document Vault */}
+      {currentTab === 0 && (
+        <>
+          {/* Stats Cards */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {DOCUMENT_TYPES.map((type) => (
+              <Grid item xs={12} sm={6} md={2.4} key={type.key}>
+                <StatCard
+                  title={type.label}
+                  count={stats[type.key] || 0}
+                  total={Object.values(stats).reduce((a, b) => a + b, 0) - stats.totalBookings}
+                  color={type.color}
+                />
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
 
       {/* Search Bar */}
       <Paper
@@ -625,6 +646,66 @@ const ProcessDocuments = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      </>
+      )}
+
+      {/* Tab 1: File Activity */}
+      {currentTab === 1 && (
+        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ background: (theme) => theme.palette.mode === 'dark' ? 'rgba(30,41,59,0.8)' : '#f8fafc' }}>
+                <TableCell width="40" />
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Company</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Services</TableCell>
+                <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Date</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bookings.map((booking) => (
+                <React.Fragment key={booking._id}>
+                  <TableRow 
+                    sx={{ cursor: 'pointer', '&:hover': { background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' } }}
+                    onClick={() => setExpandedBookingId(expandedBookingId === booking._id ? null : booking._id)}
+                  >
+                    <TableCell>
+                      <IconButton size="small">
+                        {expandedBookingId === booking._id ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                      </IconButton>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>{booking.company_name}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {(booking.services || []).map((service, i) => (
+                          <Chip key={i} label={service} size="small" sx={{ fontSize: '0.7rem', height: 20 }} />
+                        ))}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      {booking.date ? new Date(booking.date).toLocaleDateString('en-GB') : '-'}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+                      <Collapse in={expandedBookingId === booking._id} timeout="auto" unmountOnExit>
+                        <Box sx={{ p: 2, background: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#fcfcfc' }}>
+                          <FileActivityTable 
+                            booking={booking} 
+                            userSession={userSession} 
+                            isAdmin={canManageDocuments()} 
+                          />
+                        </Box>
+                      </Collapse>
+                    </TableCell>
+                  </TableRow>
+                </React.Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -846,4 +927,4 @@ const ProcessDocuments = () => {
   );
 };
 
-export default ProcessDocuments;
+export default ClientDocuments;

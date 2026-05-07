@@ -53,7 +53,7 @@ describe('👥 USER ROUTES TESTS', () => {
       const defaults = {
         admin: [
           'dashboard_overview', 'projection_leads', 'agreements_generator',
-          'generated_documents', 'process_documents', 'manage_users',
+          'generated_documents', 'client_documents', 'manage_users',
           'manage_services', 'company_profile', 'employee_profile', 'timecard'
         ],
         hr: ['dashboard_overview', 'employee_profile', 'timecard', 'communication'],
@@ -61,7 +61,7 @@ describe('👥 USER ROUTES TESTS', () => {
       };
 
       expect(defaults.admin).toContain('manage_users');
-      expect(defaults.admin).toContain('process_documents');
+      expect(defaults.admin).toContain('client_documents');
       expect(defaults.hr).toContain('employee_profile');
       expect(defaults.sales).toContain('projection_leads');
     });

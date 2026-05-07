@@ -10,7 +10,12 @@ const bookingDocumentSchema = mongoose.Schema(
     },
     documentType: { 
       type: String, 
-      enum: ["agreement", "pitch_deck", "dpr", "application", "others"],
+      enum: [
+        "agreement", "pitch_deck", "dpr", "application", "others",
+        "fa_agreement_sent", "fa_agreement_received", "fa_dpr_data", 
+        "fa_dpr", "fa_pitch_deck", "fa_app_coordination", 
+        "fa_application_service", "fa_acknowledgement_service"
+      ],
       required: true 
     },
     fileName: { type: String, required: true },

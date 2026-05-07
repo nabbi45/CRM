@@ -7,7 +7,7 @@ export const FEATURE_KEYS = [
   'proforma_invoice',
   'agreements_generator',
   'generated_documents',
-  'process_documents',
+  'client_documents',
   'manage_users',
   'manage_services',
   'company_profile',
@@ -29,7 +29,7 @@ export const FEATURE_LABELS = {
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
   generated_documents: 'Generated Documents',
-  process_documents: 'Process Documents',
+  client_documents: 'Client Documents',
   manage_users: 'Manage User',
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
@@ -67,7 +67,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'proforma_invoice',
     'agreements_generator',
     'generated_documents',
-    'process_documents',
+    'client_documents',
     'manage_documents',
     'edit_documents',
     'manage_users',
@@ -87,7 +87,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'proforma_invoice',
     'agreements_generator',
     'generated_documents',
-    'process_documents',
+    'client_documents',
     'manage_documents',
     'edit_documents',
     'manage_users',
@@ -130,6 +130,7 @@ export const sanitizeFeaturePermissions = (permissions = []) => {
   // Migrate old keys
   if (list.includes('create_profile') || list.includes('my_profile') || list.includes('manage_employees')) list.push('employee_profile');
   if (list.includes('leave_management')) list.push('timecard');
+  if (list.includes('process_documents')) list.push('client_documents');
 
   return [...new Set(list.filter((key) => FEATURE_KEYS.includes(key)))];
 };

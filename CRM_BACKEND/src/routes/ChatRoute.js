@@ -294,4 +294,68 @@ ChatRoutes.delete("/messages/:messageId", authenticateUser, async (req, res) => 
     }
 });
 
+// Delete a group
+ChatRoutes.delete("/groups/:groupId", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const { groupId } = req.params;
+
+        const group = await ChatGroupModel.findById(groupId);
+        if (!group) {
+            return res.status(404).send({ message: "Group not found" });
+        }
+
+        if (group.created_by !== currentUserId && !canCreateGroup(req.user)) {
+            return res.status(403).send({ message: "Only the group creator or admin can delete this group." });
+        }
+
+        await ChatGroupModel.findByIdAndDelete(groupId);
+        await MessageModel.deleteMany({ is_group: true, group_id: groupId });
+
+        return res.status(200).send({ message: "Group deleted successfully" });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
+// Update group members
+ChatRoutes.patch("/groups/:groupId/members", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const { groupId } = req.params;
+        const { memberIds = [] } = req.body;
+
+        const group = await ChatGroupModel.findById(groupId);
+        if (!group) {
+            return res.status(404).send({ message: "Group not found" });
+        }
+
+        if (group.created_by !== currentUserId && !canCreateGroup(req.user)) {
+            return res.status(403).send({ message: "Only the group creator or admin can manage members." });
+        }
+
+        const uniqueIds = [...new Set([group.created_by, ...memberIds].filter(Boolean).map(String))];
+        if (uniqueIds.length < 2) {
+            return res.status(400).send({ message: "Select at least one group member besides the creator." });
+        }
+
+        const users = await UserModel.find({ _id: { $in: uniqueIds } }).select("name").lean();
+        const nameById = users.reduce((acc, user) => {
+            acc[user._id.toString()] = user.name;
+            return acc;
+        }, {});
+
+        group.members = uniqueIds.map((id) => ({
+            user_id: id,
+            user_name: nameById[id] || "",
+        }));
+
+        await group.save();
+
+        return res.status(200).send({ message: "Group members updated successfully", group });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
 export default ChatRoutes;

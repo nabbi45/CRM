@@ -29,7 +29,7 @@ import DynamicHead from '../components/DynamicHead';
 import TeamInbox from '../components/TeamInbox';
 import ChatFAB from '../components/ChatFAB';
 import ProjectionLeads from '../components/ProjectionLeads';
-import ProcessDocuments from '../components/ProcessDocuments';
+import ClientDocuments from '../components/ClientDocuments';
 import { canAccessFeature } from '../utils/featureAccess';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
@@ -219,7 +219,7 @@ const Dashboard = () => {
           <Route path="employee-profile" element={<FeatureGuard userSession={userSession} feature="employee_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
-          <Route path="process-documents" element={<FeatureGuard userSession={userSession} feature="process_documents"><ProcessDocuments /></FeatureGuard>} />
+          <Route path="process-documents" element={<FeatureGuard userSession={userSession} feature="client_documents"><ClientDocuments /></FeatureGuard>} />
           <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="timecard"><Timecard /></FeatureGuard>} />
           <Route path="communication" element={<FeatureGuard userSession={userSession} feature="communication"><TeamInbox /></FeatureGuard>} />
         </Routes>

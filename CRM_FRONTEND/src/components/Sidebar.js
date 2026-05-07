@@ -178,8 +178,8 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'generated_documents')) {
       items.push({ text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents', color: '#06b6d4' });
     }
-    if (canAccessFeature(userSession, 'process_documents')) {
-      items.push({ text: 'Process Documents', icon: <FolderCopyOutlinedIcon />, path: '/dashboard/process-documents', color: '#8b5cf6' });
+    if (canAccessFeature(userSession, 'client_documents')) {
+      items.push({ text: 'Client Documents', icon: <FolderCopyOutlinedIcon />, path: '/dashboard/process-documents', color: '#8b5cf6' });
     }
     if (canAccessFeature(userSession, 'manage_users')) {
       items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser', color: '#f97316' });

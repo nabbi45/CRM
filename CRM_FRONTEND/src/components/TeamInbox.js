@@ -77,6 +77,9 @@ const TeamInbox = () => {
     const [editMessageText, setEditMessageText] = useState('');
     const [messageMenuAnchor, setMessageMenuAnchor] = useState(null);
     const [selectedMessage, setSelectedMessage] = useState(null);
+    const [groupMenuAnchor, setGroupMenuAnchor] = useState(null);
+    const [manageGroupDialogOpen, setManageGroupDialogOpen] = useState(false);
+    const [editingGroupMembers, setEditingGroupMembers] = useState([]);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const normalizedRole = (session.user_role || '').toLowerCase().trim();
@@ -515,7 +518,7 @@ const TeamInbox = () => {
                                         key={group._id}
                                         button
                                         onClick={() => {
-                                            setActiveChat({ id: group._id, name: group.name, isGroup: true, members: group.members || [] });
+                                            setActiveChat({ id: group._id, name: group.name, isGroup: true, members: group.members || [], created_by: group.created_by });
                                             if (isTabletOrBelow) setMobilePane('chat');
                                         }}
                                         sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
