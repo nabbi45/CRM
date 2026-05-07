@@ -422,6 +422,7 @@ const AddBooking = ({ onClose }) => {
           state: formData.state,
           status: "Pending",
           after_disbursement: formData.funddisbursement || "",
+          funddisbursement: formData.funddisbursement || "",
           shared_with: sharedPersons.filter((p) => p.userId && p.percentage).map((person) => {
             const userObj = users.find(u => String(u._id) === String(person.userId));
             return {
