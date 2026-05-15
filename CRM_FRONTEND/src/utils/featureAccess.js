@@ -18,6 +18,7 @@ export const FEATURE_KEYS = [
   'trash',
   'manage_documents',
   'edit_documents',
+  'security',
 ];
 
 export const FEATURE_LABELS = {
@@ -40,6 +41,7 @@ export const FEATURE_LABELS = {
   trash: 'Trash',
   manage_documents: 'Manage Documents (Delete/Reupload)',
   edit_documents: 'Edit Documents',
+  security: 'Security',
 };
 
 export const ROLE_TEMPLATE_OPTIONS = [
@@ -77,6 +79,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'timecard_edit',
     'communication',
     'employee_profile',
+    'security',
   ],
   'senior admin': [
     'dashboard_overview',
@@ -97,6 +100,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'timecard_edit',
     'communication',
     'employee_profile',
+    'security',
   ],
   hr: ['timecard', 'timecard_edit', 'communication', 'employee_profile'],
   bdm: [
@@ -150,6 +154,9 @@ export const resolveFeaturePermissions = (userSession = {}) => {
   // Force essential tabs for everyone regardless of role or explicit setting
   if (!final.includes('dashboard_overview')) final.push('dashboard_overview');
   if (!final.includes('employee_profile')) final.push('employee_profile');
+  if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) {
+    final.push('security');
+  }
 
   return [...new Set(final.filter(k => FEATURE_KEYS.includes(k)))];
 };

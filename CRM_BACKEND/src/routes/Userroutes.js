@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { authenticateUser, authorizeDevRole, authorizeFeature } from '../middlewares/authMiddleware.js';
 import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
+import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
 dotenv.config()
 const saltRounds = 5;
 
@@ -32,6 +33,7 @@ const FEATURE_KEYS = [
   'trash',
   'manage_documents',
   'edit_documents',
+  'security',
 ];
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
@@ -59,6 +61,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'timecard_edit',
     'communication',
     'employee_profile',
+    'security',
   ],
   'senior admin': [
     'dashboard_overview',
@@ -79,6 +82,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'timecard_edit',
     'communication',
     'employee_profile',
+    'security',
   ],
   hr: ['timecard', 'timecard_edit', 'communication', 'employee_profile'],
   bdm: [
@@ -364,6 +368,19 @@ UserRoutes.post('/login', async (req, res) => {
         message: "Invalid email or password.",
       });
     }
+
+    if (!canManageSecurity(user.user_role)) {
+      const clientIp = getClientIp(req);
+      const { allowed } = await isIpAllowed(clientIp);
+      if (!allowed) {
+        return res.status(403).send({
+          message: "Access blocked from this network. Please connect from an approved office IP or contact an administrator.",
+          code: "IP_RESTRICTED",
+          clientIp,
+        });
+      }
+    }
+
     const token = generateToken(user); // Generate JWT token
 
     const today = new Date().toISOString().split('T')[0];

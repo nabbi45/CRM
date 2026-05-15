@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
 
 // Authentication Middleware to check if the user is authenticated
 export const authenticateUser = async (req, res, next) => {
@@ -16,6 +17,19 @@ export const authenticateUser = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace with your JWT secret
     req.user = decoded; // Attach user data (including role) to request object
+
+    if (!canManageSecurity(decoded.user_role)) {
+      const clientIp = getClientIp(req);
+      const { allowed } = await isIpAllowed(clientIp);
+      if (!allowed) {
+        return res.status(403).send({
+          message: 'Access blocked from this network. Please connect from an approved office IP or contact an administrator.',
+          code: 'IP_RESTRICTED',
+          clientIp,
+        });
+      }
+    }
+
     next(); // Proceed to the next middleware or route handler
   } catch (error) {
     return res.status(401).send({ message: 'Invalid or expired token' });

@@ -35,6 +35,7 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import FolderCopyOutlinedIcon from '@mui/icons-material/FolderCopyOutlined';
+import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import { socket } from '../socket';
 import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
@@ -189,6 +190,9 @@ const Sidebar = () => {
     }
     if (canAccessFeature(userSession, 'company_profile')) {
       items.push({ text: 'Company Profile', icon: <BusinessOutlinedIcon />, path: '/dashboard/company-profile', color: '#6366f1' });
+    }
+    if (canAccessFeature(userSession, 'security')) {
+      items.push({ text: 'Security', icon: <SecurityOutlinedIcon />, path: '/dashboard/security', color: '#0ea5e9' });
     }
     if (canAccessFeature(userSession, 'timecard')) {
       items.push({ text: 'Timecard', icon: <EventNoteOutlinedIcon />, path: '/dashboard/timecard', color: '#14b8a6' });

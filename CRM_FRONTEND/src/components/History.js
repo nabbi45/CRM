@@ -99,6 +99,7 @@ const History = () => {
   const [activeFilters, setActiveFilters] = useState({});
   const [downloadAll, setDownloadAll] = useState(false); // ✅ checkbox state
   const [dateType, setDateType] = useState("booking");
+  const [selectedMonth, setSelectedMonth] = useState("");
   const isAdminView = ["dev", "admin", "senior admin", "srdev", "super admin", "director"].includes(
     (userSession?.user_role || "").toLowerCase()
   );
@@ -352,6 +353,7 @@ const History = () => {
     setSearchInput("");
     setStartDate("");
     setEndDate("");
+    setSelectedMonth("");
     setStatus("");
     setBdmSearch("");
     setService("");
@@ -440,13 +442,21 @@ const History = () => {
       return;
     }
 
-    if (startDate && endDate) {
+    const parsedStartDate = parseFilterDate(startDate);
+    const parsedEndDate = parseFilterDate(endDate);
+
+    if ((startDate || endDate) && (!parsedStartDate || !parsedEndDate)) {
+      enqueueSnackbar("Please enter dates as DD/MM/YYYY", { variant: "warning" });
+      return;
+    }
+
+    if (parsedStartDate && parsedEndDate) {
       if (dateType === "booking") {
-        filters.startDate = startDate;
-        filters.endDate = endDate;
+        filters.startDate = parsedStartDate;
+        filters.endDate = parsedEndDate;
       } else if (dateType === "payment") {
-        filters.paymentStartDate = startDate;
-        filters.paymentEndDate = endDate;
+        filters.paymentStartDate = parsedStartDate;
+        filters.paymentEndDate = parsedEndDate;
       }
     }
 
@@ -481,6 +491,31 @@ const History = () => {
 
   const upperText = (value) => value ? String(value).toUpperCase() : "N/A";
   const lowerEmail = (value) => value ? String(value).toLowerCase() : "N/A";
+
+  const parseFilterDate = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+
+    const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      const [, day, month, year] = slashMatch;
+      const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const parsed = new Date(iso);
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === iso ? iso : "";
+    }
+
+    const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) return raw;
+
+    return "";
+  };
+
+  const formatFilterDate = (isoDate) => {
+    const match = String(isoDate || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return isoDate || "";
+    const [, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  };
 
   const handleCopy = (booking) => {
     const bookingDetails = `
@@ -695,72 +730,137 @@ const History = () => {
         </Box>
       </Box>
 
-      {/* Unified Search Bar Container */}
-      <div className="filter-container search-container" style={{ margin: '20px auto', display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center' }}>
-        <input
-          type="text"
-          className="search-bar"
-          style={{ padding: '10px 15px', width: '100%', maxWidth: '600px', borderRadius: '8px', border: '1px solid #ccc' }}
-          placeholder="Search by Employee, Date (YYYY-MM-DD), Client, Booking ID, Service, Status..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={handleKeyPress}
-        />
-        <button
-          className="search-button"
-          onClick={handleSearch}
-          style={{ padding: '10px 20px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-        >
-          <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '8px' }}></i>
-          Search
-        </button>
-        <button
-          className="reset-button"
-          onClick={handleResetFilters}
-          style={{ padding: '10px 20px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-        >
-          Reset
-        </button>
-      </div>
-      <div className="filter-container" style={{ margin: '0 auto 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', alignItems: 'end' }}>
-        <select value={dateType} onChange={(e) => setDateType(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
-          <option value="booking">Booking Date</option>
-          <option value="payment">Payment Date</option>
-        </select>
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
-        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
-        <input type="month" onChange={(e) => {
-          if (!e.target.value) return;
-          const [year, month] = e.target.value.split('-').map(Number);
-          const first = `${e.target.value}-01`;
-          const lastDate = new Date(year, month, 0).getDate();
-          setStartDate(first);
-          setEndDate(`${e.target.value}-${String(lastDate).padStart(2, '0')}`);
-        }} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
-        <input type="text" placeholder="BDM name" value={bdmSearch} onChange={(e) => setBdmSearch(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }} />
-        <select value={paymentmode} onChange={(e) => setPaymentmode(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
-          <option value="">Payment Method</option>
-          <option value="Axis Bank">Axis Bank</option>
-          <option value="IDFC BANK">IDFC Bank</option>
-          <option value="Razor Pay">Razor Pay</option>
-          <option value="Cashfree">Cashfree</option>
-          <option value="Cheque IDFC Bank">Cheque IDFC Bank</option>
-          <option value="Cheque Axis Bank">Cheque Axis Bank</option>
-          <option value="Cash">Cash</option>
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
-          <option value="">Status</option>
-          <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
-        </select>
-        <select value={services} onChange={(e) => setService(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #ccc' }}>
-          <option value="">Service</option>
-          {servicesList.map((service) => (
-            <option key={service.value || service.label} value={service.value || service.label}>{service.label || service.value}</option>
-          ))}
-        </select>
-      </div>
+      <section className="history-filter-panel" aria-label="Booking filters">
+        <div className="history-filter-header">
+          <div>
+            <h2>Find Bookings</h2>
+            <p>Search directly, or combine filters below.</p>
+          </div>
+          <div className="history-filter-actions">
+            <button className="search-button" onClick={handleSearch}>
+              <i className="fa-solid fa-magnifying-glass"></i>
+              Search
+            </button>
+            <button className="reset-button" onClick={handleResetFilters}>
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div className="history-search-row">
+          <label className="filter-field filter-field-wide">
+            <span>Universal Search</span>
+            <input
+              type="text"
+              className="history-filter-input"
+              placeholder="Employee, client, booking ID, service, status..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={handleKeyPress}
+            />
+          </label>
+        </div>
+
+        <div className="history-filter-grid">
+          <label className="filter-field">
+            <span>Date Type</span>
+            <select className="history-filter-input" value={dateType} onChange={(e) => setDateType(e.target.value)}>
+              <option value="booking">Booking Date</option>
+              <option value="payment">Payment Date</option>
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span>From Date</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="history-filter-input"
+              placeholder="DD/MM/YYYY"
+              value={formatFilterDate(startDate)}
+              onChange={(e) => setStartDate(e.target.value)}
+              onKeyDown={handleKeyPress}
+            />
+          </label>
+
+          <label className="filter-field">
+            <span>To Date</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="history-filter-input"
+              placeholder="DD/MM/YYYY"
+              value={formatFilterDate(endDate)}
+              onChange={(e) => setEndDate(e.target.value)}
+              onKeyDown={handleKeyPress}
+            />
+          </label>
+
+          <label className="filter-field">
+            <span>Quick Month</span>
+            <input
+              type="month"
+              className="history-filter-input"
+              value={selectedMonth}
+              onChange={(e) => {
+                setSelectedMonth(e.target.value);
+                if (!e.target.value) return;
+                const [year, month] = e.target.value.split('-').map(Number);
+                const first = `${e.target.value}-01`;
+                const lastDate = new Date(year, month, 0).getDate();
+                setStartDate(formatFilterDate(first));
+                setEndDate(formatFilterDate(`${e.target.value}-${String(lastDate).padStart(2, '0')}`));
+              }}
+            />
+          </label>
+
+          <label className="filter-field">
+            <span>BDM Name</span>
+            <input
+              type="text"
+              className="history-filter-input"
+              placeholder="Employee name"
+              value={bdmSearch}
+              onChange={(e) => setBdmSearch(e.target.value)}
+              onKeyDown={handleKeyPress}
+            />
+          </label>
+
+          <label className="filter-field">
+            <span>Payment Method</span>
+            <select className="history-filter-input" value={paymentmode} onChange={(e) => setPaymentmode(e.target.value)}>
+              <option value="">Any method</option>
+              <option value="Axis Bank">Axis Bank</option>
+              <option value="IDFC BANK">IDFC Bank</option>
+              <option value="Razor Pay">Razor Pay</option>
+              <option value="Cashfree">Cashfree</option>
+              <option value="Cheque IDFC Bank">Cheque IDFC Bank</option>
+              <option value="Cheque Axis Bank">Cheque Axis Bank</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span>Status</span>
+            <select className="history-filter-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">Any status</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </label>
+
+          <label className="filter-field">
+            <span>Service</span>
+            <select className="history-filter-input" value={services} onChange={(e) => setService(e.target.value)}>
+              <option value="">Any service</option>
+              {servicesList.map((service) => (
+                <option key={service.value || service.label} value={service.value || service.label}>{service.label || service.value}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
       <div className="booking-list">
         {bookings
           .filter(b => {

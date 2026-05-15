@@ -18,6 +18,7 @@ import ContactSalesRoute from "./routes/ContactSalesRoute.js"; // Inbound Sales 
 import ProjectionLeadRoutes from "./routes/ProjectionLeadRoute.js";
 import BookingDocumentRoutes from "./routes/BookingDocumentRoute.js";
 import FileActivityRoutes from "./routes/FileActivityRoute.js";
+import SecurityRoutes from "./routes/SecurityRoute.js";
 
 import cors from "cors";
 import path from "path";
@@ -59,6 +60,7 @@ const isOriginAllowed = (origin) => {
 };
 
 const app = express();
+app.set("trust proxy", true);
 const server = createServer(app); // Wrap Express with HTTP Server
 
 // Initialize Socket.IO
@@ -109,6 +111,7 @@ app.use("/sales", ContactSalesRoute);
 app.use("/projection-leads", ProjectionLeadRoutes);
 app.use("/booking-documents", BookingDocumentRoutes);
 app.use("/file-activity", FileActivityRoutes);
+app.use("/security", SecurityRoutes);
 
 // Keep track of connected users { userId: Set<socketId> }
 global.onlineUsers = new Map();

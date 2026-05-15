@@ -31,6 +31,7 @@ import ChatFAB from '../components/ChatFAB';
 import ProjectionLeads from '../components/ProjectionLeads';
 import ClientDocuments from '../components/ClientDocuments';
 import { canAccessFeature } from '../utils/featureAccess';
+import SecuritySettings from '../components/SecuritySettings';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
   if (canAccessFeature(userSession, feature)) return children;
@@ -218,6 +219,7 @@ const Dashboard = () => {
           <Route path="Agreementsgenerator" element={<FeatureGuard userSession={userSession} feature="agreements_generator"><AgreementGeneratorPage /></FeatureGuard>} />
           <Route path="employee-profile" element={<FeatureGuard userSession={userSession} feature="employee_profile"><CreateProfile apiUrl={apiUrl} userSession={userSession} /></FeatureGuard>} />
           <Route path="company-profile" element={<FeatureGuard userSession={userSession} feature="company_profile"><CompanyProfile /></FeatureGuard>} />
+          <Route path="security" element={<FeatureGuard userSession={userSession} feature="security"><SecuritySettings /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
           <Route path="process-documents" element={<FeatureGuard userSession={userSession} feature="client_documents"><ClientDocuments /></FeatureGuard>} />
           <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="timecard"><Timecard /></FeatureGuard>} />
