@@ -5,6 +5,30 @@ import { NotificationModel } from "../models/NotificationModel.js";
 import { normalizeBookingPayload } from "../utils/textNormalize.js";
 
 const BookingRoutes = express.Router();
+
+const GST_RATE = 18;
+const GST_MULTIPLIER = 1 + GST_RATE / 100;
+const DEV_GST_ROLES = ["dev", "srdev", "sr dev"];
+
+const isCashPayment = (paymentMode = "") =>
+  String(paymentMode).trim().toLowerCase() === "cash";
+
+const roundMoney = (amount) => Math.round((Number(amount || 0) + Number.EPSILON) * 100) / 100;
+
+const shouldApplyGstForBooking = ({ paymentMode, role, requestedApplyGst }) => {
+  if (isCashPayment(paymentMode)) return false;
+  if (DEV_GST_ROLES.includes(String(role || "").trim().toLowerCase())) {
+    return requestedApplyGst !== false;
+  }
+  return true;
+};
+
+const addGstToAmount = (amount, applyGst) => {
+  const numericAmount = Number(amount || 0);
+  if (!numericAmount) return amount;
+  return applyGst ? roundMoney(numericAmount * GST_MULTIPLIER) : numericAmount;
+};
+
 //Addbooking
 BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
   const {
@@ -32,6 +56,7 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     state,
     shared_with,
     term_shares,
+    apply_gst,
   } = req.body;
 
   const requiredFields = {
@@ -65,6 +90,18 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
   }
 
   try {
+    const applyGst = shouldApplyGstForBooking({
+      paymentMode: bank,
+      role: req.user?.user_role,
+      requestedApplyGst: apply_gst,
+    });
+    const baseTotalAmount = Number(total_amount || 0);
+    const totalAmountWithGst = addGstToAmount(baseTotalAmount, applyGst);
+    const gstAmount = applyGst ? roundMoney(totalAmountWithGst - baseTotalAmount) : 0;
+    const term1WithGst = addGstToAmount(term_1, applyGst);
+    const term2WithGst = addGstToAmount(term_2, applyGst);
+    const term3WithGst = addGstToAmount(term_3, applyGst);
+
     const new_booking = normalizeBookingPayload({
       user_id,
       bdm,
@@ -75,10 +112,14 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
       contact_no,
       closed_by,
       services,
-      total_amount,
-      term_1,
-      term_2,
-      term_3,
+      total_amount: totalAmountWithGst,
+      total_amount_before_gst: baseTotalAmount,
+      gst_amount: gstAmount,
+      gst_rate: applyGst ? GST_RATE : 0,
+      gst_applied: applyGst,
+      term_1: term1WithGst,
+      term_2: term2WithGst,
+      term_3: term3WithGst,
       payment_date, // 👈 Set here
       pan,
       gst: gst || "N/A",

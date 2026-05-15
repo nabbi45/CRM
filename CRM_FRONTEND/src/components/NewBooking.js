@@ -12,7 +12,9 @@ import {
   Typography,
   CircularProgress,
   Chip,
+  Checkbox,
   IconButton,
+  FormControlLabel,
   Paper,
   useTheme
 } from "@mui/material";
@@ -50,6 +52,7 @@ const AddBooking = ({ onClose }) => {
     bank: "",
     state: "",
     funddisbursement: "",
+    applyGst: true,
   });
   
   // Document upload state
@@ -71,10 +74,12 @@ const AddBooking = ({ onClose }) => {
         ? value.toUpperCase()
         : value;
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: nextValue,
-    });
+      ...(name === "bank" && isCashPayment(nextValue) ? { applyGst: false } : {}),
+      ...(name === "bank" && !isCashPayment(nextValue) && !isDevRole ? { applyGst: true } : {}),
+    }));
   };
 
   const handleSelectTermSourceBooking = (_, booking) => {
@@ -100,6 +105,18 @@ const AddBooking = ({ onClose }) => {
   const requestedTerm = location?.state?.requestedTerm || "";
 
   const isContinuationTerm = formData.selectTerm === "Term 2" || formData.selectTerm === "Term 3";
+  const userSessionForUi = JSON.parse(localStorage.getItem("userSession")) || {};
+  const isDevRole = ["dev", "srdev", "sr dev"].includes((userSessionForUi.user_role || "").toLowerCase());
+  const isCashPayment = (paymentMode = "") => String(paymentMode).trim().toLowerCase() === "cash";
+  const shouldApplyGst = !isCashPayment(formData.bank) && (!isDevRole || formData.applyGst);
+  const roundMoney = (amount) => Math.round((Number(amount || 0) + Number.EPSILON) * 100) / 100;
+  const addGst = (amount) => shouldApplyGst ? roundMoney(Number(amount || 0) * 1.18) : Number(amount || 0);
+  const gstSummary = {
+    baseTotal: Number(formData.totalAmount || 0),
+    totalWithGst: addGst(formData.totalAmount),
+    baseReceived: Number(formData.amount || 0),
+    receivedWithGst: addGst(formData.amount),
+  };
 
   const formatDateInput = (value) => {
     if (!value) return "";
@@ -127,6 +144,7 @@ const AddBooking = ({ onClose }) => {
     bank: booking?.bank || "",
     state: booking?.state || "",
     funddisbursement: booking?.after_disbursement || "",
+    applyGst: booking?.gst_applied !== false,
   });
 
   useEffect(() => {
@@ -458,6 +476,7 @@ const AddBooking = ({ onClose }) => {
           contact_no: Number(formData.contactNumber),
           services: formData.services,
           total_amount,
+          apply_gst: shouldApplyGst,
           closed_by: formData.closed || "",
           term_1: formData.selectTerm === "Term 1" ? receivedAmount : null,
           term_2: formData.selectTerm === "Term 2" ? receivedAmount : null,
@@ -579,6 +598,7 @@ const AddBooking = ({ onClose }) => {
           bank: "",
           state: "",
           funddisbursement: "",
+          applyGst: true,
         });
         setSharedPersons([]);
         setShareCount(0);
@@ -793,7 +813,7 @@ const AddBooking = ({ onClose }) => {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Total Amount *"
+              label={shouldApplyGst ? "Base Total Amount *" : "Total Amount *"}
               name="totalAmount"
               type="text"
               value={formData.totalAmount}
@@ -801,7 +821,9 @@ const AddBooking = ({ onClose }) => {
               placeholder="Enter total amount"
               variant="outlined"
               error={Boolean(errors.totalAmount)}
-              helperText={errors.totalAmount}
+              helperText={errors.totalAmount || (shouldApplyGst && gstSummary.baseTotal
+                ? `GST 18%: ₹${roundMoney(gstSummary.totalWithGst - gstSummary.baseTotal).toLocaleString()} | Final: ₹${gstSummary.totalWithGst.toLocaleString()}`
+                : "")}
             />
           </Grid>
 
@@ -854,7 +876,7 @@ const AddBooking = ({ onClose }) => {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Received Amount *"
+              label={shouldApplyGst ? "Base Received Amount *" : "Received Amount *"}
               name="amount"
               type="text"
               value={formData.amount}
@@ -862,9 +884,37 @@ const AddBooking = ({ onClose }) => {
               placeholder="Enter received amount"
               variant="outlined"
               error={Boolean(errors.amount)}
-              helperText={errors.amount}
+              helperText={errors.amount || (shouldApplyGst && gstSummary.baseReceived
+                ? `GST 18%: ₹${roundMoney(gstSummary.receivedWithGst - gstSummary.baseReceived).toLocaleString()} | Final: ₹${gstSummary.receivedWithGst.toLocaleString()}`
+                : "")}
             />
           </Grid>
+
+          {!isContinuationTerm && (
+            <Grid item xs={12}>
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                {isDevRole && (
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={Boolean(formData.applyGst) && !isCashPayment(formData.bank)}
+                        disabled={isCashPayment(formData.bank)}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, applyGst: e.target.checked }))}
+                      />
+                    }
+                    label="Add 18% GST"
+                  />
+                )}
+                <Typography variant="body2" color="text.secondary">
+                  {isCashPayment(formData.bank)
+                    ? "GST is not applied on cash bookings."
+                    : shouldApplyGst
+                      ? `18% GST will be added automatically. Final booking amount: ₹${gstSummary.totalWithGst.toLocaleString()}`
+                      : "GST will not be added for this dev-created booking."}
+                </Typography>
+              </Paper>
+            </Grid>
+          )}
 
           <Grid item xs={12}>
             <FormControl fullWidth sx={{ mt: 2 }}>
