@@ -32,7 +32,13 @@ import PaymentReminders from "./PaymentReminders";
 import Popup from "./Popup";
 import EditBooking from "./EditBooking";
 import { enqueueSnackbar } from "notistack";
-import { addBookingRevenueToLeaderboard, getBookingRevenueForUser } from "../utils/bookingRevenue";
+import {
+  addBookingRevenueToLeaderboard,
+  buildServiceDeductionMap,
+  getBookingDeductionRowsForUser,
+  getBookingRevenueForUser,
+  getBookingServiceDeductions,
+} from "../utils/bookingRevenue";
 
 const ACCENT = "#ff3b1f";
 const ACCENT_DARK = "#e03118";
@@ -55,6 +61,8 @@ const DashboardContent = () => {
   const [mostRevenueService, setMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [personalMostSoldService, setPersonalMostSoldService] = useState({ name: "-", count: 0 });
   const [personalMostRevenueService, setPersonalMostRevenueService] = useState({ name: "-", revenue: 0 });
+  const [serviceDeductionRows, setServiceDeductionRows] = useState([]);
+  const [totalServiceDeductions, setTotalServiceDeductions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -353,7 +361,13 @@ const DashboardContent = () => {
             "Content-Type": "application/json",
             authorization: session.token,
           },
-        })
+        }),
+        fetch(`${apiUrl}/services/api/services`, {
+          headers: {
+            "Content-Type": "application/json",
+            authorization: session.token,
+          },
+        }),
       ];
 
       if (!isAdmin) {
@@ -381,11 +395,20 @@ const DashboardContent = () => {
       const results = await Promise.all(fetches);
       const bookingsRes = results[0];
       const usersOptionsRes = results[1];
+      const servicesRes = results[2];
+      let resultIndex = 3;
+      const companyBookingsRes = !isAdmin ? results[resultIndex++] : null;
+      const allUsersRes = isAdmin ? results[resultIndex++] : null;
 
       if (!bookingsRes.ok) throw new Error("Failed API call");
 
       const bookingsData = await bookingsRes.json();
       const bookings = bookingsData.Allbookings || bookingsData;
+      let serviceDeductionMap = {};
+      if (servicesRes?.ok) {
+        const servicesData = await servicesRes.json();
+        serviceDeductionMap = buildServiceDeductionMap(Array.isArray(servicesData) ? servicesData : []);
+      }
 
       // Extract options users map to patch up older "Coworker" bug fields
       let activeUsersMap = {};
@@ -396,12 +419,12 @@ const DashboardContent = () => {
         }
       }
 
-      const allCompanyBookings = !isAdmin && results[2]?.ok
-        ? ((await results[2].json()).Allbookings || [])
+      const allCompanyBookings = !isAdmin && companyBookingsRes?.ok
+        ? ((await companyBookingsRes.json()).Allbookings || [])
         : bookings;
 
-      if (isAdmin && results[2]) {
-        const usersData = await results[2].json();
+      if (isAdmin && allUsersRes) {
+        const usersData = await allUsersRes.json();
         setTotalUsers(usersData.Users?.length || 0);
       }
 
@@ -420,6 +443,7 @@ const DashboardContent = () => {
       const monthlyMap = {}; // { "YYYY-MM": revenue }
       const serviceSoldMap = {}; // { serviceName: soldCount }
       const serviceRevenueMap = {}; // { serviceName: revenueShare }
+      const currentMonthDeductions = [];
       const isCurrentMonthTerm = (termShare) => {
         const termDate = new Date(termShare?.payment_date || "");
         return !Number.isNaN(termDate.getTime()) &&
@@ -437,10 +461,12 @@ const DashboardContent = () => {
           (booking.term_3 || 0)
         );
 
-        const rev = isAdmin ? rawRev : getBookingRevenueForUser(booking, session.user_id);
+        const rev = isAdmin
+          ? rawRev - getBookingServiceDeductions(booking, serviceDeductionMap).reduce((sum, item) => sum + item.amount, 0)
+          : getBookingRevenueForUser(booking, session.user_id, false, () => true, serviceDeductionMap);
         const currentMonthRev = isAdmin
-          ? getBookingRevenueForUser(booking, session.user_id, true, isCurrentMonthTerm)
-          : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm);
+          ? getBookingRevenueForUser(booking, session.user_id, true, isCurrentMonthTerm, serviceDeductionMap)
+          : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm, serviceDeductionMap);
 
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
         const bookingTotalAmount = Number(booking.total_amount || 0);
@@ -452,7 +478,18 @@ const DashboardContent = () => {
         }
 
         // Leaderboard aggregation (current month)
-        addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm);
+        addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm, serviceDeductionMap);
+
+        currentMonthDeductions.push(
+          ...getBookingDeductionRowsForUser(
+            booking,
+            session.user_id,
+            isAdmin,
+            isCurrentMonthTerm,
+            serviceDeductionMap,
+            activeUsersMap
+          )
+        );
 
         if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= threeMonthsAgo) {
           const services = Array.isArray(booking.services)
@@ -460,7 +497,14 @@ const DashboardContent = () => {
             : [];
 
           if (services.length > 0) {
-            const splitBaseRevenue = bookingTotalAmount > 0 ? bookingTotalAmount : rev;
+            const bookingDeduction = getBookingServiceDeductions(booking, serviceDeductionMap)
+              .reduce((sum, item) => sum + item.amount, 0);
+            const splitBaseRevenue = Math.max(
+              0,
+              isAdmin
+                ? (bookingTotalAmount > 0 ? bookingTotalAmount : rawRev) - bookingDeduction
+                : rev
+            );
             const splitRevenue = splitBaseRevenue / services.length;
 
             services.forEach((serviceNameRaw) => {
@@ -478,7 +522,8 @@ const DashboardContent = () => {
             booking,
             session.user_id,
             isAdmin,
-            (_, key) => key === termKey
+            (_, key) => key === termKey,
+            serviceDeductionMap
           );
           if (!termAmount) return;
           const termDate = new Date(booking.term_shares?.[termKey]?.payment_date || booking.payment_date || booking.date || booking.createdAt);
@@ -528,7 +573,10 @@ const DashboardContent = () => {
             ? booking.services.filter((s) => typeof s === "string" && s.trim())
             : [];
           if (!services.length) continue;
-          const revenue = Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0)) || Number(booking.total_amount || 0);
+          const grossRevenue = Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0)) || Number(booking.total_amount || 0);
+          const bookingDeduction = getBookingServiceDeductions(booking, serviceDeductionMap)
+            .reduce((sum, item) => sum + item.amount, 0);
+          const revenue = Math.max(0, grossRevenue - bookingDeduction);
           const splitRevenue = revenue / services.length;
           services.forEach((serviceNameRaw) => {
             const serviceName = serviceNameRaw.trim();
@@ -571,6 +619,10 @@ const DashboardContent = () => {
         labels: revenueEntries.slice(0, 6).map(([service]) => service),
         values: revenueEntries.slice(0, 6).map(([, revenue]) => Math.round(revenue)),
       });
+      setServiceDeductionRows(currentMonthDeductions);
+      setTotalServiceDeductions(
+        currentMonthDeductions.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
+      );
 
       const recent = sortedBookings
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -700,14 +752,21 @@ const DashboardContent = () => {
               month: "short",
             })}`,
             value: `₹${totalRevenue.toLocaleString()}`,
-            sub: "This month",
+            sub: "This month after deductions",
             icon: <CurrencyRupeeOutlinedIcon />,
             color: ACCENT,
           },
           {
+            label: "Service Deductions",
+            value: `₹${Math.round(totalServiceDeductions).toLocaleString()}`,
+            sub: "Vendor costs this month",
+            icon: <PaidOutlinedIcon />,
+            color: "#7c3aed",
+          },
+          {
             label: "Today's Revenue",
             value: `₹${todayRevenue.toLocaleString()}`,
-            sub: "From today's bookings",
+            sub: "From today's bookings after deductions",
             icon: <TodayOutlinedIcon />,
             color: "#ff7a1f",
           },
@@ -860,13 +919,14 @@ const DashboardContent = () => {
                         <TableCell>#</TableCell>
                         <TableCell>Employee</TableCell>
                         <TableCell align="right">Bookings</TableCell>
+                        <TableCell align="right">Deduction</TableCell>
                         <TableCell align="right">Revenue</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {leaderboard.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={4} align="center">
+                          <TableCell colSpan={5} align="center">
                             <Typography variant="body2" color="text.secondary">
                               No data this month
                             </Typography>
@@ -895,6 +955,9 @@ const DashboardContent = () => {
                             </Typography>
                           </TableCell>
                           <TableCell align="right">{entry.count}</TableCell>
+                          <TableCell align="right">
+                            ₹{Math.round(entry.deduction || 0).toLocaleString()}
+                          </TableCell>
                           <TableCell align="right" sx={{ fontWeight: 600 }}>
                             <Box component="span" sx={{ color: ACCENT_DARK }}>
                               ₹{entry.revenue.toLocaleString()}
@@ -1009,6 +1072,55 @@ const DashboardContent = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* ── Service Deductions ── */}
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
+          Service Deductions This Month
+        </Typography>
+        <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
+          <Table size={isMobile ? "small" : "medium"}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Booking / Client</TableCell>
+                <TableCell>Company</TableCell>
+                <TableCell>Service</TableCell>
+                <TableCell align="right">Total Deduction</TableCell>
+                <TableCell align="right">{isAdmin ? "Deduction" : "Your Deduction"}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {serviceDeductionRows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      No service deductions this month.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              {serviceDeductionRows.map((row, index) => (
+                <TableRow key={`${row.bookingId}-${row.service}-${index}`}>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {row.bookingName}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {row.clientName}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{row.companyName}</TableCell>
+                  <TableCell>{row.service}</TableCell>
+                  <TableCell align="right">₹{Math.round(row.totalDeduction).toLocaleString()}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, color: "#7c3aed" }}>
+                    ₹{Math.round(row.deduction).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
 
       {/* ── Recent Bookings ── */}
       <Box sx={{ mt: 3 }}>

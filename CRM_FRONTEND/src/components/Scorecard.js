@@ -2,17 +2,15 @@ import React, { useEffect, useState } from 'react';
 import './Scorecard.css'; // Create this CSS file for styling
 import { Doughnut } from 'react-chartjs-2'; // Import Chart.js's Doughnut chart
 import { apiUrl } from './LoginSignup';
-import { getBookingRevenueForUser } from '../utils/bookingRevenue';
+import { buildServiceDeductionMap, getBookingRevenueForUser, getBookingServiceDeductions } from '../utils/bookingRevenue';
 
 const Scorecard = () => {
   const [totalReceivedAmount, setTotalReceivedAmount] = useState(0); // Store total received amount (Revenue)
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState(''); // Store user role for conditional fetching
 
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem('userSession'));
     if (userSession && userSession.user_id) {
-      setUserRole(userSession.user_role); // Get the user role
       fetchTotalReceivedAmount(userSession); // Fetch the total received amount based on user role and ID
     } else {
       console.error('User session not found.');
@@ -23,29 +21,40 @@ const Scorecard = () => {
   // Fetch bookings and calculate total received amount (Revenue)
   const fetchTotalReceivedAmount = (userSession) => {
     setLoading(true);
+    const adminRoles = ['admin', 'dev', 'senior admin', 'super admin', 'director', 'srdev', 'sr dev'];
+    const isAdmin = adminRoles.includes((userSession.user_role || '').toLowerCase());
 
     // Construct the correct API endpoint based on user role
-    const url = ['admin', 'dev', 'senior admin'].includes(userSession.user_role)
+    const url = isAdmin
       ? `${apiUrl}/booking/all`
       : `${apiUrl}/user/bookings/${userSession.user_id}`;
 
-    fetch(url)
-      .then((response) => {
+    Promise.all([
+      fetch(url, { headers: { authorization: userSession.token || '' } }),
+      fetch(`${apiUrl}/services/api/services`, { headers: { authorization: userSession.token || '' } }),
+    ])
+      .then(async ([response, servicesResponse]) => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
-        return response.json();
+        return {
+          data: await response.json(),
+          services: servicesResponse.ok ? await servicesResponse.json() : [],
+        };
       })
-      .then((data) => {
+      .then(({ data, services }) => {
         const bookingsData = data.Allbookings || data;
+        const serviceDeductionMap = buildServiceDeductionMap(Array.isArray(services) ? services : []);
         // Calculate the total received amount by summing term_1, term_2, and term_3, considering sharing
         const totalReceived = bookingsData.reduce((acc, booking) => {
-          if (['admin', 'dev', 'senior admin'].includes(userSession.user_role)) {
+          if (isAdmin) {
             const rawRev = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
-            return acc + rawRev;
+            const deduction = getBookingServiceDeductions(booking, serviceDeductionMap)
+              .reduce((sum, item) => sum + item.amount, 0);
+            return acc + rawRev - deduction;
           }
 
-          return acc + getBookingRevenueForUser(booking, userSession.user_id);
+          return acc + getBookingRevenueForUser(booking, userSession.user_id, false, () => true, serviceDeductionMap);
         }, 0);
 
         setTotalReceivedAmount(totalReceived); // Set total received amount (revenue) in state

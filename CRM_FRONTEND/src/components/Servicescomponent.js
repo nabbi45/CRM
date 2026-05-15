@@ -26,10 +26,12 @@ import { apiUrl } from "./LoginSignup";
 const ServicesComponent = () => {
   const [services, setServices] = useState([]);
   const [newServiceName, setNewServiceName] = useState("");
+  const [newServiceDeduction, setNewServiceDeduction] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [serviceName, setServiceName] = useState("");
+  const [serviceDeduction, setServiceDeduction] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
@@ -76,6 +78,7 @@ const ServicesComponent = () => {
           name: newServiceName, // Name of the service
           value: newServiceName, // Set value equal to name
           status: true, // Default status is true (enabled)
+          deduction: Number(newServiceDeduction || 0),
         },
         {
           headers: {
@@ -91,6 +94,7 @@ const ServicesComponent = () => {
 
       // Reset the input field
       setNewServiceName("");
+      setNewServiceDeduction("");
     } catch (error) {
       enqueueSnackbar(
         `${error.response?.data?.message || "Error adding service"}`,
@@ -105,6 +109,7 @@ const ServicesComponent = () => {
     setIsEditing(true);
     setSelectedService(service._id); // Store only the service ID
     setServiceName(service.name); // Set the name to the current service name
+    setServiceDeduction(String(service.deduction || ""));
   };
 
   const handleSave = async () => {
@@ -115,6 +120,7 @@ const ServicesComponent = () => {
           name: serviceName,
           value: serviceName,
           status: true,
+          deduction: Number(serviceDeduction || 0),
         },
         {
           headers: {
@@ -244,6 +250,15 @@ const ServicesComponent = () => {
             size="small"
             sx={{ minWidth: { xs: "100%", sm: 280 }, flex: 1 }}
           />
+          <TextField
+            label="Deduction"
+            type="number"
+            value={newServiceDeduction}
+            onChange={(e) => setNewServiceDeduction(e.target.value)}
+            size="small"
+            inputProps={{ min: 0, step: 1 }}
+            sx={{ minWidth: { xs: "100%", sm: 160 } }}
+          />
           <Button
             variant="contained"
             color="primary"
@@ -277,6 +292,7 @@ const ServicesComponent = () => {
             <TableRow>
               <TableCell>No</TableCell>
               <TableCell>Name</TableCell>
+              <TableCell align="right">Deduction</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
@@ -290,6 +306,7 @@ const ServicesComponent = () => {
                 <TableRow key={service._id}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{service.name}</TableCell>
+                  <TableCell align="right">₹{Number(service.deduction || 0).toLocaleString()}</TableCell>
                   <TableCell>
                     {service.status ? "Enabled" : "Disabled"}
                   </TableCell>
@@ -339,6 +356,15 @@ const ServicesComponent = () => {
             fullWidth
             value={serviceName}
             onChange={(e) => setServiceName(e.target.value)}
+          />
+          <TextField
+            label="Deduction"
+            type="number"
+            fullWidth
+            value={serviceDeduction}
+            onChange={(e) => setServiceDeduction(e.target.value)}
+            inputProps={{ min: 0, step: 1 }}
+            sx={{ mt: 2 }}
           />
         </DialogContent>
         <DialogActions>

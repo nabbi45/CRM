@@ -8,18 +8,23 @@ const ServiceRoutes = express.Router();
 
 // Route to add a new service (admin/dev only)
 ServiceRoutes.post('/api/services', authenticateUser, authorizeDevRole, async (req, res) => {
-    const { name, value, status } = req.body;
+    const { name, value, status, deduction } = req.body;
 
     // Validate input
     if (!name || !value || typeof status !== 'boolean') {
         return res.status(400).send('Invalid input data');
+    }
+    const parsedDeduction = Number(deduction || 0);
+    if (parsedDeduction < 0) {
+        return res.status(400).send({ message: 'Deduction cannot be negative' });
     }
 
     // Create and save the service
     const service = {
         name,
         value,
-        status
+        status,
+        deduction: parsedDeduction
     }
 
     try {
@@ -33,7 +38,7 @@ ServiceRoutes.post('/api/services', authenticateUser, authorizeDevRole, async (r
 //edit service
 ServiceRoutes.patch('/api/services/:id', authenticateUser, authorizeDevRole,async (req, res) => {
     const { id } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
 
     // Ensure there are fields to update
     if (!updates || Object.keys(updates).length === 0) {
@@ -41,6 +46,13 @@ ServiceRoutes.patch('/api/services/:id', authenticateUser, authorizeDevRole,asyn
     }
 
     try {
+        if (Object.prototype.hasOwnProperty.call(updates, "deduction")) {
+            updates.deduction = Number(updates.deduction || 0);
+            if (updates.deduction < 0) {
+                return res.status(400).send({ message: 'Deduction cannot be negative' });
+            }
+        }
+
         // Update the service with provided fields
         const updatedService = await ServiceModel.findByIdAndUpdate(
             id,
