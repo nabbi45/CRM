@@ -86,8 +86,8 @@ const RemoveUser = () => {
   const handleEditClick = (user) => {
     setIsEditing(true);
     setSelectedUser(user);
-    setName(user.name);
-    setEmail(user.email);
+    setName(user.name?.toUpperCase() || "");
+    setEmail(user.email?.toLowerCase() || "");
     setUserRole(user.user_role);
     setPassword("");
     setFeaturePermissions(Array.isArray(user.feature_permissions) ? user.feature_permissions : getDefaultFeaturePermissionsForRole(user.user_role));
@@ -114,7 +114,7 @@ const RemoveUser = () => {
 
   const handleSave = async () => {
     try {
-      const body = { name, email, user_role: userRole, feature_permissions: featurePermissions };
+      const body = { name: name.toUpperCase(), email: email.toLowerCase(), user_role: userRole, feature_permissions: featurePermissions };
       if (password.trim()) body.password = password;
 
       await axios.patch(
@@ -210,8 +210,8 @@ const RemoveUser = () => {
               filteredUsers.map((user, index) => (
                 <TableRow key={user._id}>
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell>{user.name}</TableCell>
-                  {!isMobileOrTablet && <TableCell>{user.email}</TableCell>}
+                  <TableCell>{user.name?.toUpperCase()}</TableCell>
+                  {!isMobileOrTablet && <TableCell>{user.email?.toLowerCase()}</TableCell>}
                   <TableCell>{user.user_role}</TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
@@ -284,7 +284,7 @@ const RemoveUser = () => {
                 label="Name"
                 fullWidth
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.toUpperCase())}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -292,7 +292,7 @@ const RemoveUser = () => {
                 label="Email"
                 fullWidth
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.toLowerCase())}
               />
             </Grid>
             <Grid item xs={12} sm={6}>

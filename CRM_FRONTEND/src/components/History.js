@@ -464,15 +464,30 @@ const History = () => {
     }
   };
 
+  const formatDisplayDate = (value) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "N/A";
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  const upperText = (value) => value ? String(value).toUpperCase() : "N/A";
+  const lowerEmail = (value) => value ? String(value).toLowerCase() : "N/A";
+
   const handleCopy = (booking) => {
     const bookingDetails = `
       Booking ID: ${booking._id}
-      Booking Date: ${new Date(booking.date).toLocaleDateString()}
-      Payment Date: ${new Date(booking.payment_date).toLocaleDateString()}
+      Booking Date: ${formatDisplayDate(booking.date)}
+      Payment Date: ${formatDisplayDate(booking.payment_date)}
 
-      Company Name: ${booking.company_name || "N/A"}
-      Contact Person: ${booking.contact_person}
-      Email: ${booking.email}
+      Company Name: ${upperText(booking.company_name)}
+      Contact Person: ${upperText(booking.contact_person)}
+      Email: ${lowerEmail(booking.email)}
       Contact Number: ${booking.contact_no}
       Service: ${booking.services}
       Total Amount: ${booking.total_amount}₹
@@ -482,10 +497,10 @@ const History = () => {
       }₹
       Term ${booking.term_1 ? "1" : booking.term_2 ? "2" : booking.term_3 ? "3" : ""
       }:  ${booking.term_1 || booking.term_2 || booking.term_3}
-      Bdm name : ${booking.bdm}
+      Bdm name : ${upperText(booking.bdm)}
       Lead Closed By: ${booking.closed_by || "N/A"}
-      GST No: ${booking.gst || "N/A"}
-      PAN No: ${booking.pan}
+      GST No: ${upperText(booking.gst)}
+      PAN No: ${upperText(booking.pan)}
       Bank Name: ${booking.bank}
       Notes: ${booking.remark}
       After Disbursement:${booking.after_disbursement}
@@ -789,7 +804,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {new Date(booking.date).toLocaleDateString("en-GB")}
+                        {formatDisplayDate(booking.date)}
                       </td>
                     </tr>
                     <tr>
@@ -798,7 +813,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {new Date(booking.payment_date).toLocaleDateString()}
+                        {formatDisplayDate(booking.payment_date)}
                       </td>
                     </tr>
                     <tr>
@@ -816,7 +831,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        <strong>{booking.company_name || "N/A"}</strong>
+                        <strong>{upperText(booking.company_name)}</strong>
                       </td>
                     </tr>
                     <tr>
@@ -825,7 +840,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.contact_person}
+                        {upperText(booking.contact_person)}
                       </td>
                     </tr>
                     <tr>
@@ -834,7 +849,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;{" "}
-                        {booking.email}
+                        {lowerEmail(booking.email)}
                       </td>
                     </tr>
                     <tr>
@@ -944,7 +959,7 @@ const History = () => {
                           <ul style={{ paddingLeft: '20px', margin: 0 }}>
                             {booking.shared_with.map((sw, idx) => (
                               <li key={idx}>
-                                <strong>{sw.user_name || usersMap[sw.user_id] || "Coworker"}</strong> – {sw.percentage}%
+                                <strong>{upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")}</strong> – {sw.percentage}%
                               </li>
                             ))}
                           </ul>
@@ -960,7 +975,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.gst && booking.gst !== "N/A" ? `${booking.gst}%` : "N/A"}
+                        {upperText(booking.gst)}
                       </td>
                     </tr>
                     <tr>
@@ -969,7 +984,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.pan}
+                        {upperText(booking.pan)}
                       </td>
                     </tr>
                     <tr>
@@ -987,7 +1002,7 @@ const History = () => {
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        <strong>{booking.bdm || "N/A"}</strong>
+                        <strong>{upperText(booking.bdm)}</strong>
                       </td>
                     </tr>
                     <tr>

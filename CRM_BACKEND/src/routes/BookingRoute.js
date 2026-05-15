@@ -2,6 +2,7 @@ import express from "express";
 import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { NotificationModel } from "../models/NotificationModel.js";
+import { normalizeBookingPayload } from "../utils/textNormalize.js";
 
 const BookingRoutes = express.Router();
 //Addbooking
@@ -63,7 +64,7 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
   }
 
   try {
-    const new_booking = {
+    const new_booking = normalizeBookingPayload({
       user_id,
       bdm,
       branch_name,
@@ -87,7 +88,7 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
       state,
       after_disbursement: funddisbursement,
       shared_with: Array.isArray(shared_with) ? shared_with : [],
-    };
+    });
 
     const booking = await BookingModel.create(new_booking);
 
@@ -130,6 +131,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
   const { updatedBy, note } = updates;
   delete updates.updatedBy;
   delete updates.note;
+  updates = normalizeBookingPayload(updates);
 
   try {
     const oldBooking = await BookingModel.findById(id);

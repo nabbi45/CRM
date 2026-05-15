@@ -19,8 +19,8 @@ import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
 
 const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
-  const [name, setName] = useState(userSession?.name || "");
-  const [email, setEmail] = useState(userSession?.email || "");
+  const [name, setName] = useState(userSession?.name?.toUpperCase() || "");
+  const [email, setEmail] = useState(userSession?.email?.toLowerCase() || "");
   const [profilePicture, setProfilePicture] = useState(userSession?.profilePicture || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,8 +56,8 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
     setLoading(true);
     try {
       const payload = {
-        name,
-        email,
+        name: name.toUpperCase(),
+        email: email.toLowerCase(),
         profilePicture,
         ...(password ? { password } : {}),
       };
@@ -127,7 +127,7 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
           fullWidth
           label="Full Name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value.toUpperCase())}
           margin="normal"
           disabled={loading}
         />
@@ -135,7 +135,7 @@ const UserEditModal = ({ open, onClose, userSession, onProfileUpdated }) => {
           fullWidth
           label="Email Address"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value.toLowerCase())}
           margin="normal"
           disabled={loading}
           type="email"

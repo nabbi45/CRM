@@ -38,7 +38,7 @@ const AddUser = () => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: name === "email" ? value.toLowerCase() : name === "name" ? value.toUpperCase() : value,
     });
   };
 

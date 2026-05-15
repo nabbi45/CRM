@@ -64,9 +64,16 @@ const AddBooking = ({ onClose }) => {
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const upperFields = ["companyName", "contactPerson", "pan", "gst"];
+    const nextValue = name === "email"
+      ? value.toLowerCase()
+      : upperFields.includes(name)
+        ? value.toUpperCase()
+        : value;
+
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: nextValue,
     });
   };
 
@@ -401,11 +408,11 @@ const AddBooking = ({ onClose }) => {
 
         const dataToSubmit = {
           user_id: userSession.user_id,
-          bdm: userSession.name,
+          bdm: userSession.name?.toUpperCase() || "",
           branch_name: formData.branch,
           company_name: formData.companyName?.toUpperCase() || "",
-          contact_person: formData.contactPerson,
-          email: formData.email,
+          contact_person: formData.contactPerson?.toUpperCase() || "",
+          email: formData.email?.toLowerCase() || "",
           contact_no: Number(formData.contactNumber),
           services: formData.services,
           total_amount,
@@ -414,8 +421,8 @@ const AddBooking = ({ onClose }) => {
           term_2: formData.selectTerm === "Term 2" ? receivedAmount : null,
           term_3: formData.selectTerm === "Term 3" ? receivedAmount : null,
           payment_date: formData.paymentDate,
-          pan: formData.pan,
-          gst: formData.gst || "N/A",
+          pan: formData.pan?.toUpperCase() || "",
+          gst: formData.gst?.toUpperCase() || "N/A",
           remark: formData.notes,
           date: formData.date,
           bank: formData.bank,
@@ -427,7 +434,7 @@ const AddBooking = ({ onClose }) => {
             const userObj = users.find(u => String(u._id) === String(person.userId));
             return {
               user_id: person.userId,
-              user_name: userObj ? userObj.name : "Coworker",
+              user_name: userObj ? userObj.name?.toUpperCase() : "COWORKER",
               percentage: Number(person.percentage),
             };
           }),

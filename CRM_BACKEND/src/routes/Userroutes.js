@@ -8,6 +8,7 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { authenticateUser, authorizeDevRole, authorizeFeature } from '../middlewares/authMiddleware.js';
+import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
 dotenv.config()
 const saltRounds = 5;
 
@@ -126,7 +127,7 @@ UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), 
     }
 
     // Convert email to lowercase
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = toLowerEmail(email);
 
     // Check if the email is already registered
     const existingUser = await UserModel.findOne({ email: normalizedEmail });
@@ -139,7 +140,7 @@ UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), 
 
     // Create new user with hashed password
     const new_user = {
-      name,
+      name: toUpperText(name),
       email: normalizedEmail,
       password: hashedPassword,
       user_role,
@@ -172,13 +173,17 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeFeature('manage_use
       updates.feature_permissions = sanitizeFeaturePermissions(updates.feature_permissions);
     }
 
+    if (updates.name) {
+      updates.name = toUpperText(updates.name);
+    }
+
     if (updates.user_role && !Object.prototype.hasOwnProperty.call(updates, 'feature_permissions')) {
       updates.feature_permissions = getDefaultFeaturePermissionsForRole(updates.user_role);
     }
 
     // Normalize email if it's being updated
     if (updates.email) {
-      updates.email = updates.email.toLowerCase();
+      updates.email = toLowerEmail(updates.email);
 
       // Check if the new email is already registered
       const existingUser = await UserModel.findOne({ email: updates.email, _id: { $ne: id } });
@@ -217,11 +222,11 @@ UserRoutes.put('/update-profile', authenticateUser, async (req, res) => {
     const { name, email, profilePicture, password } = req.body;
 
     const updates = {};
-    if (name) updates.name = name;
+    if (name) updates.name = toUpperText(name);
     if (profilePicture) updates.profilePicture = profilePicture;
 
     if (email) {
-      updates.email = email.toLowerCase();
+      updates.email = toLowerEmail(email);
       // Check if another user has this email
       const existingUser = await UserModel.findOne({ email: updates.email, _id: { $ne: userId } });
       if (existingUser) {
@@ -331,7 +336,7 @@ UserRoutes.post('/login', async (req, res) => {
     }
 
     // Find the user by email
-    const user = await UserModel.findOneAndUpdate({ email }, { isActive: true });
+    const user = await UserModel.findOneAndUpdate({ email: toLowerEmail(email) }, { isActive: true });
 
 
     if (!user) {

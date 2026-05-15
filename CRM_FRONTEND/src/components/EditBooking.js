@@ -69,17 +69,17 @@ const EditBooking = ({ initialData, onClose }) => {
       setFormData({
         branch: initialData.branch_name || '',
         companyName: initialData.company_name ? initialData.company_name.toUpperCase() : '',
-        contactPerson: initialData.contact_person || '',
+        contactPerson: initialData.contact_person ? initialData.contact_person.toUpperCase() : '',
         contactNumber: initialData.contact_no || '',
-        email: initialData.email || '',
+        email: initialData.email ? initialData.email.toLowerCase() : '',
         date: initialData.date ? new Date(initialData.date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '', // format to 'dd-mm-yyyy',
         services: Array.isArray(initialData.services) ? initialData.services : [],
         totalAmount: initialData.total_amount || '',
         selectTerm: initialData.term_1 ? 'Term 1' : initialData.term_2 ? 'Term 2' : '',
         amount: initialData.term_1 || initialData.term_2 || '',
         paymentDate: initialData.payment_date ? new Date(initialData.payment_date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '',
-        pan: initialData.pan || '',
-        gst: initialData.gst || '',
+        pan: initialData.pan ? initialData.pan.toUpperCase() : '',
+        gst: initialData.gst ? initialData.gst.toUpperCase() : '',
         notes: initialData.remark || '',
         note: initialData.note || '',
         updatedBy: updatedBy || "Unknown",
@@ -132,9 +132,16 @@ const EditBooking = ({ initialData, onClose }) => {
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    const upperFields = ["companyName", "contactPerson", "pan", "gst"];
+    const nextValue = name === "email"
+      ? value.toLowerCase()
+      : upperFields.includes(name)
+        ? value.toUpperCase()
+        : value;
+
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: nextValue,
     });
   };
 
@@ -170,9 +177,9 @@ const EditBooking = ({ initialData, onClose }) => {
       if (userSession) {
         const dataToSubmit = {
           branch_name: formData.branch,
-          company_name: formData.companyName,
-          contact_person: formData.contactPerson,
-          email: formData.email,
+          company_name: formData.companyName?.toUpperCase() || "",
+          contact_person: formData.contactPerson?.toUpperCase() || "",
+          email: formData.email?.toLowerCase() || "",
           contact_no: Number(formData.contactNumber),
           services: formData.services,
           closed_by: formData.closed,
@@ -180,8 +187,8 @@ const EditBooking = ({ initialData, onClose }) => {
           term_1: formData.selectTerm === "Term 1" ? Number(formData.amount) : initialData.term_1 || null,
           term_2: formData.selectTerm === "Term 2" ? Number(formData.amount) : initialData.term_2 || null,
           term_3: formData.selectTerm === "Term 3" ? Number(formData.amount) : null, // Ensure Term 3 is handled correctly
-          pan: formData.pan,
-          gst: formData.gst,
+          pan: formData.pan?.toUpperCase() || "",
+          gst: formData.gst?.toUpperCase() || "",
           payment_date:formData.paymentDate,
           remark: formData.notes,
           date: formData.date,

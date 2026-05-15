@@ -28,11 +28,11 @@ export const jsonToCSV = (data, selectedFields) => {
     const row = [];
 
     if (selectedFields.companyName)
-      row.push(escapeCSVValue(item.company_name || "N/A"));
-    if (selectedFields.bdmName) row.push(escapeCSVValue(item.bdm || "N/A"));
+      row.push(escapeCSVValue(toUpperText(item.company_name)));
+    if (selectedFields.bdmName) row.push(escapeCSVValue(toUpperText(item.bdm)));
     if (selectedFields.contactNo)
       row.push(escapeCSVValue(item.contact_no || "N/A"));
-    if (selectedFields.email) row.push(escapeCSVValue(item.email || "N/A"));
+    if (selectedFields.email) row.push(escapeCSVValue(toLowerEmail(item.email)));
     if (selectedFields.bookingDate)
       row.push(
         escapeCSVValue(
@@ -64,9 +64,9 @@ export const jsonToCSV = (data, selectedFields) => {
       row.push(escapeCSVValue(servicesList)); // Ensure services go into one column
     }
 
-    if (selectedFields.gst) row.push(escapeCSVValue(item.gst || "N/A"));
+    if (selectedFields.gst) row.push(escapeCSVValue(toUpperText(item.gst)));
     if (selectedFields.state) row.push(escapeCSVValue(item.state || "N/A"));
-    if (selectedFields.pan) row.push(escapeCSVValue(item.pan || "N/A"));
+    if (selectedFields.pan) row.push(escapeCSVValue(toUpperText(item.pan)));
     // ✅ Term Type field logic
     if (selectedFields.termType) {
       let termType = "N/A";
@@ -90,6 +90,9 @@ export const jsonToCSV = (data, selectedFields) => {
   // Combine headers and rows to form CSV
   return [headers.join(","), ...rows].join("\n");
 };
+
+const toUpperText = (value) => value ? String(value).toUpperCase() : "N/A";
+const toLowerEmail = (value) => value ? String(value).toLowerCase() : "N/A";
 
 // Function to escape values for CSV (e.g., to handle commas inside values)
 const escapeCSVValue = (value) => {
