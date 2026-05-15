@@ -99,6 +99,9 @@ const History = () => {
   const [activeFilters, setActiveFilters] = useState({});
   const [downloadAll, setDownloadAll] = useState(false); // ✅ checkbox state
   const [dateType, setDateType] = useState("booking");
+  const isAdminView = ["dev", "admin", "senior admin", "srdev", "super admin", "director"].includes(
+    (userSession?.user_role || "").toLowerCase()
+  );
 
   // NEW State for Shared Bookings Toggle
   const [shareFilter, setShareFilter] = useState("All"); // "All" | "SharedByMe" | "SharedWithMe"
@@ -1356,7 +1359,9 @@ const History = () => {
         </DialogActions>
       </Dialog>
       {/* changed code End */}
-      <div className="total-bookings">Total Bookings: {bookings.length}</div>
+      <div className="total-bookings">
+        Total Bookings: {isAdminView ? bookings.length : bookings.filter((booking) => String(booking.user_id) === String(userId)).length}
+      </div>
 
       <div className="pagination-controls">
         <button

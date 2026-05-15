@@ -24,5 +24,28 @@ export const normalizeBookingPayload = (booking = {}) => {
     }));
   }
 
+  if (normalized.term_shares && typeof normalized.term_shares === "object") {
+    normalized.term_shares = { ...normalized.term_shares };
+
+    ["term_1", "term_2", "term_3"].forEach((termKey) => {
+      if (!normalized.term_shares[termKey]) return;
+      normalized.term_shares[termKey] = {
+        ...normalized.term_shares[termKey],
+        creator: normalized.term_shares[termKey].creator
+          ? {
+              ...normalized.term_shares[termKey].creator,
+              user_name: toUpperText(normalized.term_shares[termKey].creator.user_name),
+            }
+          : normalized.term_shares[termKey].creator,
+        shared_with: Array.isArray(normalized.term_shares[termKey].shared_with)
+          ? normalized.term_shares[termKey].shared_with.map((shared) => ({
+              ...shared,
+              user_name: toUpperText(shared.user_name),
+            }))
+          : [],
+      };
+    });
+  }
+
   return normalized;
 };

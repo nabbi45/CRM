@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './Scorecard.css'; // Create this CSS file for styling
 import { Doughnut } from 'react-chartjs-2'; // Import Chart.js's Doughnut chart
 import { apiUrl } from './LoginSignup';
+import { getBookingRevenueForUser } from '../utils/bookingRevenue';
 
 const Scorecard = () => {
   const [totalReceivedAmount, setTotalReceivedAmount] = useState(0); // Store total received amount (Revenue)
@@ -39,20 +40,12 @@ const Scorecard = () => {
         const bookingsData = data.Allbookings || data;
         // Calculate the total received amount by summing term_1, term_2, and term_3, considering sharing
         const totalReceived = bookingsData.reduce((acc, booking) => {
-          const rawRev = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
-          
           if (['admin', 'dev', 'senior admin'].includes(userSession.user_role)) {
+            const rawRev = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
             return acc + rawRev;
           }
 
-          if (booking.user_id === userSession.user_id) {
-            const sharedTotal = (booking.shared_with || []).reduce((sum, sw) => sum + (Number(sw.percentage) || 0), 0);
-            return acc + (rawRev * ((100 - sharedTotal) / 100));
-          } else {
-            const sharedData = (booking.shared_with || []).find(sw => String(sw.user_id) === String(userSession.user_id));
-            const percentage = sharedData ? (Number(sharedData.percentage) || 0) : 0;
-            return acc + (rawRev * (percentage / 100));
-          }
+          return acc + getBookingRevenueForUser(booking, userSession.user_id);
         }, 0);
 
         setTotalReceivedAmount(totalReceived); // Set total received amount (revenue) in state

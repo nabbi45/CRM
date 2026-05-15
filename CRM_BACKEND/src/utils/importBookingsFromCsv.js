@@ -245,6 +245,13 @@ async function main() {
       state: getCell(row, headerIndex, "State"),
       status: receivedAmount >= totalAmount ? "Completed" : "Pending",
       shared_with: sharedUsers,
+      term_shares: {
+        term_1: {
+          creator: { user_id: String(primaryUser._id), user_name: primaryUser.name },
+          payment_date: paymentDate,
+          shared_with: sharedUsers,
+        },
+      },
     }));
     sourceRows.push(rowNumber);
   });

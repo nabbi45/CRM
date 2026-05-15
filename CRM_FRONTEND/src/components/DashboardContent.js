@@ -32,6 +32,7 @@ import PaymentReminders from "./PaymentReminders";
 import Popup from "./Popup";
 import EditBooking from "./EditBooking";
 import { enqueueSnackbar } from "notistack";
+import { addBookingRevenueToLeaderboard, getBookingRevenueForUser } from "../utils/bookingRevenue";
 
 const ACCENT = "#ff3b1f";
 const ACCENT_DARK = "#e03118";
@@ -419,71 +420,39 @@ const DashboardContent = () => {
       const monthlyMap = {}; // { "YYYY-MM": revenue }
       const serviceSoldMap = {}; // { serviceName: soldCount }
       const serviceRevenueMap = {}; // { serviceName: revenueShare }
+      const isCurrentMonthTerm = (termShare) => {
+        const termDate = new Date(termShare?.payment_date || "");
+        return !Number.isNaN(termDate.getTime()) &&
+          termDate.getMonth() === currentMonth &&
+          termDate.getFullYear() === currentYear;
+      };
 
       for (const booking of bookings) {
-        bookingCount++;
+        if (isAdmin || String(booking.user_id) === String(session.user_id)) {
+          bookingCount++;
+        }
         const rawRev = Number(
           (booking.term_1 || 0) +
           (booking.term_2 || 0) +
           (booking.term_3 || 0)
         );
 
-        let userSpecificRev = rawRev;
-        if (!isAdmin) {
-          if (String(booking.user_id) === String(session.user_id)) {
-            const sharedTotal = (booking.shared_with || []).reduce((sum, sw) => sum + (Number(sw.percentage) || 0), 0);
-            userSpecificRev = rawRev * ((100 - sharedTotal) / 100);
-          } else {
-            const sharedData = (booking.shared_with || []).find(sw => String(sw.user_id) === String(session.user_id));
-            const percentage = sharedData ? (Number(sharedData.percentage) || 0) : 0;
-            userSpecificRev = rawRev * (percentage / 100);
-          }
-        }
-
-        const rev = userSpecificRev;
+        const rev = isAdmin ? rawRev : getBookingRevenueForUser(booking, session.user_id);
+        const currentMonthRev = isAdmin
+          ? getBookingRevenueForUser(booking, session.user_id, true, isCurrentMonthTerm)
+          : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm);
 
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
         const bookingTotalAmount = Number(booking.total_amount || 0);
 
-        if (
-          !Number.isNaN(paymentDate.getTime()) &&
-          paymentDate.getMonth() === currentMonth &&
-          paymentDate.getFullYear() === currentYear
-        ) {
-          currentMonthRevenue += rev;
-        }
+        currentMonthRevenue += currentMonthRev;
 
         if (booking.createdAt?.split("T")[0] === today) {
           todayRevenueAmt += rev;
         }
 
         // Leaderboard aggregation (current month)
-        if (
-          !Number.isNaN(paymentDate.getTime()) &&
-          paymentDate.getMonth() === currentMonth &&
-          paymentDate.getFullYear() === currentYear
-        ) {
-          let creatorRev = rawRev;
-          if (booking.shared_with && booking.shared_with.length > 0) {
-            let sharedTotalRev = 0;
-            let shareFractionCount = 0;
-            for (const sw of booking.shared_with) {
-              const sharedAmt = rawRev * ((Number(sw.percentage) || 0) / 100);
-              sharedTotalRev += sharedAmt;
-              shareFractionCount += 1;
-              const sharedBdmName = sw.user_name || activeUsersMap[sw.user_id] || "Coworker";
-              if (!bdmRevMap[sharedBdmName]) bdmRevMap[sharedBdmName] = { revenue: 0, count: 0 };
-              bdmRevMap[sharedBdmName].revenue += sharedAmt;
-              bdmRevMap[sharedBdmName].count += 1; 
-            }
-            creatorRev = rawRev - sharedTotalRev;
-          }
-
-          const bdm = booking.bdm || "Unknown";
-          if (!bdmRevMap[bdm]) bdmRevMap[bdm] = { revenue: 0, count: 0 };
-          bdmRevMap[bdm].revenue += creatorRev;
-          bdmRevMap[bdm].count += 1;
-        }
+        addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm);
 
         if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= threeMonthsAgo) {
           const services = Array.isArray(booking.services)
@@ -504,13 +473,22 @@ const DashboardContent = () => {
         }
 
         // Monthly revenue (last 6 months)
-        if (!Number.isNaN(paymentDate.getTime())) {
-          const key = `${paymentDate.getFullYear()}-${String(
-            paymentDate.getMonth() + 1
+        ["term_1", "term_2", "term_3"].forEach((termKey) => {
+          const termAmount = getBookingRevenueForUser(
+            booking,
+            session.user_id,
+            isAdmin,
+            (_, key) => key === termKey
+          );
+          if (!termAmount) return;
+          const termDate = new Date(booking.term_shares?.[termKey]?.payment_date || booking.payment_date || booking.date || booking.createdAt);
+          if (Number.isNaN(termDate.getTime())) return;
+          const key = `${termDate.getFullYear()}-${String(
+            termDate.getMonth() + 1
           ).padStart(2, "0")}`;
           if (!monthlyMap[key]) monthlyMap[key] = 0;
-          monthlyMap[key] += rev;
-        }
+          monthlyMap[key] += termAmount;
+        });
 
         sortedBookings.push(booking);
       }

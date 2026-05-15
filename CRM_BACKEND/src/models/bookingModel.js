@@ -31,6 +31,44 @@ const bookingSchema = mongoose.Schema(
       user_name: { type: String },
       percentage: { type: Number }
     }],
+    term_shares: {
+      term_1: {
+        creator: {
+          user_id: { type: String },
+          user_name: { type: String },
+        },
+        payment_date: { type: Date },
+        shared_with: [{
+          user_id: { type: String },
+          user_name: { type: String },
+          percentage: { type: Number }
+        }]
+      },
+      term_2: {
+        creator: {
+          user_id: { type: String },
+          user_name: { type: String },
+        },
+        payment_date: { type: Date },
+        shared_with: [{
+          user_id: { type: String },
+          user_name: { type: String },
+          percentage: { type: Number }
+        }]
+      },
+      term_3: {
+        creator: {
+          user_id: { type: String },
+          user_name: { type: String },
+        },
+        payment_date: { type: Date },
+        shared_with: [{
+          user_id: { type: String },
+          user_name: { type: String },
+          percentage: { type: Number }
+        }]
+      },
+    },
     updatedhistory: [
       {
         updatedBy: String,

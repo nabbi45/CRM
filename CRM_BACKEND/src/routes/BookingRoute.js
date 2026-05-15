@@ -31,6 +31,7 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     funddisbursement,
     state,
     shared_with,
+    term_shares,
   } = req.body;
 
   const requiredFields = {
@@ -88,6 +89,13 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
       state,
       after_disbursement: funddisbursement,
       shared_with: Array.isArray(shared_with) ? shared_with : [],
+      term_shares: term_shares || {
+        term_1: {
+          creator: { user_id, user_name: bdm },
+          payment_date,
+          shared_with: Array.isArray(shared_with) ? shared_with : [],
+        },
+      },
     });
 
     const booking = await BookingModel.create(new_booking);
@@ -207,15 +215,20 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       });
     }
 
-    const continuationAllowedKeys = ["term_2", "term_3", "payment_date", "services", "total_amount"];
+    const continuationAllowedKeys = ["term_2", "term_3", "payment_date", "services", "total_amount", "term_shares", "shared_with"];
     const updateKeys = Object.keys(updates);
     const isOwner = String(oldBooking.user_id || "") === String(requesterId || "");
     const isSharedUser = oldBooking.shared_with && oldBooking.shared_with.some(sw => String(sw.user_id) === String(requesterId || ""));
+    const isTermParticipant = ["term_1", "term_2", "term_3"].some((termKey) => {
+      const termShare = oldBooking.term_shares?.[termKey];
+      return String(termShare?.creator?.user_id || "") === String(requesterId || "") ||
+        (termShare?.shared_with || []).some(sw => String(sw.user_id) === String(requesterId || ""));
+    });
     const isContinuationUpdate =
       updateKeys.length > 0 &&
       updateKeys.every((key) => continuationAllowedKeys.includes(key));
 
-    if ((isOwner || isSharedUser) && isContinuationUpdate) {
+    if ((isOwner || isSharedUser || isTermParticipant) && isContinuationUpdate) {
       const updatedBooking = await BookingModel.findByIdAndUpdate(
         id,
         {
@@ -488,7 +501,16 @@ BookingRoutes.get("/bookings/filter", authenticateUser, async (req, res) => {
           message: "Access forbidden. No valid role or user ID provided.",
         });
       }
-      query.$or = [{ user_id: userId }, { "shared_with.user_id": userId }];
+      query.$or = [
+        { user_id: userId },
+        { "shared_with.user_id": userId },
+        { "term_shares.term_1.creator.user_id": userId },
+        { "term_shares.term_1.shared_with.user_id": userId },
+        { "term_shares.term_2.creator.user_id": userId },
+        { "term_shares.term_2.shared_with.user_id": userId },
+        { "term_shares.term_3.creator.user_id": userId },
+        { "term_shares.term_3.shared_with.user_id": userId },
+      ];
     }
 
     // Exclude trashed bookings
@@ -542,7 +564,16 @@ BookingRoutes.get("/payment-reminders", authenticateUser, async (req, res) => {
     
     // Non-admin users only see their own bookings or those shared with them
     if (!isAdmin) {
-      query.$or = [{ user_id: userId }, { "shared_with.user_id": userId }];
+      query.$or = [
+        { user_id: userId },
+        { "shared_with.user_id": userId },
+        { "term_shares.term_1.creator.user_id": userId },
+        { "term_shares.term_1.shared_with.user_id": userId },
+        { "term_shares.term_2.creator.user_id": userId },
+        { "term_shares.term_2.shared_with.user_id": userId },
+        { "term_shares.term_3.creator.user_id": userId },
+        { "term_shares.term_3.shared_with.user_id": userId },
+      ];
     }
     
     const bookings = await BookingModel.find(query).sort({ date: 1 }); // Oldest first

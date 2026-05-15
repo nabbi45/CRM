@@ -30,7 +30,24 @@ async function main() {
   const bookings = await BookingModel.find({}).lean();
   let bookingsUpdated = 0;
   for (const booking of bookings) {
-    const normalized = normalizeBookingPayload(booking);
+    const baseTermShares = JSON.parse(JSON.stringify(booking.term_shares || {}));
+    if (!baseTermShares.term_1?.creator?.user_id) {
+      baseTermShares.term_1 = {
+        creator: {
+          user_id: booking.user_id,
+          user_name: booking.bdm,
+        },
+        payment_date: booking.payment_date,
+        shared_with: Array.isArray(booking.shared_with) ? booking.shared_with : [],
+      };
+    } else if (!baseTermShares.term_1.payment_date) {
+      baseTermShares.term_1.payment_date = booking.payment_date;
+    }
+
+    const normalized = normalizeBookingPayload({
+      ...booking,
+      term_shares: baseTermShares,
+    });
     const changed =
       normalized.bdm !== booking.bdm ||
       normalized.company_name !== booking.company_name ||
@@ -38,7 +55,8 @@ async function main() {
       normalized.email !== booking.email ||
       normalized.pan !== booking.pan ||
       normalized.gst !== booking.gst ||
-      JSON.stringify(normalized.shared_with || []) !== JSON.stringify(booking.shared_with || []);
+      JSON.stringify(normalized.shared_with || []) !== JSON.stringify(booking.shared_with || []) ||
+      JSON.stringify(normalized.term_shares || {}) !== JSON.stringify(booking.term_shares || {});
 
     if (changed) {
       await BookingModel.updateOne(
@@ -52,6 +70,7 @@ async function main() {
             pan: normalized.pan,
             gst: normalized.gst,
             shared_with: normalized.shared_with,
+            term_shares: normalized.term_shares,
           },
         }
       );

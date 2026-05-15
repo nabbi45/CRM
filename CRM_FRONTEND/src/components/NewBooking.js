@@ -358,9 +358,39 @@ const AddBooking = ({ onClose }) => {
 
       const receivedAmount = Number(formData.amount);
       const total_amount = Number(formData.totalAmount);
+      const buildShareEntries = () =>
+        sharedPersons.filter((p) => p.userId && p.percentage).map((person) => {
+          const userObj = users.find(u => String(u._id) === String(person.userId));
+          return {
+            user_id: person.userId,
+            user_name: userObj ? userObj.name?.toUpperCase() : "COWORKER",
+            percentage: Number(person.percentage),
+          };
+        });
 
       try {
         if (isContinuationTerm && selectedSourceBooking?._id) {
+          const termKey = formData.selectTerm === "Term 2" ? "term_2" : "term_3";
+          const termSharedWith = buildShareEntries();
+          const existingSharedWith = Array.isArray(selectedSourceBooking.shared_with)
+            ? selectedSourceBooking.shared_with
+            : [];
+          const accessUsers = new Map(existingSharedWith.map((sw) => [String(sw.user_id), sw]));
+
+          if (String(selectedSourceBooking.user_id) !== String(userSession.user_id)) {
+            accessUsers.set(String(userSession.user_id), {
+              user_id: userSession.user_id,
+              user_name: userSession.name?.toUpperCase() || "UNKNOWN",
+              percentage: 0,
+            });
+          }
+
+          termSharedWith.forEach((sw) => {
+            if (String(sw.user_id) !== String(selectedSourceBooking.user_id)) {
+              accessUsers.set(String(sw.user_id), sw);
+            }
+          });
+
           const continuationPayload = {
             payment_date: formData.paymentDate,
             services: Array.from(new Set([
@@ -370,6 +400,18 @@ const AddBooking = ({ onClose }) => {
             total_amount,
             updatedBy: userSession.name || "Unknown",
             note: `${formData.selectTerm} added from continuation flow`,
+            shared_with: Array.from(accessUsers.values()),
+            term_shares: {
+              ...(selectedSourceBooking.term_shares || {}),
+              [termKey]: {
+                creator: {
+                  user_id: userSession.user_id,
+                  user_name: userSession.name?.toUpperCase() || "UNKNOWN",
+                },
+                payment_date: formData.paymentDate,
+                shared_with: termSharedWith,
+              },
+            },
           };
 
           if (formData.selectTerm === "Term 2") {
@@ -430,14 +472,17 @@ const AddBooking = ({ onClose }) => {
           status: "Pending",
           after_disbursement: formData.funddisbursement || "",
           funddisbursement: formData.funddisbursement || "",
-          shared_with: sharedPersons.filter((p) => p.userId && p.percentage).map((person) => {
-            const userObj = users.find(u => String(u._id) === String(person.userId));
-            return {
-              user_id: person.userId,
-              user_name: userObj ? userObj.name?.toUpperCase() : "COWORKER",
-              percentage: Number(person.percentage),
-            };
-          }),
+          shared_with: buildShareEntries(),
+          term_shares: {
+            term_1: {
+              creator: {
+                user_id: userSession.user_id,
+                user_name: userSession.name?.toUpperCase() || "UNKNOWN",
+              },
+              payment_date: formData.paymentDate,
+              shared_with: buildShareEntries(),
+            },
+          },
         };
 
         const response = await fetch(`${apiUrl}/booking/addbooking`, {

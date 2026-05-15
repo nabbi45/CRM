@@ -112,6 +112,17 @@ const getDefaultFeaturePermissionsForRole = (role) => {
   return ['dashboard_overview', 'timecard', 'communication', 'employee_profile'];
 };
 
+const bookingAccessConditions = (userId) => [
+  { user_id: userId },
+  { "shared_with.user_id": userId },
+  { "term_shares.term_1.creator.user_id": userId },
+  { "term_shares.term_1.shared_with.user_id": userId },
+  { "term_shares.term_2.creator.user_id": userId },
+  { "term_shares.term_2.shared_with.user_id": userId },
+  { "term_shares.term_3.creator.user_id": userId },
+  { "term_shares.term_3.shared_with.user_id": userId },
+];
+
 const UserRoutes = express.Router();
 
 //Creating User
@@ -444,7 +455,10 @@ UserRoutes.get('/bookings/:id', authenticateUser, async (req, res) => {
         message: "Not A VALID USER",
       });
     }
-    const Bookings = await BookingModel.find({ user_id: id });
+    const Bookings = await BookingModel.find({
+      isDeleted: { $ne: true },
+      $or: bookingAccessConditions(id),
+    });
     //  console.log(Bookings)
     if (Bookings.length === 0) {
       return res.status(404).send({
@@ -477,7 +491,10 @@ UserRoutes.get('/:id?', authenticateUser, async (req, res) => {
         Booking = await BookingModel.find({ _id: booking_id });
       } else {
         // If the user is not dev, admin, or senior admin, search only within their bookings
-        Booking = await BookingModel.find({ _id: booking_id, user_id: userId });
+        Booking = await BookingModel.find({
+          _id: booking_id,
+          $or: bookingAccessConditions(userId),
+        });
       }
 
       if (Booking.length === 0) {
@@ -510,8 +527,11 @@ UserRoutes.get('/:id?', authenticateUser, async (req, res) => {
       } else {
         // Search within user's bookings only if not dev, admin, or senior admin
         Booking = await BookingModel.find({
-          ...searchQuery,
-          user_id: userId // Ensure the user only gets their own bookings
+          isDeleted: false,
+          $and: [
+            { $or: searchQuery.$or },
+            { $or: bookingAccessConditions(userId) },
+          ],
         }).sort({ createdAt: -1 });
       }
 
