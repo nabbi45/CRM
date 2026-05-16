@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './Scorecard.css'; // Create this CSS file for styling
 import { Doughnut } from 'react-chartjs-2'; // Import Chart.js's Doughnut chart
 import { apiUrl } from './LoginSignup';
-import { buildServiceDeductionMap, getBookingRevenueForUser, getBookingServiceDeductions } from '../utils/bookingRevenue';
+import { getBookingRevenueForUser } from '../utils/bookingRevenue';
 
 const Scorecard = () => {
   const [totalReceivedAmount, setTotalReceivedAmount] = useState(0); // Store total received amount (Revenue)
@@ -29,32 +29,17 @@ const Scorecard = () => {
       ? `${apiUrl}/booking/all`
       : `${apiUrl}/user/bookings/${userSession.user_id}`;
 
-    Promise.all([
-      fetch(url, { headers: { authorization: userSession.token || '' } }),
-      fetch(`${apiUrl}/services/api/services`, { headers: { authorization: userSession.token || '' } }),
-    ])
-      .then(async ([response, servicesResponse]) => {
+    fetch(url, { headers: { authorization: userSession.token || '' } })
+      .then(async (response) => {
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
-        return {
-          data: await response.json(),
-          services: servicesResponse.ok ? await servicesResponse.json() : [],
-        };
+        return response.json();
       })
-      .then(({ data, services }) => {
+      .then((data) => {
         const bookingsData = data.Allbookings || data;
-        const serviceDeductionMap = buildServiceDeductionMap(Array.isArray(services) ? services : []);
-        // Calculate the total received amount by summing term_1, term_2, and term_3, considering sharing
         const totalReceived = bookingsData.reduce((acc, booking) => {
-          if (isAdmin) {
-            const rawRev = (booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0);
-            const deduction = getBookingServiceDeductions(booking, serviceDeductionMap)
-              .reduce((sum, item) => sum + item.amount, 0);
-            return acc + rawRev - deduction;
-          }
-
-          return acc + getBookingRevenueForUser(booking, userSession.user_id, false, () => true, serviceDeductionMap);
+          return acc + getBookingRevenueForUser(booking, userSession.user_id, isAdmin, () => true);
         }, 0);
 
         setTotalReceivedAmount(totalReceived); // Set total received amount (revenue) in state
@@ -66,23 +51,11 @@ const Scorecard = () => {
       });
   };
 
-  // Calculate GST (18% of the total received amount)
-  const calculateGst = (receivedAmount) => {
-    return receivedAmount * 0.18; // 18% GST
-  };
-
-  // Calculate net revenue (total received amount - GST)
-  const calculateNetAmount = (receivedAmount) => {
-    const gstAmount = calculateGst(receivedAmount);
-    return receivedAmount - gstAmount; // Received amount minus GST
-  };
-
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  const gstAmount = calculateGst(totalReceivedAmount); // Calculate GST
-  const netAmount = calculateNetAmount(totalReceivedAmount); // Calculate net amount
+  const netAmount = totalReceivedAmount;
   const target = 200000; // Set the target to 2 lakh (200,000 INR)
   const progressPercentage = ((netAmount / target) * 100).toFixed(2); // Progress towards target
 
@@ -127,11 +100,7 @@ const Scorecard = () => {
               <td>{totalReceivedAmount.toLocaleString()} INR</td>
             </tr>
             <tr>
-              <td>GST Amount (18%) :-</td>
-              <td>{gstAmount.toFixed(2)} INR</td>
-            </tr>
-            <tr>
-              <td>Net Amount (ScoreCard):-</td>
+              <td>Net Revenue (ScoreCard):-</td>
               <td>{netAmount.toFixed(2)} INR</td>
             </tr>
             {/* You can add more fields here if needed */}

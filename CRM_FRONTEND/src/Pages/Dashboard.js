@@ -32,6 +32,7 @@ import ProjectionLeads from '../components/ProjectionLeads';
 import ClientDocuments from '../components/ClientDocuments';
 import { canAccessFeature } from '../utils/featureAccess';
 import SecuritySettings from '../components/SecuritySettings';
+import BookingApprovals from '../components/BookingApprovals';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
   if (canAccessFeature(userSession, feature)) return children;
@@ -208,6 +209,7 @@ const Dashboard = () => {
         <Routes>
           <Route path="/" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><DashboardContent /></FeatureGuard>} />
           <Route path="new-booking" element={<FeatureGuard userSession={userSession} feature="new_booking"><AddBooking /></FeatureGuard>} />
+          <Route path="booking-approvals" element={<FeatureGuard userSession={userSession} feature="booking_approvals"><BookingApprovals /></FeatureGuard>} />
           <Route path="projection-leads" element={<FeatureGuard userSession={userSession} feature="projection_leads"><ProjectionLeads /></FeatureGuard>} />
           <Route path="history" element={<FeatureGuard userSession={userSession} feature="all_bookings"><History /></FeatureGuard>} />
           <Route path="adduser" element={<FeatureGuard userSession={userSession} feature="manage_users"><AddUser /></FeatureGuard>} />

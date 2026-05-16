@@ -455,15 +455,7 @@ const DashboardContent = () => {
         if (isAdmin || String(booking.user_id) === String(session.user_id)) {
           bookingCount++;
         }
-        const rawRev = Number(
-          (booking.term_1 || 0) +
-          (booking.term_2 || 0) +
-          (booking.term_3 || 0)
-        );
-
-        const rev = isAdmin
-          ? rawRev - getBookingServiceDeductions(booking, serviceDeductionMap).reduce((sum, item) => sum + item.amount, 0)
-          : getBookingRevenueForUser(booking, session.user_id, false, () => true, serviceDeductionMap);
+        const rev = getBookingRevenueForUser(booking, session.user_id, isAdmin, () => true, serviceDeductionMap);
         const currentMonthRev = isAdmin
           ? getBookingRevenueForUser(booking, session.user_id, true, isCurrentMonthTerm, serviceDeductionMap)
           : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm, serviceDeductionMap);
@@ -497,12 +489,10 @@ const DashboardContent = () => {
             : [];
 
           if (services.length > 0) {
-            const bookingDeduction = getBookingServiceDeductions(booking, serviceDeductionMap)
-              .reduce((sum, item) => sum + item.amount, 0);
             const splitBaseRevenue = Math.max(
               0,
               isAdmin
-                ? (bookingTotalAmount > 0 ? bookingTotalAmount : rawRev) - bookingDeduction
+                ? getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap)
                 : rev
             );
             const splitRevenue = splitBaseRevenue / services.length;
@@ -533,6 +523,20 @@ const DashboardContent = () => {
           ).padStart(2, "0")}`;
           if (!monthlyMap[key]) monthlyMap[key] = 0;
           monthlyMap[key] += termAmount;
+        });
+
+        (booking.refund_adjustments || []).forEach((refund) => {
+          const refundDate = new Date(refund.refund_date || refund.created_at);
+          if (Number.isNaN(refundDate.getTime())) return;
+          const key = `${refundDate.getFullYear()}-${String(refundDate.getMonth() + 1).padStart(2, "0")}`;
+          if (!monthlyMap[key]) monthlyMap[key] = 0;
+          monthlyMap[key] += getBookingRevenueForUser(
+            booking,
+            session.user_id,
+            isAdmin,
+            (_, termKey) => termKey === "refund",
+            serviceDeductionMap
+          );
         });
 
         sortedBookings.push(booking);
@@ -573,10 +577,7 @@ const DashboardContent = () => {
             ? booking.services.filter((s) => typeof s === "string" && s.trim())
             : [];
           if (!services.length) continue;
-          const grossRevenue = Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0)) || Number(booking.total_amount || 0);
-          const bookingDeduction = getBookingServiceDeductions(booking, serviceDeductionMap)
-            .reduce((sum, item) => sum + item.amount, 0);
-          const revenue = Math.max(0, grossRevenue - bookingDeduction);
+          const revenue = Math.max(0, getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap));
           const splitRevenue = revenue / services.length;
           services.forEach((serviceNameRaw) => {
             const serviceName = serviceNameRaw.trim();

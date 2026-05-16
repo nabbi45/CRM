@@ -891,7 +891,12 @@ const History = () => {
                 borderColor: mode === 'light' ? 'rgba(148, 163, 184, 0.35)' : 'rgba(30, 64, 175, 0.7)',
                 color: mode === 'light' ? '#333' : '#e5e7eb'
               }}>
-                <div className="booking-header">
+                <div className="booking-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {booking.is_refundable && (
+                      <Chip size="small" color="warning" label={`Refundable: ${booking.refundable_percentage}%`} />
+                    )}
+                  </div>
                   <button
                     className="copy-button"
                     onClick={() => handleCopy(booking)}
@@ -1028,6 +1033,19 @@ const History = () => {
                         ₹
                       </td>
                     </tr>
+                    {booking.refund_adjustments?.length > 0 && (
+                      <tr>
+                        <td>
+                          <strong style={{ color: '#ef4444' }}>Refunded Amount</strong>
+                        </td>
+                        <td>
+                          <span className="colon-bold">:</span> &nbsp;&nbsp;
+                          <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                            {booking.refund_adjustments.reduce((sum, r) => sum + (Number(r.amount) || 0), 0)}₹
+                          </span>
+                        </td>
+                      </tr>
+                    )}
                     <tr>
                       <td>
                         <strong>Scorecard Amount</strong>

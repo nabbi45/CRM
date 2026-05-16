@@ -19,6 +19,7 @@ import ProjectionLeadRoutes from "./routes/ProjectionLeadRoute.js";
 import BookingDocumentRoutes from "./routes/BookingDocumentRoute.js";
 import FileActivityRoutes from "./routes/FileActivityRoute.js";
 import SecurityRoutes from "./routes/SecurityRoute.js";
+import BookingApprovalRoutes from "./routes/BookingApprovalRoute.js";
 
 import cors from "cors";
 import path from "path";
@@ -112,6 +113,7 @@ app.use("/projection-leads", ProjectionLeadRoutes);
 app.use("/booking-documents", BookingDocumentRoutes);
 app.use("/file-activity", FileActivityRoutes);
 app.use("/security", SecurityRoutes);
+app.use("/booking-approvals", BookingApprovalRoutes);
 
 // Keep track of connected users { userId: Set<socketId> }
 global.onlineUsers = new Map();

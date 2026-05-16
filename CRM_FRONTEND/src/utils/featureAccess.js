@@ -1,6 +1,7 @@
 export const FEATURE_KEYS = [
   'dashboard_overview',
   'new_booking',
+  'booking_approvals',
   'projection_leads',
   'projection_leads_all',
   'all_bookings',
@@ -24,6 +25,7 @@ export const FEATURE_KEYS = [
 export const FEATURE_LABELS = {
   dashboard_overview: 'Dashboard',
   new_booking: 'New Booking',
+  booking_approvals: 'Booking Approvals',
   projection_leads: 'Projection Lead',
   projection_leads_all: 'View All Projection Leads',
   all_bookings: 'All Booking',
@@ -63,6 +65,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   admin: [
     'dashboard_overview',
     'new_booking',
+    'booking_approvals',
     'projection_leads',
     'projection_leads_all',
     'all_bookings',
@@ -84,6 +87,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   'senior admin': [
     'dashboard_overview',
     'new_booking',
+    'booking_approvals',
     'projection_leads',
     'projection_leads_all',
     'all_bookings',
@@ -106,6 +110,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   bdm: [
     'dashboard_overview',
     'new_booking',
+    'booking_approvals',
     'projection_leads',
     'all_bookings',
     'proforma_invoice',
@@ -154,8 +159,12 @@ export const resolveFeaturePermissions = (userSession = {}) => {
   // Force essential tabs for everyone regardless of role or explicit setting
   if (!final.includes('dashboard_overview')) final.push('dashboard_overview');
   if (!final.includes('employee_profile')) final.push('employee_profile');
+  if (!final.includes('booking_approvals') && ['bdm', 'employee', 'sales'].includes(normalizeRole(userSession?.user_role))) final.push('booking_approvals');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) {
     final.push('security');
+  }
+  if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('booking_approvals')) {
+    final.push('booking_approvals');
   }
 
   return [...new Set(final.filter(k => FEATURE_KEYS.includes(k)))];

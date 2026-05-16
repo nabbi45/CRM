@@ -36,6 +36,7 @@ import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import FolderCopyOutlinedIcon from '@mui/icons-material/FolderCopyOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { socket } from '../socket';
 import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
@@ -163,6 +164,9 @@ const Sidebar = () => {
     }
     if (canAccessFeature(userSession, 'new_booking')) {
       items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking', color: '#10b981' });
+    }
+    if (canAccessFeature(userSession, 'booking_approvals')) {
+      items.push({ text: 'Booking Approvals', icon: <FactCheckOutlinedIcon />, path: '/dashboard/booking-approvals', color: '#0ea5e9' });
     }
     if (canAccessFeature(userSession, 'projection_leads')) {
       items.push({ text: 'Projection Lead', icon: <TrendingUpOutlinedIcon />, path: '/dashboard/projection-leads', color: '#22c55e' });

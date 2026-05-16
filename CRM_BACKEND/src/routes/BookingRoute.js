@@ -3,31 +3,16 @@ import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { NotificationModel } from "../models/NotificationModel.js";
 import { normalizeBookingPayload } from "../utils/textNormalize.js";
+import {
+  amountExcludingGst,
+  buildGstMetadata,
+  collectAffectedUserIds,
+  gstComponent,
+  isAdminRole,
+  prepareBookingFinancials,
+} from "../utils/revenueRules.js";
 
 const BookingRoutes = express.Router();
-
-const GST_RATE = 18;
-const GST_MULTIPLIER = 1 + GST_RATE / 100;
-const DEV_GST_ROLES = ["dev", "srdev", "sr dev"];
-
-const isCashPayment = (paymentMode = "") =>
-  String(paymentMode).trim().toLowerCase() === "cash";
-
-const roundMoney = (amount) => Math.round((Number(amount || 0) + Number.EPSILON) * 100) / 100;
-
-const shouldApplyGstForBooking = ({ paymentMode, role, requestedApplyGst }) => {
-  if (isCashPayment(paymentMode)) return false;
-  if (DEV_GST_ROLES.includes(String(role || "").trim().toLowerCase())) {
-    return requestedApplyGst !== false;
-  }
-  return true;
-};
-
-const addGstToAmount = (amount, applyGst) => {
-  const numericAmount = Number(amount || 0);
-  if (!numericAmount) return amount;
-  return applyGst ? roundMoney(numericAmount * GST_MULTIPLIER) : numericAmount;
-};
 
 //Addbooking
 BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
@@ -56,7 +41,8 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     state,
     shared_with,
     term_shares,
-    apply_gst,
+    is_refundable,
+    refundable_percentage,
   } = req.body;
 
   const requiredFields = {
@@ -90,19 +76,14 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
   }
 
   try {
-    const applyGst = shouldApplyGstForBooking({
-      paymentMode: bank,
-      role: req.user?.user_role,
-      requestedApplyGst: apply_gst,
-    });
-    const baseTotalAmount = Number(total_amount || 0);
-    const totalAmountWithGst = addGstToAmount(baseTotalAmount, applyGst);
-    const gstAmount = applyGst ? roundMoney(totalAmountWithGst - baseTotalAmount) : 0;
-    const term1WithGst = addGstToAmount(term_1, applyGst);
-    const term2WithGst = addGstToAmount(term_2, applyGst);
-    const term3WithGst = addGstToAmount(term_3, applyGst);
+    const requesterRole = req.user?.user_role || req.headers["user-role"];
+    if (!isAdminRole(requesterRole)) {
+      return res.status(403).send({
+        message: "Employee bookings must be submitted through the booking approval queue.",
+      });
+    }
 
-    const new_booking = normalizeBookingPayload({
+    const basePayload = normalizeBookingPayload({
       user_id,
       bdm,
       branch_name,
@@ -112,14 +93,10 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
       contact_no,
       closed_by,
       services,
-      total_amount: totalAmountWithGst,
-      total_amount_before_gst: baseTotalAmount,
-      gst_amount: gstAmount,
-      gst_rate: applyGst ? GST_RATE : 0,
-      gst_applied: applyGst,
-      term_1: term1WithGst,
-      term_2: term2WithGst,
-      term_3: term3WithGst,
+      total_amount: Number(total_amount || 0),
+      term_1: Number(term_1 || 0),
+      term_2: Number(term_2 || 0),
+      term_3: Number(term_3 || 0),
       payment_date, // 👈 Set here
       pan,
       gst: gst || "N/A",
@@ -137,7 +114,13 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
           shared_with: Array.isArray(shared_with) ? shared_with : [],
         },
       },
+      is_refundable,
+      refundable_percentage,
     });
+    const new_booking = {
+      ...basePayload,
+      ...(await prepareBookingFinancials(basePayload)),
+    };
 
     const booking = await BookingModel.create(new_booking);
 
@@ -187,6 +170,28 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     if (!oldBooking) {
       return res.status(404).send("Booking not found");
     }
+
+    if (
+      Object.prototype.hasOwnProperty.call(updates, "term_1") ||
+      Object.prototype.hasOwnProperty.call(updates, "term_2") ||
+      Object.prototype.hasOwnProperty.call(updates, "term_3") ||
+      Object.prototype.hasOwnProperty.call(updates, "total_amount") ||
+      Object.prototype.hasOwnProperty.call(updates, "bank")
+    ) {
+      const mergedBooking = {
+        ...oldBooking.toObject(),
+        ...updates,
+      };
+      updates = {
+        ...updates,
+        ...buildGstMetadata(mergedBooking),
+      };
+    }
+
+    delete updates.service_deductions_snapshot;
+    delete updates.refund_adjustments;
+    updates.is_refundable = oldBooking.is_refundable;
+    updates.refundable_percentage = oldBooking.refundable_percentage || 0;
 
     const rolesWithFullAccess = ["dev", "senior admin", "super admin", "director", "srdev", "sr dev"];
     const requesterId = req.user?.userId || req.user?.user_id;
@@ -670,6 +675,64 @@ BookingRoutes.get("/payment-reminders", authenticateUser, async (req, res) => {
   } catch (err) {
     console.error("Error in /payment-reminders:", err.message);
     res.status(500).send({ message: err.message });
+  }
+});
+
+BookingRoutes.post("/:id/refunds", authenticateUser, async (req, res) => {
+  const requesterRole = req.user?.user_role || req.headers["user-role"];
+  if (!isAdminRole(requesterRole)) {
+    return res.status(403).send({ message: "Only admin roles can add refund adjustments." });
+  }
+
+  try {
+    const { id } = req.params;
+    const { amount, refund_date, note } = req.body;
+    const refundAmount = Number(amount || 0);
+
+    if (!refundAmount || refundAmount <= 0) {
+      return res.status(400).send({ message: "Refund amount must be greater than 0." });
+    }
+
+    const booking = await BookingModel.findById(id);
+    if (!booking || booking.isDeleted) {
+      return res.status(404).send({ message: "Booking not found." });
+    }
+
+    const gstIncluded = Boolean(booking.gst_included ?? booking.gst_applied);
+    const refundEntry = {
+      amount: refundAmount,
+      amount_excluding_gst: amountExcludingGst(refundAmount, gstIncluded),
+      gst_amount: gstComponent(refundAmount, gstIncluded),
+      refund_date: refund_date ? new Date(refund_date) : new Date(),
+      note: note || "",
+      created_by: req.user?.userId || req.user?.user_id || "",
+      created_by_name: req.user?.name || req.headers["user-name"] || "Unknown",
+      created_at: new Date(),
+    };
+
+    booking.refund_adjustments = [...(booking.refund_adjustments || []), refundEntry];
+    await booking.save();
+
+    const affectedUserIds = collectAffectedUserIds(booking);
+    if (affectedUserIds.length) {
+      await NotificationModel.insertMany(
+        affectedUserIds.map((userId) => ({
+          user_id: userId,
+          type: "booking_refund_created",
+          message: `Refund adjustment added for ${booking.company_name || booking.contact_person || "a booking"}.`,
+          reference_id: booking._id.toString(),
+        }))
+      );
+    }
+
+    return res.status(201).send({
+      message: "Refund adjustment added successfully.",
+      refund: refundEntry,
+      booking,
+    });
+  } catch (err) {
+    console.error("Refund adjustment error:", err);
+    return res.status(500).send({ message: err.message });
   }
 });
 

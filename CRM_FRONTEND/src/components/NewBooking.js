@@ -52,12 +52,14 @@ const AddBooking = ({ onClose }) => {
     bank: "",
     state: "",
     funddisbursement: "",
-    applyGst: true,
+    isRefundable: false,
+    refundablePercentage: "",
   });
   
   // Document upload state
   const [documents, setDocuments] = useState([]);
   const [documentType, setDocumentType] = useState("others");
+  const [paymentProof, setPaymentProof] = useState(null);
 
   const [errors, setErrors] = useState({});
   const [openDialog, setOpenDialog] = useState(false); // Dialog state for popup
@@ -77,8 +79,6 @@ const AddBooking = ({ onClose }) => {
     setFormData((prev) => ({
       ...prev,
       [name]: nextValue,
-      ...(name === "bank" && isCashPayment(nextValue) ? { applyGst: false } : {}),
-      ...(name === "bank" && !isCashPayment(nextValue) && !isDevRole ? { applyGst: true } : {}),
     }));
   };
 
@@ -106,17 +106,9 @@ const AddBooking = ({ onClose }) => {
 
   const isContinuationTerm = formData.selectTerm === "Term 2" || formData.selectTerm === "Term 3";
   const userSessionForUi = JSON.parse(localStorage.getItem("userSession")) || {};
-  const isDevRole = ["dev", "srdev", "sr dev"].includes((userSessionForUi.user_role || "").toLowerCase());
+  const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
+  const isAdminRole = adminRoles.includes((userSessionForUi.user_role || "").toLowerCase());
   const isCashPayment = (paymentMode = "") => String(paymentMode).trim().toLowerCase() === "cash";
-  const shouldApplyGst = !isCashPayment(formData.bank) && (!isDevRole || formData.applyGst);
-  const roundMoney = (amount) => Math.round((Number(amount || 0) + Number.EPSILON) * 100) / 100;
-  const addGst = (amount) => shouldApplyGst ? roundMoney(Number(amount || 0) * 1.18) : Number(amount || 0);
-  const gstSummary = {
-    baseTotal: Number(formData.totalAmount || 0),
-    totalWithGst: addGst(formData.totalAmount),
-    baseReceived: Number(formData.amount || 0),
-    receivedWithGst: addGst(formData.amount),
-  };
 
   const formatDateInput = (value) => {
     if (!value) return "";
@@ -144,7 +136,8 @@ const AddBooking = ({ onClose }) => {
     bank: booking?.bank || "",
     state: booking?.state || "",
     funddisbursement: booking?.after_disbursement || "",
-    applyGst: booking?.gst_applied !== false,
+    isRefundable: Boolean(booking?.is_refundable),
+    refundablePercentage: booking?.refundable_percentage || "",
   });
 
   useEffect(() => {
@@ -331,6 +324,12 @@ const AddBooking = ({ onClose }) => {
       validationErrors.paymentDate = "Payment Date is required";
     if (!formData.bank) validationErrors.bank = "Payment Mode is required";
     if (!formData.funddisbursement) validationErrors.funddisbursement = "After Fund Disbursement is required";
+    if (!isContinuationTerm && formData.isRefundable) {
+      const refundablePct = Number(formData.refundablePercentage || 0);
+      if (!refundablePct || refundablePct < 0 || refundablePct > 100) {
+        validationErrors.refundablePercentage = "Enter refundable percentage between 1 and 100";
+      }
+    }
     if (!formData.pan) {
       validationErrors.pan = "PAN Number is required";
     } else {
@@ -476,7 +475,6 @@ const AddBooking = ({ onClose }) => {
           contact_no: Number(formData.contactNumber),
           services: formData.services,
           total_amount,
-          apply_gst: shouldApplyGst,
           closed_by: formData.closed || "",
           term_1: formData.selectTerm === "Term 1" ? receivedAmount : null,
           term_2: formData.selectTerm === "Term 2" ? receivedAmount : null,
@@ -491,6 +489,9 @@ const AddBooking = ({ onClose }) => {
           status: "Pending",
           after_disbursement: formData.funddisbursement || "",
           funddisbursement: formData.funddisbursement || "",
+          is_refundable: Boolean(formData.isRefundable),
+          refundable_percentage: formData.isRefundable ? Number(formData.refundablePercentage || 0) : 0,
+          projectionLeadId,
           shared_with: buildShareEntries(),
           term_shares: {
             term_1: {
@@ -503,6 +504,33 @@ const AddBooking = ({ onClose }) => {
             },
           },
         };
+
+        if (!isAdminRole) {
+          const approvalForm = new FormData();
+          approvalForm.append("payload", JSON.stringify(dataToSubmit));
+          if (paymentProof) approvalForm.append("paymentProof", paymentProof);
+
+          const approvalResponse = await fetch(`${apiUrl}/booking-approvals`, {
+            method: "POST",
+            headers: {
+              authorization: `${userSession.token}`,
+            },
+            body: approvalForm,
+          });
+
+          const approvalData = await approvalResponse.json().catch(() => ({}));
+          if (!approvalResponse.ok) {
+            throw new Error(approvalData.message || "Error submitting booking for approval");
+          }
+
+          enqueueSnackbar("Booking submitted for approval. It will appear in All Bookings after approval.", {
+            variant: "success",
+          });
+          setPaymentProof(null);
+          setLoading(false);
+          if (onClose) onClose();
+          return;
+        }
 
         const response = await fetch(`${apiUrl}/booking/addbooking`, {
           method: "POST",
@@ -598,7 +626,8 @@ const AddBooking = ({ onClose }) => {
           bank: "",
           state: "",
           funddisbursement: "",
-          applyGst: true,
+          isRefundable: false,
+          refundablePercentage: "",
         });
         setSharedPersons([]);
         setShareCount(0);
@@ -813,7 +842,7 @@ const AddBooking = ({ onClose }) => {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label={shouldApplyGst ? "Base Total Amount *" : "Total Amount *"}
+              label="Total Amount (GST included if applicable) *"
               name="totalAmount"
               type="text"
               value={formData.totalAmount}
@@ -821,9 +850,7 @@ const AddBooking = ({ onClose }) => {
               placeholder="Enter total amount"
               variant="outlined"
               error={Boolean(errors.totalAmount)}
-              helperText={errors.totalAmount || (shouldApplyGst && gstSummary.baseTotal
-                ? `GST 18%: ₹${roundMoney(gstSummary.totalWithGst - gstSummary.baseTotal).toLocaleString()} | Final: ₹${gstSummary.totalWithGst.toLocaleString()}`
-                : "")}
+              helperText={errors.totalAmount || (!isCashPayment(formData.bank) ? "Enter the final amount already including 18% GST." : "Cash bookings do not include GST.")}
             />
           </Grid>
 
@@ -876,7 +903,7 @@ const AddBooking = ({ onClose }) => {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label={shouldApplyGst ? "Base Received Amount *" : "Received Amount *"}
+              label="Received Amount (GST included if applicable) *"
               name="amount"
               type="text"
               value={formData.amount}
@@ -884,33 +911,39 @@ const AddBooking = ({ onClose }) => {
               placeholder="Enter received amount"
               variant="outlined"
               error={Boolean(errors.amount)}
-              helperText={errors.amount || (shouldApplyGst && gstSummary.baseReceived
-                ? `GST 18%: ₹${roundMoney(gstSummary.receivedWithGst - gstSummary.baseReceived).toLocaleString()} | Final: ₹${gstSummary.receivedWithGst.toLocaleString()}`
-                : "")}
+              helperText={errors.amount || "Revenue will be calculated after GST and deductions are removed."}
             />
           </Grid>
 
           {!isContinuationTerm && (
             <Grid item xs={12}>
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                {isDevRole && (
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={Boolean(formData.applyGst) && !isCashPayment(formData.bank)}
-                        disabled={isCashPayment(formData.bank)}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, applyGst: e.target.checked }))}
-                      />
-                    }
-                    label="Add 18% GST"
-                  />
-                )}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={Boolean(formData.isRefundable)}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, isRefundable: e.target.checked }))}
+                    />
+                  }
+                  label="Refundable booking"
+                />
+                <TextField
+                  sx={{ ml: { sm: 2 }, mt: { xs: 1, sm: 0 }, maxWidth: 220 }}
+                  size="small"
+                  label="Refundable %"
+                  name="refundablePercentage"
+                  type="number"
+                  value={formData.refundablePercentage}
+                  onChange={handleChange}
+                  disabled={!formData.isRefundable}
+                  error={Boolean(errors.refundablePercentage)}
+                  helperText={errors.refundablePercentage}
+                  InputProps={{ endAdornment: <Typography sx={{ ml: 1 }}>%</Typography> }}
+                />
                 <Typography variant="body2" color="text.secondary">
                   {isCashPayment(formData.bank)
                     ? "GST is not applied on cash bookings."
-                    : shouldApplyGst
-                      ? `18% GST will be added automatically. Final booking amount: ₹${gstSummary.totalWithGst.toLocaleString()}`
-                      : "GST will not be added for this dev-created booking."}
+                    : "GST is not added here. Enter the final amount already including GST where applicable."}
                 </Typography>
               </Paper>
             </Grid>
@@ -1136,6 +1169,25 @@ const AddBooking = ({ onClose }) => {
               variant="outlined"
             />
           </Grid>
+
+          {!isContinuationTerm && !isAdminRole && (
+            <Grid item xs={12}>
+              <Button
+                component="label"
+                variant="outlined"
+                startIcon={<CloudUploadIcon />}
+                fullWidth
+              >
+                {paymentProof ? `Payment Proof: ${paymentProof.name}` : "Attach Payment Screenshot (Optional)"}
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+                />
+              </Button>
+            </Grid>
+          )}
 
           {/* Document Upload Section */}
           <Grid item xs={12}>
