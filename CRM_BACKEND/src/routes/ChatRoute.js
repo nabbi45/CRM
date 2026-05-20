@@ -358,4 +358,33 @@ ChatRoutes.patch("/groups/:groupId/members", authenticateUser, async (req, res) 
     }
 });
 
+// Rename a group
+ChatRoutes.patch("/groups/:groupId", authenticateUser, async (req, res) => {
+    try {
+        const currentUserId = req.user.userId;
+        const { groupId } = req.params;
+        const { name } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).send({ message: "Group name is required." });
+        }
+
+        const group = await ChatGroupModel.findById(groupId);
+        if (!group) {
+            return res.status(404).send({ message: "Group not found" });
+        }
+
+        if (group.created_by !== currentUserId && !canCreateGroup(req.user)) {
+            return res.status(403).send({ message: "Only the group creator or admin can rename this group." });
+        }
+
+        group.name = name.trim();
+        await group.save();
+
+        return res.status(200).send({ message: "Group renamed successfully", group });
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
 export default ChatRoutes;

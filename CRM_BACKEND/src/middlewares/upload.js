@@ -19,9 +19,10 @@ const storage = new CloudinaryStorage({
     return {
       folder: 'employee_profiles',
       public_id: filename,
-      allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
+      resource_type: 'auto',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx'],
     };
   },
 });
 
-export const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+export const upload = multer({ storage, limits: { fileSize: 8 * 1024 * 1024 } });

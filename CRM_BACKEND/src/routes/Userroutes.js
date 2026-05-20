@@ -7,11 +7,15 @@ import nodemailer from 'nodemailer';  // Used to send emails
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 import { authenticateUser, authorizeDevRole, authorizeFeature } from '../middlewares/authMiddleware.js';
 import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
 import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
+import { EmployeeModel } from '../models/EmployeeProfile.js';
 dotenv.config()
 const saltRounds = 5;
+const memoryUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 const FEATURE_KEYS = [
   'dashboard_overview',
@@ -274,6 +278,58 @@ UserRoutes.put('/update-profile', authenticateUser, async (req, res) => {
   } catch (error) {
     console.error(error.message);
     return res.status(500).send({ message: error.message });
+  }
+});
+
+UserRoutes.post('/profile-picture', authenticateUser, memoryUpload.single('profilePicture'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send({ message: 'Profile picture file is required' });
+    }
+
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const result = await cloudinary.uploader.upload(dataURI, {
+      resource_type: 'image',
+      folder: 'user_profile_pictures',
+      public_id: `user_${req.user.userId}_${Date.now()}`,
+    });
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      req.user.userId,
+      { $set: { profilePicture: result.secure_url } },
+      { new: true }
+    ).select('-password');
+
+    await EmployeeModel.findOneAndUpdate(
+      { userId: req.user.userId, isActive: true },
+      { $set: { employeePhoto: result.secure_url } }
+    );
+
+    return res.status(200).send({ message: 'Profile picture updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    return res.status(500).send({ message: error.message || 'Failed to upload profile picture' });
+  }
+});
+
+UserRoutes.delete('/profile-picture', authenticateUser, async (req, res) => {
+  try {
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      req.user.userId,
+      { $unset: { profilePicture: "" } },
+      { new: true }
+    ).select('-password');
+
+    await EmployeeModel.findOneAndUpdate(
+      { userId: req.user.userId, isActive: true },
+      { $unset: { employeePhoto: "" } }
+    );
+
+    return res.status(200).send({ message: 'Profile picture deleted successfully', user: updatedUser });
+  } catch (error) {
+    console.error('Profile picture delete error:', error);
+    return res.status(500).send({ message: error.message || 'Failed to delete profile picture' });
   }
 });
 

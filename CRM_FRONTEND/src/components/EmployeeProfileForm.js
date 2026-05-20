@@ -64,6 +64,7 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
   const [pendingProfiles, setPendingProfiles] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
   const [search, setSearch] = useState("");
+  const [employeeSearchLoading, setEmployeeSearchLoading] = useState(false);
 
   // Dialogs
   const [viewProfile, setViewProfile] = useState(null);
@@ -123,12 +124,15 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
     } catch { setPendingProfiles([]); }
   }, [apiUrl, userSession]);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (searchTerm = "") => {
     try {
-      const res = await axios.get(`${apiUrl}/employee/all${search ? `?search=${search}` : ""}`, { headers: { authorization: userSession.token } });
+      setEmployeeSearchLoading(true);
+      const term = searchTerm.trim();
+      const res = await axios.get(`${apiUrl}/employee/all${term ? `?search=${encodeURIComponent(term)}` : ""}`, { headers: { authorization: userSession.token } });
       setAllEmployees(res.data.employees || []);
     } catch { setAllEmployees([]); }
-  }, [apiUrl, userSession, search]);
+    finally { setEmployeeSearchLoading(false); }
+  }, [apiUrl, userSession]);
 
   useEffect(() => {
     const init = async () => {
@@ -140,7 +144,15 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
       setLoading(false);
     };
     if (userSession?.user_id && userSession?.token) init();
-  }, [fetchMyProfile, fetchPending, fetchAll, isAuthority, userSession]);
+  }, [fetchMyProfile, fetchPending, isAuthority, userSession]);
+
+  useEffect(() => {
+    if (!isAuthority || activeTab !== 1) return;
+    const timer = setTimeout(() => {
+      fetchAll(search);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search, activeTab, isAuthority, fetchAll]);
 
   // Fetch branches
   useEffect(() => {
@@ -209,13 +221,14 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
       await axios.post(`${apiUrl}/employee/additional-details/${addDetailsDialog.userId}`, fd, {
         headers: { authorization: userSession.token, "Content-Type": "multipart/form-data" }
       });
+      await fetchAll(search);
       setAddDetailsDialog({ open: false, userId: null });
       setDetailFile(null);
       setDetailForm({ docType: "", title: "", notes: "" });
       if (viewProfile) fetchAdditionalDetails(viewProfile.userId);
     } catch (err) {
       console.error("Add details error:", err);
-      setUploadDocError("Failed to upload document. Ensure file format is valid (PDF/DOCX/JPG/PNG).");
+      setUploadDocError(err?.response?.data?.error || err?.response?.data?.message || "Failed to upload document. Ensure file format is valid and under 8 MB.");
     } finally {
       setUploadingDoc(false);
     }
@@ -661,7 +674,10 @@ export const CreateProfile = ({ apiUrl, userSession }) => {
               <TextField fullWidth size="small" placeholder="Search employees..." value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") fetchAll(); }}
-                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
+                  endAdornment: employeeSearchLoading ? <InputAdornment position="end"><CircularProgress size={18} /></InputAdornment> : null,
+                }}
                 sx={{ mb: 3 }}
               />
               {allEmployees.length === 0 ? (

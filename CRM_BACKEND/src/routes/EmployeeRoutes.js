@@ -1,6 +1,7 @@
 import express from "express";
 import { upload } from "../middlewares/upload.js";
 import { EmployeeModel } from "../models/EmployeeProfile.js";
+import { UserModel } from "../models/UserModel.js";
 import { authenticateUser, authorizeFeature } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
@@ -251,6 +252,9 @@ router.post("/profile",
 
       const profile = new EmployeeModel(profileData);
       await profile.save();
+      await UserModel.findByIdAndUpdate(req.user.userId, {
+        $set: { profilePicture: profileData.employeePhoto }
+      });
 
       const responseProfile = profile.toObject();
       delete responseProfile.updateHistory;

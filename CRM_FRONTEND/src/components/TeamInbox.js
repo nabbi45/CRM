@@ -11,6 +11,7 @@ import {
     DialogActions,
     Checkbox,
     FormControlLabel,
+    Stack,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import SearchIcon from '@mui/icons-material/Search';
@@ -80,8 +81,12 @@ const TeamInbox = () => {
     const [groupMenuAnchor, setGroupMenuAnchor] = useState(null);
     const [manageGroupDialogOpen, setManageGroupDialogOpen] = useState(false);
     const [editingGroupMembers, setEditingGroupMembers] = useState([]);
+    const [manageGroupName, setManageGroupName] = useState('');
+    const [profileDialog, setProfileDialog] = useState({ open: false, user: null, isSelf: false });
+    const [profilePhotoBusy, setProfilePhotoBusy] = useState(false);
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const profilePhotoInputRef = useRef(null);
     const normalizedRole = (session.user_role || '').toLowerCase().trim();
     const canCreateGroup = ['admin', 'super admin', 'senior admin', 'director', 'hr', 'dev', 'srdev', 'sr dev'].includes(normalizedRole);
 
@@ -427,6 +432,126 @@ const TeamInbox = () => {
         }
     };
 
+    const openProfileDialog = (user) => {
+        if (!user) return;
+        const isSelf = String(user._id || user.user_id) === String(session.user_id);
+        setProfileDialog({ open: true, user, isSelf });
+    };
+
+    const closeGroupMenu = () => setGroupMenuAnchor(null);
+
+    const openManageGroup = () => {
+        if (!activeChat.isGroup) return;
+        setManageGroupName(activeChat.name || '');
+        setEditingGroupMembers((activeChat.members || []).map((member) => member.user_id));
+        setManageGroupDialogOpen(true);
+        closeGroupMenu();
+    };
+
+    const toggleEditingGroupMember = (userId) => {
+        setEditingGroupMembers((prev) =>
+            prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+        );
+    };
+
+    const refreshActiveGroup = (group) => {
+        setGroups((prev) => prev.map((g) => g._id === group._id ? { ...g, ...group } : g));
+        setActiveChat((prev) => prev.id === group._id ? { ...prev, name: group.name, members: group.members || [] } : prev);
+    };
+
+    const handleSaveGroupSettings = async () => {
+        if (!activeChat.isGroup) return;
+        try {
+            if (manageGroupName.trim() && manageGroupName.trim() !== activeChat.name) {
+                const renameRes = await fetch(`${apiUrl}/chat/groups/${activeChat.id}`, {
+                    method: 'PATCH',
+                    headers,
+                    body: JSON.stringify({ name: manageGroupName.trim() }),
+                });
+                const renameData = await renameRes.json().catch(() => ({}));
+                if (!renameRes.ok) throw new Error(renameData.message || 'Failed to rename group');
+                refreshActiveGroup(renameData.group);
+            }
+
+            const membersRes = await fetch(`${apiUrl}/chat/groups/${activeChat.id}/members`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ memberIds: editingGroupMembers }),
+            });
+            const membersData = await membersRes.json().catch(() => ({}));
+            if (!membersRes.ok) throw new Error(membersData.message || 'Failed to update members');
+            refreshActiveGroup(membersData.group);
+            setManageGroupDialogOpen(false);
+            await fetchGroups();
+            enqueueSnackbar('Group updated', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to update group', { variant: 'error' });
+        }
+    };
+
+    const handleDeleteGroup = async () => {
+        if (!activeChat.isGroup || !window.confirm('Delete this group and all group messages?')) return;
+        try {
+            const res = await fetch(`${apiUrl}/chat/groups/${activeChat.id}`, { method: 'DELETE', headers });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Failed to delete group');
+            setGroups((prev) => prev.filter((g) => g._id !== activeChat.id));
+            setActiveChat({ id: 'global', name: 'All Company', isGlobal: true });
+            closeGroupMenu();
+            enqueueSnackbar('Group deleted', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to delete group', { variant: 'error' });
+        }
+    };
+
+    const handleProfilePictureUpload = async (file) => {
+        if (!file) return;
+        setProfilePhotoBusy(true);
+        const fd = new FormData();
+        fd.append('profilePicture', file);
+        try {
+            const res = await fetch(`${apiUrl}/user/profile-picture`, {
+                method: 'POST',
+                headers: { Authorization: session.token || '' },
+                body: fd,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Failed to update photo');
+            const nextSession = { ...session, profilePicture: data.user?.profilePicture || '' };
+            localStorage.setItem('userSession', JSON.stringify(nextSession));
+            setUsers((prev) => prev.map((u) => String(u._id) === String(session.user_id) ? { ...u, profilePicture: nextSession.profilePicture } : u));
+            setProfileDialog((prev) => ({ ...prev, user: { ...(prev.user || {}), profilePicture: nextSession.profilePicture } }));
+            enqueueSnackbar('Profile photo updated', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to update photo', { variant: 'error' });
+        } finally {
+            setProfilePhotoBusy(false);
+            if (profilePhotoInputRef.current) profilePhotoInputRef.current.value = '';
+        }
+    };
+
+    const handleProfilePictureDelete = async () => {
+        setProfilePhotoBusy(true);
+        try {
+            const res = await fetch(`${apiUrl}/user/profile-picture`, {
+                method: 'DELETE',
+                headers: { Authorization: session.token || '' },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Failed to delete photo');
+            const nextSession = { ...session };
+            delete nextSession.profilePicture;
+            localStorage.setItem('userSession', JSON.stringify(nextSession));
+            setUsers((prev) => prev.map((u) => String(u._id) === String(session.user_id) ? { ...u, profilePicture: '' } : u));
+            setProfileDialog((prev) => ({ ...prev, user: { ...(prev.user || {}), profilePicture: '' } }));
+            enqueueSnackbar('Profile photo deleted', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar(error.message || 'Failed to delete photo', { variant: 'error' });
+        } finally {
+            setProfilePhotoBusy(false);
+        }
+    };
+
     useEffect(() => {
         if (isTabletOrBelow) {
             setMobilePane('list');
@@ -524,7 +649,7 @@ const TeamInbox = () => {
                                         sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
                                     >
                                         <ListItemAvatar>
-                                            <Avatar sx={{ bgcolor: '#6366f1', color: '#fff' }}>{group.name.charAt(0)}</Avatar>
+                                            <Avatar onClick={(e) => { e.stopPropagation(); setActiveChat({ id: group._id, name: group.name, isGroup: true, members: group.members || [], created_by: group.created_by }); setManageGroupName(group.name); setEditingGroupMembers((group.members || []).map((m) => m.user_id)); setManageGroupDialogOpen(true); }} sx={{ bgcolor: '#6366f1', color: '#fff', cursor: 'pointer' }}>{group.name.charAt(0)}</Avatar>
                                         </ListItemAvatar>
                                         <ListItemText
                                             primary={group.name}
@@ -567,7 +692,7 @@ const TeamInbox = () => {
                                         variant="dot"
                                         sx={{ '& .MuiBadge-badge': { backgroundColor: u.isOnline ? '#44b700' : '#bdbdbd', width: 10, height: 10, borderRadius: '50%', border: '2px solid white' } }}
                                     >
-                                        <Avatar src={u.profilePicture || ''} sx={{ bgcolor: 'primary.main' }}>
+                                        <Avatar src={u.profilePicture || ''} onClick={(e) => { e.stopPropagation(); openProfileDialog(u); }} sx={{ bgcolor: 'primary.main', cursor: 'pointer' }}>
                                             {!u.profilePicture && u.name.charAt(0)}
                                         </Avatar>
                                     </Badge>
@@ -609,7 +734,11 @@ const TeamInbox = () => {
                                 <ArrowBackRoundedIcon />
                             </IconButton>
                         )}
-                        <Avatar src={!activeChat.isGlobal && !activeChat.isGroup && activeUser ? (activeUser.profilePicture || '') : ''} sx={{ bgcolor: activeChat.isGlobal ? ACCENT : activeChat.isGroup ? '#6366f1' : 'primary.main' }}>
+                        <Avatar
+                            src={!activeChat.isGlobal && !activeChat.isGroup && activeUser ? (activeUser.profilePicture || '') : ''}
+                            onClick={() => activeChat.isGroup ? openManageGroup() : activeUser ? openProfileDialog(activeUser) : null}
+                            sx={{ bgcolor: activeChat.isGlobal ? ACCENT : activeChat.isGroup ? '#6366f1' : 'primary.main', cursor: activeChat.isGlobal ? 'default' : 'pointer' }}
+                        >
                             {(!activeChat.isGlobal && !activeChat.isGroup && activeUser?.profilePicture) ? null : activeChat.name.charAt(0)}
                         </Avatar>
                         <Box>
@@ -628,7 +757,9 @@ const TeamInbox = () => {
                         </Box>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                        <IconButton size="small"><MoreVertIcon /></IconButton>
+                        <IconButton size="small" onClick={(e) => activeChat.isGroup ? setGroupMenuAnchor(e.currentTarget) : activeUser ? openProfileDialog(activeUser) : null}>
+                            <MoreVertIcon />
+                        </IconButton>
                     </Box>
                 </Box>
 
@@ -674,7 +805,11 @@ const TeamInbox = () => {
                             >
                                 {showName && <Typography variant="caption" sx={{ ml: 1, mb: 0.5, color: 'text.secondary' }}>{m.sender_name}</Typography>}
                                 <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                                    <Avatar src={senderProfilePic || ''} sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: isMe ? ACCENT : 'primary.main' }}>
+                                    <Avatar
+                                        src={senderProfilePic || ''}
+                                        onClick={() => openProfileDialog(isMe ? { _id: session.user_id, name: session.name, email: session.email, profilePicture: session.profilePicture } : sender)}
+                                        sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: isMe ? ACCENT : 'primary.main', cursor: 'pointer' }}
+                                    >
                                         {!senderProfilePic && m.sender_name.charAt(0)}
                                     </Avatar>
                                         <Paper
@@ -920,6 +1055,86 @@ const TeamInbox = () => {
                     Delete
                 </MenuItem>
             </Menu>
+
+            <Menu anchorEl={groupMenuAnchor} open={Boolean(groupMenuAnchor)} onClose={closeGroupMenu}>
+                <MenuItem onClick={openManageGroup}>View members</MenuItem>
+                <MenuItem onClick={openManageGroup}>Add / remove members</MenuItem>
+                <MenuItem onClick={openManageGroup}>Change group name</MenuItem>
+                <MenuItem onClick={handleDeleteGroup} sx={{ color: '#ef4444' }}>Delete group</MenuItem>
+            </Menu>
+
+            <Dialog open={manageGroupDialogOpen} onClose={() => setManageGroupDialogOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Group Details</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        fullWidth
+                        label="Group name"
+                        value={manageGroupName}
+                        onChange={(e) => setManageGroupName(e.target.value)}
+                        sx={{ mt: 1, mb: 2 }}
+                    />
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Members</Typography>
+                    <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                        {users.filter((u) => u._id !== session.user_id).map((u) => (
+                            <FormControlLabel
+                                key={u._id}
+                                control={
+                                    <Checkbox
+                                        checked={editingGroupMembers.includes(u._id)}
+                                        onChange={() => toggleEditingGroupMember(u._id)}
+                                    />
+                                }
+                                label={
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Avatar src={u.profilePicture || ''} sx={{ width: 24, height: 24, fontSize: 12 }}>{!u.profilePicture && u.name?.charAt(0)}</Avatar>
+                                        <span>{u.name}</span>
+                                    </Stack>
+                                }
+                            />
+                        ))}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setManageGroupDialogOpen(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={handleSaveGroupSettings}>Save</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={profileDialog.open} onClose={() => setProfileDialog({ open: false, user: null, isSelf: false })} maxWidth="xs" fullWidth>
+                <DialogTitle>{profileDialog.isSelf ? 'Your Profile Photo' : profileDialog.user?.name}</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'grid', placeItems: 'center', py: 2 }}>
+                        <Avatar src={profileDialog.user?.profilePicture || ''} sx={{ width: 160, height: 160, fontSize: 56, bgcolor: profileDialog.isSelf ? ACCENT : 'primary.main' }}>
+                            {!profileDialog.user?.profilePicture && profileDialog.user?.name?.charAt(0)}
+                        </Avatar>
+                        {profileDialog.user?.email && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>{profileDialog.user.email}</Typography>
+                        )}
+                    </Box>
+                    {profileDialog.isSelf && (
+                        <>
+                            <input
+                                ref={profilePhotoInputRef}
+                                hidden
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleProfilePictureUpload(e.target.files?.[0])}
+                            />
+                            <Stack direction="row" spacing={1} justifyContent="center">
+                                <Button variant="contained" disabled={profilePhotoBusy} onClick={() => profilePhotoInputRef.current?.click()}>
+                                    Update Photo
+                                </Button>
+                                <Button color="error" disabled={profilePhotoBusy || !profileDialog.user?.profilePicture} onClick={handleProfilePictureDelete}>
+                                    Delete Photo
+                                </Button>
+                            </Stack>
+                        </>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setProfileDialog({ open: false, user: null, isSelf: false })}>Close</Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog open={groupDialogOpen} onClose={() => setGroupDialogOpen(false)} maxWidth="xs" fullWidth>
                 <DialogTitle>Create Group</DialogTitle>
