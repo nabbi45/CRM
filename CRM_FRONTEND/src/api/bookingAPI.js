@@ -64,7 +64,8 @@ const bookingAPI = {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate agreement');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to generate agreement');
       }
 
       const data = await response.json();

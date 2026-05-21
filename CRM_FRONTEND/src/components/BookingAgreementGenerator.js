@@ -18,6 +18,7 @@ const BookingAgreementGenerator = () => {
     const [showPreview, setShowPreview] = useState(false);
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [downloadHistory, setDownloadHistory] = useState([]);
+    const [templateMeta, setTemplateMeta] = useState(null);
 
     const loadAgreements = async () => {
         try {
@@ -103,9 +104,11 @@ const BookingAgreementGenerator = () => {
             // Fetch agreement HTML from backend
             const response = await bookingAPI.generateAgreement(booking._id); // Generate agreement from backend
             setAgreementHtml(response.data.agreementHtml);
+            setTemplateMeta(response.data.template || null);
             setShowPreview(true);
         } catch (err) {
-            setError('Failed to generate agreement preview. Please try again.');
+            setTemplateMeta(null);
+            setError(`Failed to generate agreement preview. ${err.message || 'Please try again.'}`);
         } finally {
             setIsLoading(false);
         }
@@ -311,7 +314,7 @@ const BookingAgreementGenerator = () => {
                                                 Preview
                                             </button>
                                             <button
-                                                onClick={handleDownloadPDF}
+                                                onClick={() => handleDownloadPDF()}
                                                 disabled={isLoading || !agreementHtml}
                                                 className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                             >
@@ -324,6 +327,15 @@ const BookingAgreementGenerator = () => {
                                             </button>
                                         </div>
                                     </div>
+
+                                    {templateMeta && (
+                                        <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+                                            <div className="font-semibold">Selected template: {templateMeta.templateTitle}</div>
+                                            <div className="mt-1 text-blue-800">
+                                                {templateMeta.agreementType} / {templateMeta.isNotary ? 'Notary' : 'Without Notary'} / {templateMeta.isNoPending ? 'No Pending' : 'Pending'}{templateMeta.isRefundable ? ' / Refundable' : ''}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-4">
