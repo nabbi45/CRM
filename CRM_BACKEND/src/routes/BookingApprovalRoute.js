@@ -17,6 +17,19 @@ const getUserId = (req) => req.user?.userId || req.user?.user_id || "";
 const getUserName = (req) => req.user?.name || req.headers["user-name"] || "Unknown";
 const getUserRole = (req) => req.user?.user_role || req.headers["user-role"] || "";
 
+const resolveUserName = async (req, fallbackName = "") => {
+  const directName = getUserName(req);
+  if (directName && directName !== "Unknown") return directName;
+
+  const userId = getUserId(req);
+  if (userId) {
+    const user = await UserModel.findById(userId).select("name").lean();
+    if (user?.name) return user.name;
+  }
+
+  return fallbackName || "Unknown";
+};
+
 const requiredBookingFields = [
   "branch_name",
   "company_name",
@@ -73,10 +86,13 @@ const uploadProof = async (file, approvalId) => {
 
 const notifyApprovers = async (approval, type = "booking_approval_submitted") => {
   const approvers = await UserModel.find({ user_role: { $in: ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"] } }).lean();
+  const submitterName = approval.submitted_by_name && approval.submitted_by_name !== "Unknown"
+    ? approval.submitted_by_name
+    : approval.payload?.bdm || "A user";
   const notifications = approvers.map((user) => ({
     user_id: user._id.toString(),
     type,
-    message: `${approval.submitted_by_name} submitted a booking for approval.`,
+    message: `${submitterName} submitted a booking for approval.`,
     reference_id: approval._id.toString(),
   }));
   if (notifications.length) await NotificationModel.insertMany(notifications);
@@ -94,15 +110,16 @@ BookingApprovalRoutes.post("/", authenticateUser, upload.single("paymentProof"),
       return res.status(400).send({ message: `Missing required fields: ${missing.join(", ")}` });
     }
 
+    const submittedByName = await resolveUserName(req, payload.bdm);
     const approval = await BookingApprovalModel.create({
       payload,
       submitted_by: getUserId(req) || payload.user_id,
-      submitted_by_name: getUserName(req) || payload.bdm,
+      submitted_by_name: submittedByName,
       submitted_by_role: getUserRole(req),
       history: [{
         action: "submitted",
         by: getUserId(req),
-        by_name: getUserName(req),
+        by_name: submittedByName,
         by_role: getUserRole(req),
       }],
     });

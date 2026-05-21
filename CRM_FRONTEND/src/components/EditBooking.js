@@ -251,6 +251,7 @@ const EditBooking = ({ initialData, onClose }) => {
           headers: {
             'Content-Type': 'application/json',
             'user-role': userSession.user_role,
+            'user-name': userSession.name || '',
             authorization: `${userSession.token}`
           },
           body: JSON.stringify(dataToSubmit),

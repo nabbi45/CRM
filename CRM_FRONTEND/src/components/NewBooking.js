@@ -517,6 +517,8 @@ const AddBooking = ({ onClose }) => {
             method: "POST",
             headers: {
               authorization: `${userSession.token}`,
+              "user-name": userSession.name || "",
+              "user-role": userSession.user_role || "",
             },
             body: approvalForm,
           });

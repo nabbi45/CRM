@@ -96,6 +96,23 @@ const History = () => {
   const [exelData, setexelData] = useState("");
   const userSession = JSON.parse(localStorage.getItem("userSession"));
 
+  const formatHistoryValue = (value) => {
+    if (value === undefined || value === null || value === "") return "N/A";
+    if (Array.isArray(value) || typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+
+  const getVisibleHistoryChanges = (changes = {}) =>
+    Object.entries(changes || {}).filter(([, value]) => (
+      formatHistoryValue(value?.old) !== formatHistoryValue(value?.new)
+    ));
+
   const [activeFilters, setActiveFilters] = useState({});
   const [downloadAll, setDownloadAll] = useState(false); // ✅ checkbox state
   const [dateType, setDateType] = useState("booking");
@@ -1271,11 +1288,14 @@ const History = () => {
                 <div>
                   <strong>Changes:</strong>
                   <ul>
-                    {Object.entries(bookings[openDialogInfo.bookingIndex].updatedhistory[openDialogInfo.updateIndex].changes || {}).map(([field, value], idx) => (
+                    {getVisibleHistoryChanges(bookings[openDialogInfo.bookingIndex].updatedhistory[openDialogInfo.updateIndex].changes).map(([field, value], idx) => (
                       <li key={idx}>
-                        <strong>{field}</strong>: <span style={{ color: "red" }}>{String(value.old)}</span> &rarr; <span style={{ color: "green" }}>{String(value.new)}</span>
+                        <strong>{field}</strong>: <span style={{ color: "red" }}>{formatHistoryValue(value.old)}</span> &rarr; <span style={{ color: "green" }}>{formatHistoryValue(value.new)}</span>
                       </li>
                     ))}
+                    {getVisibleHistoryChanges(bookings[openDialogInfo.bookingIndex].updatedhistory[openDialogInfo.updateIndex].changes).length === 0 && (
+                      <li>No actual field changes recorded.</li>
+                    )}
                   </ul>
                 </div>
               </>

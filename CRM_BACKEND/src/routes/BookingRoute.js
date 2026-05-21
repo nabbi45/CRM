@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { BookingModel } from "../models/bookingModel.js";
+import { UserModel } from "../models/UserModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { NotificationModel } from "../models/NotificationModel.js";
 import { normalizeBookingPayload } from "../utils/textNormalize.js";
@@ -32,6 +33,53 @@ const uploadPaymentProof = async (file, bookingId) => {
     payment_proof_url: result.secure_url,
     payment_proof_file_name: file.originalname,
   };
+};
+
+const stripMongoMeta = (value) => {
+  if (Array.isArray(value)) return value.map(stripMongoMeta);
+  if (value && typeof value === "object") {
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    const plain = typeof value.toObject === "function" ? value.toObject() : value;
+    return Object.keys(plain)
+      .filter((key) => key !== "_id")
+      .sort()
+      .reduce((acc, key) => {
+        const nested = stripMongoMeta(plain[key]);
+        if (nested !== undefined) acc[key] = nested;
+        return acc;
+      }, {});
+  }
+  return value;
+};
+
+const normalizeForHistory = (value) => {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const parsedDate = new Date(trimmed);
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed) && !Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.toISOString().slice(0, 10);
+    }
+    return trimmed;
+  }
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return stripMongoMeta(value);
+};
+
+const valuesEqualForHistory = (oldValue, newValue) =>
+  JSON.stringify(normalizeForHistory(oldValue)) === JSON.stringify(normalizeForHistory(newValue));
+
+const resolveEditorName = async (req, fallback = "") => {
+  const directName = req.user?.name || req.headers["user-name"];
+  if (directName && directName !== "Unknown") return directName;
+
+  const userId = req.user?.userId || req.user?.user_id;
+  if (userId) {
+    const user = await UserModel.findById(userId).select("name").lean();
+    if (user?.name) return user.name;
+  }
+
+  return fallback && fallback !== "Unknown" ? fallback : "Unknown";
 };
 
 //Addbooking
@@ -228,19 +276,19 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       });
     }
 
+    const oldBookingPlain = oldBooking.toObject();
+
     // Detect changed fields
     const changedFields = {};
     for (let key in updates) {
-      const oldValue = oldBooking[key];
+      const oldValue = oldBookingPlain[key];
       const newValue = updates[key];
 
-      // Deep compare for arrays or primitive values
-      if (Array.isArray(oldValue)) {
-        if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-          changedFields[key] = { old: oldValue, new: newValue };
-        }
-      } else if (oldValue !== newValue) {
-        changedFields[key] = { old: oldValue, new: newValue };
+      if (!valuesEqualForHistory(oldValue, newValue)) {
+        changedFields[key] = {
+          old: normalizeForHistory(oldValue),
+          new: normalizeForHistory(newValue),
+        };
       }
     }
 
@@ -251,7 +299,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
 
     // Create updated history entry
     const historyEntry = {
-      updatedBy: updatedBy || "Unknown",
+      updatedBy: await resolveEditorName(req, updatedBy),
       updatedAt: new Date(),
       note: note || "",
       changes: changedFields,
