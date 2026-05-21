@@ -75,7 +75,11 @@ CompanyProfileRoutes.post("/update", authenticateUser, async (req, res) => {
             return res.status(403).send({ message: "Not authorized to update company profile." });
         }
 
-        const data = req.body;
+        const data = {
+            ...req.body,
+            gst_number: req.body?.gst_number ? String(req.body.gst_number).toUpperCase().replace(/%/g, "").trim() : req.body?.gst_number,
+            pan_number: req.body?.pan_number ? String(req.body.pan_number).toUpperCase().replace(/%/g, "").trim() : req.body?.pan_number,
+        };
         data.updatedBy = req.user?.name || "Unknown";
 
         let profile = await CompanyProfileModel.findOne();

@@ -71,7 +71,8 @@ function InvoicePreview({ invoice }) {
                 <p>{invoice.companyDetails.city}, {invoice.companyDetails.region} {invoice.companyDetails.postcode}</p>
                 <p>Phone: {invoice.companyDetails.phone}</p>
                 <p>Email: {invoice.companyDetails.email}</p>
-                <p>GST/PAN: {invoice.companyDetails.gstNumber}</p>
+                <p>GST: {invoice.companyDetails.gstNumber || invoice.companyDetails.gstPan || 'N/A'}</p>
+                <p>PAN: {invoice.companyDetails.panNumber || 'N/A'}</p>
               </div>
             </div>
             <div>

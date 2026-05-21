@@ -1,4 +1,6 @@
 import express from "express";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
 import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { NotificationModel } from "../models/NotificationModel.js";
@@ -13,9 +15,28 @@ import {
 } from "../utils/revenueRules.js";
 
 const BookingRoutes = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+const uploadPaymentProof = async (file, bookingId) => {
+  if (!file) return {};
+  const b64 = Buffer.from(file.buffer).toString("base64");
+  const dataURI = `data:${file.mimetype};base64,${b64}`;
+  const isImage = file.mimetype.startsWith("image/");
+  const extension = file.originalname.split(".").pop();
+  const result = await cloudinary.uploader.upload(dataURI, {
+    resource_type: isImage ? "image" : "raw",
+    folder: "booking_payment_proofs",
+    public_id: `booking_${bookingId}_${Date.now()}${isImage ? "" : `.${extension}`}`,
+  });
+  return {
+    payment_proof_url: result.secure_url,
+    payment_proof_file_name: file.originalname,
+  };
+};
 
 //Addbooking
-BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
+BookingRoutes.post("/addbooking", authenticateUser, upload.single("paymentProof"), async (req, res) => {
+  const requestBody = req.body.payload ? JSON.parse(req.body.payload) : req.body;
   const {
     user_id,
     bdm,
@@ -43,7 +64,7 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     term_shares,
     is_refundable,
     refundable_percentage,
-  } = req.body;
+  } = requestBody;
 
   const requiredFields = {
     branch_name,
@@ -81,6 +102,9 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
       return res.status(403).send({
         message: "Employee bookings must be submitted through the booking approval queue.",
       });
+    }
+    if (!req.file && !requestBody.payment_proof_url) {
+      return res.status(400).send({ message: "Payment proof is required." });
     }
 
     const basePayload = normalizeBookingPayload({
@@ -123,6 +147,11 @@ BookingRoutes.post("/addbooking", authenticateUser, async (req, res) => {
     };
 
     const booking = await BookingModel.create(new_booking);
+    if (req.file) {
+      const proof = await uploadPaymentProof(req.file, booking._id.toString());
+      Object.assign(booking, proof);
+      await booking.save();
+    }
 
     if (new_booking.shared_with && new_booking.shared_with.length > 0) {
       try {
@@ -193,8 +222,11 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     updates.is_refundable = oldBooking.is_refundable;
     updates.refundable_percentage = oldBooking.refundable_percentage || 0;
 
-    const rolesWithFullAccess = ["dev", "senior admin", "super admin", "director", "srdev", "sr dev"];
-    const requesterId = req.user?.userId || req.user?.user_id;
+    if (!isAdminRole(user_role)) {
+      return res.status(403).send({
+        message: "Only admins and higher roles can edit bookings.",
+      });
+    }
 
     // Detect changed fields
     const changedFields = {};
@@ -225,73 +257,38 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       changes: changedFields,
     };
 
-    if (rolesWithFullAccess.includes(user_role) || user_role === "admin") {
-      const updatedBooking = await BookingModel.findByIdAndUpdate(
-        id,
-        {
-          $set: updates,
-          $push: { updatedhistory: historyEntry },
-        },
-        { new: true }
-      );
+    const updatedBooking = await BookingModel.findByIdAndUpdate(
+      id,
+      {
+        $set: updates,
+        $push: { updatedhistory: historyEntry },
+      },
+      { new: true }
+    );
 
-      // Check for newly added shared_with users and notify them
-      if (updates.shared_with && Array.isArray(updates.shared_with)) {
-        const oldSharedIds = (oldBooking.shared_with || []).map(sw => String(sw.user_id));
-        const newSharedUsers = updates.shared_with.filter(sw => !oldSharedIds.includes(String(sw.user_id)));
-        
-        if (newSharedUsers.length > 0) {
-          try {
-            const notifications = newSharedUsers.map(sw => ({
-              user_id: sw.user_id,
-              type: "booking_shared",
-              message: `${oldBooking.bdm || "A coworker"} shared a booking with you.`,
-              reference_id: updatedBooking._id.toString()
-            }));
-            await NotificationModel.insertMany(notifications);
-          } catch (notifErr) {
-            console.error("Error creating notifications on edit:", notifErr);
-          }
+    // Check for newly added shared_with users and notify them
+    if (updates.shared_with && Array.isArray(updates.shared_with)) {
+      const oldSharedIds = (oldBooking.shared_with || []).map(sw => String(sw.user_id));
+      const newSharedUsers = updates.shared_with.filter(sw => !oldSharedIds.includes(String(sw.user_id)));
+      
+      if (newSharedUsers.length > 0) {
+        try {
+          const notifications = newSharedUsers.map(sw => ({
+            user_id: sw.user_id,
+            type: "booking_shared",
+            message: `${oldBooking.bdm || "A coworker"} shared a booking with you.`,
+            reference_id: updatedBooking._id.toString()
+          }));
+          await NotificationModel.insertMany(notifications);
+        } catch (notifErr) {
+          console.error("Error creating notifications on edit:", notifErr);
         }
       }
-
-      return res.status(200).send({
-        message: "Booking Updated Successfully",
-        updatedBooking,
-      });
     }
 
-    const continuationAllowedKeys = ["term_2", "term_3", "payment_date", "services", "total_amount", "term_shares", "shared_with"];
-    const updateKeys = Object.keys(updates);
-    const isOwner = String(oldBooking.user_id || "") === String(requesterId || "");
-    const isSharedUser = oldBooking.shared_with && oldBooking.shared_with.some(sw => String(sw.user_id) === String(requesterId || ""));
-    const isTermParticipant = ["term_1", "term_2", "term_3"].some((termKey) => {
-      const termShare = oldBooking.term_shares?.[termKey];
-      return String(termShare?.creator?.user_id || "") === String(requesterId || "") ||
-        (termShare?.shared_with || []).some(sw => String(sw.user_id) === String(requesterId || ""));
-    });
-    const isContinuationUpdate =
-      updateKeys.length > 0 &&
-      updateKeys.every((key) => continuationAllowedKeys.includes(key));
-
-    if ((isOwner || isSharedUser || isTermParticipant) && isContinuationUpdate) {
-      const updatedBooking = await BookingModel.findByIdAndUpdate(
-        id,
-        {
-          $set: updates,
-          $push: { updatedhistory: historyEntry },
-        },
-        { new: true }
-      );
-
-      return res.status(200).send({
-        message: "Booking Updated Successfully",
-        updatedBooking,
-      });
-    }
-
-    return res.status(403).send({
-      message: "You do not have permission to edit this booking",
+    return res.status(200).send({
+      message: "Booking Updated Successfully",
+      updatedBooking,
     });
   } catch (err) {
     return res.status(500).send({ message: err.message });

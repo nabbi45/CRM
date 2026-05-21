@@ -57,7 +57,11 @@ const CompanyProfile = () => {
     };
 
     const handleChange = (e) => {
-        setProfile({ ...profile, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        const normalizedValue = ['gst_number', 'pan_number'].includes(name)
+            ? value.toUpperCase().replace(/%/g, '')
+            : value;
+        setProfile({ ...profile, [name]: normalizedValue });
     };
 
     const handleFileChange = (e) => {

@@ -57,10 +57,12 @@ const uploadProof = async (file, approvalId) => {
   if (!file) return {};
   const b64 = Buffer.from(file.buffer).toString("base64");
   const dataURI = `data:${file.mimetype};base64,${b64}`;
+  const isImage = file.mimetype.startsWith("image/");
+  const extension = file.originalname.split(".").pop();
   const result = await cloudinary.uploader.upload(dataURI, {
-    resource_type: "raw",
+    resource_type: isImage ? "image" : "raw",
     folder: "booking_approval_proofs",
-    public_id: `approval_${approvalId}_${Date.now()}`,
+    public_id: `approval_${approvalId}_${Date.now()}${isImage ? "" : `.${extension}`}`,
   });
   return {
     payment_proof_url: result.secure_url,
@@ -82,6 +84,10 @@ const notifyApprovers = async (approval, type = "booking_approval_submitted") =>
 
 BookingApprovalRoutes.post("/", authenticateUser, upload.single("paymentProof"), async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).send({ message: "Payment proof is required." });
+    }
+
     const payload = parsePayload(req.body);
     const missing = validatePayload(payload);
     if (missing.length) {
@@ -266,6 +272,9 @@ BookingApprovalRoutes.patch("/:id/resubmit", authenticateUser, upload.single("pa
     }
     if (approval.status !== "sent_back") {
       return res.status(400).send({ message: "Only sent-back bookings can be resubmitted." });
+    }
+    if (!req.file && !approval.payment_proof_url) {
+      return res.status(400).send({ message: "Payment proof is required." });
     }
 
     const payload = parsePayload(req.body);

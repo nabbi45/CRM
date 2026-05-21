@@ -340,6 +340,9 @@ const AddBooking = ({ onClose }) => {
       }
     }
     if (!formData.state) validationErrors.state = "State is required";
+    if (!isContinuationTerm && !paymentProof) {
+      validationErrors.paymentProof = "Payment proof is required";
+    }
 
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
@@ -532,13 +535,16 @@ const AddBooking = ({ onClose }) => {
           return;
         }
 
+        const directForm = new FormData();
+        directForm.append("payload", JSON.stringify(dataToSubmit));
+        directForm.append("paymentProof", paymentProof);
+
         const response = await fetch(`${apiUrl}/booking/addbooking`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             authorization: `${userSession.token}`,
           },
-          body: JSON.stringify(dataToSubmit),
+          body: directForm,
         });
 
         if (!response.ok) {
@@ -1170,15 +1176,16 @@ const AddBooking = ({ onClose }) => {
             />
           </Grid>
 
-          {!isContinuationTerm && !isAdminRole && (
+          {!isContinuationTerm && (
             <Grid item xs={12}>
               <Button
                 component="label"
-                variant="outlined"
+                variant={errors.paymentProof ? "contained" : "outlined"}
+                color={errors.paymentProof ? "error" : "primary"}
                 startIcon={<CloudUploadIcon />}
                 fullWidth
               >
-                {paymentProof ? `Payment Proof: ${paymentProof.name}` : "Attach Payment Screenshot (Optional)"}
+                {paymentProof ? `Payment Proof: ${paymentProof.name}` : "Attach Payment Screenshot *"}
                 <input
                   type="file"
                   hidden
@@ -1186,6 +1193,11 @@ const AddBooking = ({ onClose }) => {
                   onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
                 />
               </Button>
+              {errors.paymentProof && (
+                <Typography color="error" variant="caption" sx={{ mt: 0.5, display: "block" }}>
+                  {errors.paymentProof}
+                </Typography>
+              )}
             </Grid>
           )}
 

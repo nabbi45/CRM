@@ -55,6 +55,8 @@ const EditBooking = ({ initialData, onClose }) => {
 
   const [errors, setErrors] = useState({});
   const [companyBranches, setCompanyBranches] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [sharedPersons, setSharedPersons] = useState([]);
 
   const nextReceivableTerm = Number(initialData?.term_1 || 0) > 0 && Number(initialData?.term_2 || 0) <= 0
     ? 'Term 2'
@@ -88,6 +90,14 @@ const EditBooking = ({ initialData, onClose }) => {
         closed: initialData.closed_by || '',
         funddisbursement: initialData.after_disbursement || ''
       });
+      setSharedPersons(
+        Array.isArray(initialData.shared_with)
+          ? initialData.shared_with.map((sw) => ({
+              userId: sw.user_id || '',
+              percentage: sw.percentage || '',
+            }))
+          : []
+      );
     }
   }, [initialData]);
 
@@ -102,6 +112,16 @@ const EditBooking = ({ initialData, onClose }) => {
         }
       })
       .catch(err => console.error("Error fetching branches:", err));
+  }, []);
+
+  useEffect(() => {
+    const session = JSON.parse(localStorage.getItem('userSession')) || {};
+    fetch(`${apiUrl}/user/options`, {
+      headers: { Authorization: session.token || '' },
+    })
+      .then((res) => res.json())
+      .then((data) => setUsers(Array.isArray(data.users) ? data.users : []))
+      .catch(() => setUsers([]));
   }, []);
 
   // Handle multiple services selection
@@ -175,6 +195,19 @@ const EditBooking = ({ initialData, onClose }) => {
       const userSession = JSON.parse(localStorage.getItem('userSession'));
 
       if (userSession) {
+        const buildShareEntries = () =>
+          sharedPersons
+            .filter((person) => person.userId && person.percentage)
+            .map((person) => {
+              const userObj = users.find((u) => String(u._id) === String(person.userId));
+              return {
+                user_id: person.userId,
+                user_name: userObj ? userObj.name?.toUpperCase() : "COWORKER",
+                percentage: Number(person.percentage),
+              };
+            });
+        const termKey = formData.selectTerm === "Term 2" ? "term_2" : formData.selectTerm === "Term 3" ? "term_3" : "term_1";
+        const shareEntries = buildShareEntries();
         const dataToSubmit = {
           branch_name: formData.branch,
           company_name: formData.companyName?.toUpperCase() || "",
@@ -196,7 +229,20 @@ const EditBooking = ({ initialData, onClose }) => {
           status: formData.status,
           updatedBy: formData.updatedBy,
           note: formData.note,
-          after_disbursement: formData.funddisbursement
+          after_disbursement: formData.funddisbursement,
+          shared_with: shareEntries,
+          term_shares: {
+            ...(initialData.term_shares || {}),
+            [termKey]: {
+              ...(initialData.term_shares?.[termKey] || {}),
+              creator: initialData.term_shares?.[termKey]?.creator || {
+                user_id: initialData.user_id,
+                user_name: initialData.bdm,
+              },
+              payment_date: formData.paymentDate,
+              shared_with: shareEntries,
+            },
+          },
         };
         console.log(dataToSubmit);
 
@@ -469,6 +515,70 @@ const EditBooking = ({ initialData, onClose }) => {
                 value={formData.funddisbursement}
                 onChange={handleChange}
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <strong>Share Booking Revenue</strong>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setSharedPersons((prev) => [...prev, { userId: '', percentage: '' }])}
+                  >
+                    Add Share
+                  </Button>
+                </Box>
+                {sharedPersons.length === 0 && (
+                  <Box sx={{ color: 'text.secondary', fontSize: 14 }}>No shared employees.</Box>
+                )}
+                {sharedPersons.map((person, index) => (
+                  <Grid container spacing={1.5} key={index} sx={{ mb: 1 }}>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Employee</InputLabel>
+                        <Select
+                          value={person.userId}
+                          label="Employee"
+                          onChange={(e) => {
+                            const next = [...sharedPersons];
+                            next[index].userId = e.target.value;
+                            setSharedPersons(next);
+                          }}
+                        >
+                          {users.map((u) => (
+                            <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={8} sm={4}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Percentage"
+                        type="number"
+                        value={person.percentage}
+                        onChange={(e) => {
+                          const next = [...sharedPersons];
+                          next[index].percentage = e.target.value;
+                          setSharedPersons(next);
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={4} sm={2}>
+                      <Button
+                        fullWidth
+                        color="error"
+                        variant="outlined"
+                        onClick={() => setSharedPersons((prev) => prev.filter((_, i) => i !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </Grid>
+                  </Grid>
+                ))}
+              </Box>
             </Grid>
 
 

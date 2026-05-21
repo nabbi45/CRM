@@ -1233,8 +1233,7 @@ const History = () => {
                     Documents
                   </button>
 
-                  {(userRole.includes("dev") ||
-                    userRole.includes("senior admin")) && (
+                  {["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"].includes((userRole || "").toLowerCase()) && (
                       <button
                         className="edit-link"
                         onClick={() => handleEditClick(booking)}
@@ -1268,7 +1267,7 @@ const History = () => {
             bookings[openDialogInfo.bookingIndex]?.updatedhistory?.[openDialogInfo.updateIndex] && (
               <>
                 <h4>{bookings[openDialogInfo.bookingIndex].updatedhistory[openDialogInfo.updateIndex].updatedBy}</h4>
-                <p><strong>Approved By:</strong> {bookings[openDialogInfo.bookingIndex].updatedhistory[openDialogInfo.updateIndex].note || "N/A"}</p>
+                <p><strong>Note:</strong> {bookings[openDialogInfo.bookingIndex].updatedhistory[openDialogInfo.updateIndex].note || "N/A"}</p>
                 <div>
                   <strong>Changes:</strong>
                   <ul>

@@ -22,6 +22,8 @@ function InvoiceForm({ onPreview, onDownload }) {
     email: 'support@company.com',
     phone: '+91 0000000000',
     gstPan: 'N/A',
+    gstNumber: 'N/A',
+    panNumber: 'N/A',
     streetAddress: 'Loading address...',
     city: '',
     region: '',
@@ -43,12 +45,16 @@ function InvoiceForm({ onPreview, onDownload }) {
         });
         const data = await res.json();
         if (res.ok && data && data.company_name) {
+          const gstNumber = data.gst_number || '';
+          const panNumber = data.pan_number || '';
           setCompanyDetails({
             ...companyDetails,
             name: data.company_name,
             email: data.email || companyDetails.email,
             phone: data.contact_number || companyDetails.phone,
-            gstPan: data.gst_number || data.pan_number || companyDetails.gstPan,
+            gstPan: gstNumber || panNumber || companyDetails.gstPan,
+            gstNumber: gstNumber || 'N/A',
+            panNumber: panNumber || 'N/A',
             streetAddress: data.address || companyDetails.streetAddress,
             city: '', region: '', postcode: '', // Address usually contains everything now
             logo: data.logo_url || companyDetails.logo,

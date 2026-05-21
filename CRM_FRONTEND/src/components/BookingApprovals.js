@@ -5,6 +5,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   Paper,
   Stack,
@@ -25,6 +29,7 @@ const BookingApprovals = () => {
   const [refund, setRefund] = useState({ amount: "", refund_date: new Date().toISOString().split("T")[0], note: "" });
   const [commentById, setCommentById] = useState({});
   const [loading, setLoading] = useState(false);
+  const [proofPreview, setProofPreview] = useState({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "" });
 
   const authHeaders = useMemo(() => ({
     authorization: userSession.token || "",
@@ -117,6 +122,56 @@ const BookingApprovals = () => {
     }
   };
 
+  const isImageProof = (approval, mimeType = "") => {
+    const name = approval?.payment_proof_file_name || "";
+    return String(mimeType || approval?.payment_proof_mime_type || "").startsWith("image/") ||
+      /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
+  };
+
+  const fetchProofBlob = async (approval) => {
+    const response = await fetch(approval.payment_proof_url);
+    if (!response.ok) throw new Error("Unable to fetch payment proof.");
+    return response.blob();
+  };
+
+  const handleViewProof = async (approval) => {
+    try {
+      const blob = await fetchProofBlob(approval);
+      const objectUrl = URL.createObjectURL(blob);
+      setProofPreview({
+        open: true,
+        url: approval.payment_proof_url,
+        objectUrl,
+        fileName: approval.payment_proof_file_name || "payment-proof",
+        mimeType: blob.type || approval.payment_proof_mime_type || "",
+        isImage: isImageProof(approval, blob.type),
+      });
+    } catch (err) {
+      window.open(approval.payment_proof_url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleDownloadProof = async (approval) => {
+    try {
+      const blob = await fetchProofBlob(approval);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = approval.payment_proof_file_name || "payment-proof";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      window.open(approval.payment_proof_url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const closeProofPreview = () => {
+    if (proofPreview.objectUrl) URL.revokeObjectURL(proofPreview.objectUrl);
+    setProofPreview({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "" });
+  };
+
   return (
     <Box sx={{ p: { xs: 1, md: 2 } }}>
       <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
@@ -150,9 +205,14 @@ const BookingApprovals = () => {
                   </Alert>
                 )}
                 {approval.payment_proof_url && (
-                  <Button href={approval.payment_proof_url} target="_blank" size="small" sx={{ mt: 1 }}>
-                    View payment proof
-                  </Button>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap">
+                    <Button variant="outlined" size="small" onClick={() => handleViewProof(approval)}>
+                      View payment proof
+                    </Button>
+                    <Button variant="text" size="small" onClick={() => handleDownloadProof(approval)}>
+                      Download
+                    </Button>
+                  </Stack>
                 )}
               </Grid>
               <Grid item xs={12} md={4}>
@@ -248,6 +308,41 @@ const BookingApprovals = () => {
           </Grid>
         </Paper>
       )}
+
+      <Dialog open={proofPreview.open} onClose={closeProofPreview} maxWidth="md" fullWidth>
+        <DialogTitle>{proofPreview.fileName || "Payment Proof"}</DialogTitle>
+        <DialogContent dividers>
+          {proofPreview.isImage ? (
+            <Box
+              component="img"
+              src={proofPreview.objectUrl || proofPreview.url}
+              alt="Payment proof"
+              sx={{ width: "100%", maxHeight: "70vh", objectFit: "contain", bgcolor: "background.default" }}
+            />
+          ) : (
+            <Box sx={{ height: "70vh" }}>
+              <iframe
+                title="Payment proof"
+                src={proofPreview.objectUrl || proofPreview.url}
+                style={{ width: "100%", height: "100%", border: 0 }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeProofPreview}>Close</Button>
+          <Button
+            variant="contained"
+            onClick={() => handleDownloadProof({
+              payment_proof_url: proofPreview.url,
+              payment_proof_file_name: proofPreview.fileName,
+              payment_proof_mime_type: proofPreview.mimeType,
+            })}
+          >
+            Download
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
