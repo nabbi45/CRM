@@ -2,19 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Paper,
   Button,
   Select,
   MenuItem,
   TextField,
   IconButton,
-  Tooltip,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -36,6 +29,12 @@ const STAGE_KEYS = {
   dpr: { label: 'DPR', docType: 'fa_dpr', sla: '10 days after Collection Received' },
   pitchDeck: { label: 'Pitch Deck', docType: 'fa_pitch_deck', sla: '10 days after Collection Received' },
   applicationDetailsCoordination: { label: 'Application Details Coordination', docType: 'fa_app_coordination', sla: 'within 10 days of Agreement Received' },
+};
+
+const STATUS_STYLES = {
+  Pending: { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' },
+  'In Progress': { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+  Completed: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
 };
 
 const FileActivityTable = ({ booking, userSession, isAdmin }) => {
@@ -225,25 +224,93 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
     return <Box sx={{ p: 3, textAlign: 'center' }}><CircularProgress /></Box>;
   }
 
-  // Helper to render standard stage cell
-  const renderStageCell = (key, config) => {
+  const statusChip = (status = 'Pending') => {
+    const style = STATUS_STYLES[status] || STATUS_STYLES.Pending;
+    return (
+      <Chip
+        size="small"
+        label={status}
+        sx={{
+          bgcolor: style.bg,
+          color: style.color,
+          border: `1px solid ${style.border}`,
+          fontWeight: 700,
+          height: 28,
+        }}
+      />
+    );
+  };
+
+  const ActionButtons = ({ config, hasDocs, compact = false }) => (
+    <Box sx={{ display: 'flex', gap: 1, mt: 1.25 }}>
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<CloudUploadIcon />}
+        onClick={() => handleOpenUpload(config)}
+        disabled={!isAdmin}
+        sx={{
+          flex: 1,
+          borderColor: '#fecaca',
+          color: '#dc2626',
+          minHeight: compact ? 34 : 38,
+          fontWeight: 700,
+          '&:hover': { borderColor: '#ef4444', bgcolor: '#fef2f2' },
+        }}
+      >
+        Upload
+      </Button>
+      <Button
+        size="small"
+        variant="outlined"
+        color={hasDocs ? 'primary' : 'inherit'}
+        onClick={() => handleViewDocs(config.docType, config.serviceName)}
+        sx={{ minWidth: compact ? 42 : 48, minHeight: compact ? 34 : 38 }}
+      >
+        <VisibilityIcon fontSize="small" />
+      </Button>
+    </Box>
+  );
+
+  // Helper to render standard stage card
+  const renderStageCard = (key, config) => {
     const stageData = activity.stages[key] || {};
     const hasDocs = documents.some(d => d.documentType === config.docType);
 
     return (
-      <TableCell sx={{ minWidth: 200, verticalAlign: 'top', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
-        <Typography variant="subtitle2" fontWeight="bold">{config.label}</Typography>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, fontStyle: 'italic' }}>
-          {config.sla}
-        </Typography>
-        
+      <Paper
+        key={key}
+        variant="outlined"
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          bgcolor: '#ffffff',
+          borderColor: '#e5e7eb',
+          minHeight: 172,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'flex-start', mb: 0.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#111827', lineHeight: 1.25 }}>
+              {config.label}
+            </Typography>
+            {hasDocs && <Chip size="small" label={documents.filter(d => d.documentType === config.docType).length} color="primary" sx={{ height: 22, minWidth: 30 }} />}
+          </Box>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5, fontStyle: 'italic', minHeight: 18 }}>
+            {config.sla}
+          </Typography>
+        </Box>
+
         {isAdmin && (
           <Select
             size="small"
             fullWidth
             value={stageData.status || 'Pending'}
             onChange={(e) => handleStatusChange('stage', key, e.target.value)}
-            sx={{ mb: 1, fontSize: '0.85rem' }}
+            sx={{ fontSize: '0.85rem', bgcolor: '#f9fafb', borderRadius: 1.5 }}
           >
             <MenuItem value="Pending">Pending</MenuItem>
             <MenuItem value="In Progress">In Progress</MenuItem>
@@ -251,161 +318,151 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
           </Select>
         )}
         {!isAdmin && (
-          <Chip 
-            size="small" 
-            label={stageData.status || 'Pending'} 
-            color={stageData.status === 'Completed' ? 'success' : stageData.status === 'In Progress' ? 'warning' : 'default'}
-            sx={{ mb: 1, width: '100%' }} 
-          />
+          <Box sx={{ mb: 0.25 }}>{statusChip(stageData.status || 'Pending')}</Box>
         )}
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            size="small" 
-            variant="outlined" 
-            startIcon={<CloudUploadIcon />}
-            onClick={() => handleOpenUpload(config)}
-            disabled={!isAdmin}
-            fullWidth
-          >
-            Upload
-          </Button>
-          <Button 
-            size="small" 
-            variant="outlined" 
-            color={hasDocs ? 'primary' : 'inherit'}
-            onClick={() => handleViewDocs(config.docType)}
-          >
-            <VisibilityIcon fontSize="small" />
-          </Button>
-        </Box>
-      </TableCell>
+        <ActionButtons config={config} hasDocs={hasDocs} />
+      </Paper>
     );
   };
 
   // Helper to render Service Arrays (Application & Acknowledgement)
-  const renderServiceArray = (type, title, sla, docType) => {
+  const renderServiceGroup = (type, title, sla, docType) => {
     const services = activity[type] || [];
     return (
-      <TableCell sx={{ minWidth: 250, verticalAlign: 'top', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
-        <Typography variant="subtitle2" fontWeight="bold">{title}</Typography>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, fontStyle: 'italic' }}>
+      <Paper key={type} variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff', borderColor: '#e5e7eb' }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#111827' }}>{title}</Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5, fontStyle: 'italic' }}>
           {sla}
         </Typography>
-        
-        {services.length === 0 && <Typography variant="caption" color="text.secondary">No services</Typography>}
-        
-        {services.map((svc, idx) => {
-          const hasDocs = documents.some(d => d.documentType === docType && d.notes?.includes(svc.serviceName));
-          return (
-            <Box key={idx} sx={{ mb: 2, p: 1, bgcolor: 'rgba(0,0,0,0.02)', borderRadius: 1 }}>
-              <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>
-                {svc.serviceName}
-              </Typography>
-              
-              {isAdmin && (
-                <Select
-                  size="small"
-                  fullWidth
-                  value={svc.status || 'Pending'}
-                  onChange={(e) => handleStatusChange(type, null, e.target.value, svc.serviceName)}
-                  sx={{ mb: 1, fontSize: '0.8rem' }}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="In Progress">In Progress</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                </Select>
-              )}
-              {!isAdmin && (
-                <Chip 
-                  size="small" 
-                  label={svc.status || 'Pending'} 
-                  color={svc.status === 'Completed' ? 'success' : svc.status === 'In Progress' ? 'warning' : 'default'}
-                  sx={{ mb: 1, width: '100%', height: 20, fontSize: '0.7rem' }} 
-                />
-              )}
 
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  onClick={() => handleOpenUpload({ label: title, docType, serviceName: svc.serviceName })}
-                  disabled={!isAdmin}
-                  sx={{ minWidth: 0, p: 0.5, flexGrow: 1 }}
-                >
-                  <CloudUploadIcon fontSize="small" />
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  color={hasDocs ? 'primary' : 'inherit'}
-                  onClick={() => handleViewDocs(docType, svc.serviceName)}
-                  sx={{ minWidth: 0, p: 0.5, flexGrow: 1 }}
-                >
-                  <VisibilityIcon fontSize="small" />
-                </Button>
-              </Box>
-            </Box>
-          );
-        })}
-      </TableCell>
+        {services.length === 0 ? (
+          <Box sx={{ py: 2, textAlign: 'center', color: 'text.secondary', border: '1px dashed #d1d5db', borderRadius: 1.5 }}>
+            <Typography variant="caption">No services for this stage</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'grid', gap: 1.25 }}>
+            {services.map((svc, idx) => {
+              const hasDocs = documents.some(d => d.documentType === docType && d.notes?.includes(svc.serviceName));
+              const config = { label: title, docType, serviceName: svc.serviceName };
+              return (
+                <Box key={`${svc.serviceName}-${idx}`} sx={{ p: 1.25, bgcolor: '#f9fafb', border: '1px solid #eef2f7', borderRadius: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: '#111827', display: 'block', mb: 0.75 }}>
+                    {svc.serviceName}
+                  </Typography>
+
+                  {isAdmin ? (
+                    <Select
+                      size="small"
+                      fullWidth
+                      value={svc.status || 'Pending'}
+                      onChange={(e) => handleStatusChange(type, null, e.target.value, svc.serviceName)}
+                      sx={{ fontSize: '0.8rem', bgcolor: '#fff', borderRadius: 1.5 }}
+                    >
+                      <MenuItem value="Pending">Pending</MenuItem>
+                      <MenuItem value="In Progress">In Progress</MenuItem>
+                      <MenuItem value="Completed">Completed</MenuItem>
+                    </Select>
+                  ) : (
+                    statusChip(svc.status || 'Pending')
+                  )}
+
+                  <ActionButtons config={config} hasDocs={hasDocs} compact />
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </Paper>
     );
   };
 
   return (
-    <Box>
-      <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.1)', overflowX: 'auto' }}>
-        <Table>
-          <TableBody>
-            <TableRow>
-              {renderStageCell('agreementSent', STAGE_KEYS.agreementSent)}
-              {renderStageCell('agreementReceived', STAGE_KEYS.agreementReceived)}
-              {renderStageCell('dprPitchDeckDataCollection', STAGE_KEYS.dprPitchDeckDataCollection)}
-              {renderStageCell('dpr', STAGE_KEYS.dpr)}
-              {renderStageCell('pitchDeck', STAGE_KEYS.pitchDeck)}
-              {renderStageCell('applicationDetailsCoordination', STAGE_KEYS.applicationDetailsCoordination)}
-              
-              {renderServiceArray('application', 'Application', 'Within 5 days after App Data Coordination', 'fa_application_service')}
-              {renderServiceArray('acknowledgement', 'Acknowledgement', 'Within 1 day after application done', 'fa_acknowledgement_service')}
-              
-              <TableCell sx={{ minWidth: 250, verticalAlign: 'top', borderRight: '1px solid rgba(0,0,0,0.05)' }}>
-                <Typography variant="subtitle2" fontWeight="bold">Any Updates</Typography>
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                  Visible to BDMs
-                </Typography>
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={4}
-                  value={activity.anyUpdates || ''}
-                  onChange={(e) => setActivity({...activity, anyUpdates: e.target.value})}
-                  onBlur={(e) => handleTextUpdate('anyUpdates', e.target.value)}
-                  disabled={!isAdmin}
-                  InputProps={{ style: { fontSize: '0.85rem' } }}
-                />
-              </TableCell>
+    <Box sx={{ display: 'grid', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#111827' }}>File Activity</Typography>
+          <Typography variant="body2" color="text.secondary">Track agreement, DPR, pitch deck, applications, and acknowledgement work.</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {statusChip('Pending')}
+          {statusChip('In Progress')}
+          {statusChip('Completed')}
+        </Box>
+      </Box>
 
-              {isAdmin && (
-                <TableCell sx={{ minWidth: 250, verticalAlign: 'top' }}>
-                  <Typography variant="subtitle2" fontWeight="bold">Notes (Client ID & Password)</Typography>
-                  <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
-                    Hidden from BDMs
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    multiline
-                    minRows={4}
-                    value={activity.adminNotes || ''}
-                    onChange={(e) => setActivity({...activity, adminNotes: e.target.value})}
-                    onBlur={(e) => handleTextUpdate('adminNotes', e.target.value)}
-                    InputProps={{ style: { fontSize: '0.85rem' } }}
-                  />
-                </TableCell>
-              )}
-            </TableRow>
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            lg: 'repeat(3, minmax(0, 1fr))',
+          },
+          gap: 1.5,
+        }}
+      >
+        {renderStageCard('agreementSent', STAGE_KEYS.agreementSent)}
+        {renderStageCard('agreementReceived', STAGE_KEYS.agreementReceived)}
+        {renderStageCard('dprPitchDeckDataCollection', STAGE_KEYS.dprPitchDeckDataCollection)}
+        {renderStageCard('dpr', STAGE_KEYS.dpr)}
+        {renderStageCard('pitchDeck', STAGE_KEYS.pitchDeck)}
+        {renderStageCard('applicationDetailsCoordination', STAGE_KEYS.applicationDetailsCoordination)}
+      </Box>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+          gap: 1.5,
+        }}
+      >
+        {renderServiceGroup('application', 'Application', 'Within 5 days after App Data Coordination', 'fa_application_service')}
+        {renderServiceGroup('acknowledgement', 'Acknowledgement', 'Within 1 day after application done', 'fa_acknowledgement_service')}
+      </Box>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: isAdmin ? 'repeat(2, minmax(0, 1fr))' : '1fr' },
+          gap: 1.5,
+        }}
+      >
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff', borderColor: '#e5e7eb' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Any Updates</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Visible to BDMs
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={4}
+            value={activity.anyUpdates || ''}
+            onChange={(e) => setActivity({ ...activity, anyUpdates: e.target.value })}
+            onBlur={(e) => handleTextUpdate('anyUpdates', e.target.value)}
+            disabled={!isAdmin}
+            InputProps={{ style: { fontSize: '0.9rem' } }}
+          />
+        </Paper>
+
+        {isAdmin && (
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff', borderColor: '#e5e7eb' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Notes (Client ID & Password)</Typography>
+            <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
+              Hidden from BDMs
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              minRows={4}
+              value={activity.adminNotes || ''}
+              onChange={(e) => setActivity({ ...activity, adminNotes: e.target.value })}
+              onBlur={(e) => handleTextUpdate('adminNotes', e.target.value)}
+              InputProps={{ style: { fontSize: '0.9rem' } }}
+            />
+          </Paper>
+        )}
+      </Box>
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="xs" fullWidth>

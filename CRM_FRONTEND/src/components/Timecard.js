@@ -310,6 +310,33 @@ const Timecard = () => {
         return { present, fullDayLeave, weekOff, holiday, halfDay, wfh, elTaken, totalLeave, payableDays };
     }, [myAttendance]);
 
+    const dailyAttendanceByUser = useMemo(() => {
+        const map = new Map();
+        dailyAttendance.forEach((record) => {
+            const id = (record.userId?._id || record.userId)?.toString();
+            if (id) map.set(id, record);
+        });
+        return map;
+    }, [dailyAttendance]);
+
+    const dailySummary = useMemo(() => {
+        const summary = ATTENDANCE_STATUSES.reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
+        let notMarked = 0;
+
+        employees.forEach((emp) => {
+            const record = dailyAttendanceByUser.get(emp._id?.toString());
+            if (record?.status && summary[record.status] !== undefined) {
+                summary[record.status] += 1;
+            } else if (record?.status) {
+                summary[record.status] = (summary[record.status] || 0) + 1;
+            } else {
+                notMarked += 1;
+            }
+        });
+
+        return { ...summary, notMarked };
+    }, [dailyAttendanceByUser, employees]);
+
     const tabsToRender = [
         { label: "My Timecard", show: true },
         { label: "Apply for Leave", show: true },
@@ -317,6 +344,7 @@ const Timecard = () => {
         { label: "Organization Holidays", show: true },
         { label: "Manage Leaves", show: isApprover },
         { label: "Login Activity Logs", show: isApprover },
+        { label: "Daily Attendance", show: isApprover },
         { label: "Mark Attendance", show: isApprover }
     ];
     
@@ -567,6 +595,92 @@ const Timecard = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+            )}
+
+            {/* TAB: DAILY ATTENDANCE */}
+            {activeTabLabel === 'Daily Attendance' && isApprover && (
+                <Box>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3, alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>All Employees Attendance</Typography>
+                            <Typography variant="body2" color="text.secondary">View marked attendance for every employee on a selected date.</Typography>
+                        </Box>
+                        <TextField
+                            label="Attendance Date"
+                            type="date"
+                            size="small"
+                            value={attendanceDate}
+                            onChange={(e) => setAttendanceDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </Box>
+
+                    <Grid container spacing={1.5} sx={{ mb: 3 }}>
+                        {[
+                            { label: 'Present', val: dailySummary.Present || 0, color: '#16a34a' },
+                            { label: 'Leave', val: (dailySummary['Full Day Leave'] || 0) + (dailySummary['Half Day Leave'] || 0), color: '#dc2626' },
+                            { label: 'WFH', val: dailySummary.WFH || 0, color: '#2563eb' },
+                            { label: 'Week Off', val: dailySummary['Week Off'] || 0, color: '#9333ea' },
+                            { label: 'Holiday', val: dailySummary.Holiday || 0, color: '#db2777' },
+                            { label: 'Not Marked', val: dailySummary.notMarked || 0, color: '#6b7280' },
+                        ].map((item) => (
+                            <Grid item xs={6} sm={4} md={2} key={item.label}>
+                                <Card variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'white' }}>
+                                    <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                        <Typography variant="h5" sx={{ fontWeight: 800, color: item.color }}>{item.val}</Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{item.label}</Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+                        ))}
+                    </Grid>
+
+                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
+                        <Table size="small">
+                            <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+                                <TableRow>
+                                    <TableCell>Employee</TableCell>
+                                    <TableCell>Role</TableCell>
+                                    <TableCell>Status</TableCell>
+                                    <TableCell>Notes</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {employees.length === 0 ? (
+                                    <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3 }}>No employees found</TableCell></TableRow>
+                                ) : (
+                                    employees.map((emp) => {
+                                        const record = dailyAttendanceByUser.get(emp._id?.toString());
+                                        const status = record?.status || 'Not Marked';
+                                        const statusColor = ATTENDANCE_COLORS[status];
+                                        return (
+                                            <TableRow key={`daily-${emp._id}`}>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">{emp.email}</Typography>
+                                                </TableCell>
+                                                <TableCell sx={{ textTransform: 'capitalize' }}>{emp.user_role || '-'}</TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        size="small"
+                                                        label={status}
+                                                        sx={{
+                                                            fontWeight: 700,
+                                                            bgcolor: statusColor?.bg || 'rgba(107, 114, 128, 0.12)',
+                                                            color: statusColor?.color || '#6b7280',
+                                                            border: `1px solid ${statusColor?.border || 'rgba(107, 114, 128, 0.25)'}`,
+                                                        }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>{record?.notes || '-'}</TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
             )}
 
             {/* TAB: MARK ATTENDANCE */}
