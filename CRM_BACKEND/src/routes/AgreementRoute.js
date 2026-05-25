@@ -383,28 +383,13 @@ const buildAgreementHtml = (markdown, meta) => {
           padding-top: 14px;
           text-align: center;
         }
-        .agreement-template-note {
-          font-family: Arial, sans-serif;
-          font-size: 11px;
-          color: #64748b;
-          border-bottom: 1px solid #e5e7eb;
-          margin-bottom: 14px;
-          padding-bottom: 8px;
-          text-align: left;
-        }
         @media print {
           .agreement-document {
             padding: 0;
             max-width: none;
           }
-          .agreement-template-note {
-            display: none;
-          }
         }
       </style>
-      <div class="agreement-template-note">
-        Template: ${escapeHtml(meta.templateTitle)} | ${escapeHtml(meta.agreementType)} | ${meta.isNotary ? "Notary" : "Without Notary"} | ${meta.isNoPending ? "No Pending" : "Pending"}${meta.isRefundable ? " | Refundable" : ""}
-      </div>
       ${bodyHtml}
     </article>
   `;

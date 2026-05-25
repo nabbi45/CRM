@@ -46,10 +46,13 @@ export const generatePDF = async (htmlContent, filename = 'agreement') => {
     // PDF dimensions
     const pdfWidth = 210; // A4 width in mm
     const pdfPageHeight = 297; // A4 height in mm
+    const pageMargin = 10;
+    const printableWidth = pdfWidth - pageMargin * 2;
+    const printableHeight = pdfPageHeight - pageMargin * 2;
 
     // Calculate the canvas pixel height that corresponds to one A4 page
-    const pixelsPerMm = canvas.width / pdfWidth;
-    const pageCanvasHeight = Math.floor(pdfPageHeight * pixelsPerMm);
+    const pixelsPerMm = canvas.width / printableWidth;
+    const pageCanvasHeight = Math.floor(printableHeight * pixelsPerMm);
     const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
 
     const pdf = new jsPDF({
@@ -85,7 +88,7 @@ export const generatePDF = async (htmlContent, filename = 'agreement') => {
       const pageImgData = pageCanvas.toDataURL('image/png');
       const sliceHeightMm = (srcH / pixelsPerMm);
 
-      pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, sliceHeightMm);
+      pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, printableWidth, sliceHeightMm);
     }
 
     // Save the PDF
@@ -135,8 +138,11 @@ export const generatePDFBase64 = async (htmlContent) => {
 
     const pdfWidth = 210;
     const pdfPageHeight = 297;
-    const pixelsPerMm = canvas.width / pdfWidth;
-    const pageCanvasHeight = Math.floor(pdfPageHeight * pixelsPerMm);
+    const pageMargin = 10;
+    const printableWidth = pdfWidth - pageMargin * 2;
+    const printableHeight = pdfPageHeight - pageMargin * 2;
+    const pixelsPerMm = canvas.width / printableWidth;
+    const pageCanvasHeight = Math.floor(printableHeight * pixelsPerMm);
     const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
 
     const pdf = new jsPDF({
@@ -160,7 +166,7 @@ export const generatePDFBase64 = async (htmlContent) => {
 
       const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.8);
       const sliceHeightMm = srcH / pixelsPerMm;
-      pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, sliceHeightMm);
+      pdf.addImage(pageImgData, 'JPEG', pageMargin, pageMargin, printableWidth, sliceHeightMm);
     }
 
     return pdf.output('datauristring');

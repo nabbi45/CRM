@@ -327,7 +327,7 @@ const AddBooking = ({ onClose }) => {
     if (!isContinuationTerm && formData.isRefundable) {
       const refundablePct = Number(formData.refundablePercentage || 0);
       if (!refundablePct || refundablePct < 0 || refundablePct > 100) {
-        validationErrors.refundablePercentage = "Enter refundable percentage between 1 and 100";
+        validationErrors.refundablePercentage = "Enter deduction percentage between 1 and 100";
       }
     }
     if (!formData.pan) {
@@ -938,7 +938,7 @@ const AddBooking = ({ onClose }) => {
                 <TextField
                   sx={{ ml: { sm: 2 }, mt: { xs: 1, sm: 0 }, maxWidth: 220 }}
                   size="small"
-                  label="Refundable %"
+                  label="Deduction %"
                   name="refundablePercentage"
                   type="number"
                   value={formData.refundablePercentage}
@@ -948,11 +948,6 @@ const AddBooking = ({ onClose }) => {
                   helperText={errors.refundablePercentage}
                   InputProps={{ endAdornment: <Typography sx={{ ml: 1 }}>%</Typography> }}
                 />
-                <Typography variant="body2" color="text.secondary">
-                  {isCashPayment(formData.bank)
-                    ? "GST is not applied on cash bookings."
-                    : "GST is not added here. Enter the final amount already including GST where applicable."}
-                </Typography>
               </Paper>
             </Grid>
           )}
