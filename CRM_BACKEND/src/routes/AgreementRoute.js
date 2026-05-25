@@ -296,8 +296,14 @@ const markdownToHtml = (markdown) => {
     if (/^#{2,6}\s+/.test(line)) {
       flushParagraph();
       flushList();
+      const headingText = line.replace(/^#{2,6}\s+/, "").trim();
+      if (!headingText) return;
       const level = Math.min((line.match(/^#+/)?.[0].length || 2) + 1, 4);
-      html.push(`<h${level}>${renderInlineMarkdown(line.replace(/^#{2,6}\s+/, ""))}</h${level}>`);
+      html.push(`<h${level}>${renderInlineMarkdown(headingText)}</h${level}>`);
+      return;
+    }
+
+    if (/^#{2,6}\s*$/.test(line)) {
       return;
     }
 
@@ -324,13 +330,16 @@ const buildAgreementHtml = (markdown, meta) => {
       <style>
         .agreement-document {
           font-family: "Times New Roman", Times, serif;
-          color: #111827;
+          color: #000000;
           background: #ffffff;
           max-width: 190mm;
           margin: 0 auto;
           padding: 18mm 16mm;
-          line-height: 1.45;
-          font-size: 13px;
+          line-height: 1.55;
+          font-size: 14px;
+          font-weight: 400;
+          -webkit-font-smoothing: antialiased;
+          text-rendering: geometricPrecision;
         }
         .agreement-document h1 {
           text-align: center;
@@ -372,7 +381,7 @@ const buildAgreementHtml = (markdown, meta) => {
           vertical-align: top;
         }
         .agreement-document a {
-          color: #111827;
+          color: #000000;
           text-decoration: underline;
         }
         .agreement-document strong {

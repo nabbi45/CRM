@@ -1,6 +1,34 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+const findSafePageBreak = (canvas, startY, targetEndY) => {
+  const ctx = canvas.getContext('2d');
+  const searchRadius = 140;
+  const minSliceHeight = 500;
+  const fromY = Math.max(startY + minSliceHeight, targetEndY - searchRadius);
+  const toY = Math.min(canvas.height - 1, targetEndY + 40);
+
+  const isMostlyWhiteRow = (y) => {
+    const data = ctx.getImageData(0, y, canvas.width, 1).data;
+    let darkPixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) darkPixels += 1;
+      if (darkPixels > canvas.width * 0.01) return false;
+    }
+    return true;
+  };
+
+  for (let y = targetEndY; y >= fromY; y -= 1) {
+    if (isMostlyWhiteRow(y) && isMostlyWhiteRow(Math.max(0, y - 8))) return y;
+  }
+
+  for (let y = targetEndY + 1; y <= toY; y += 1) {
+    if (isMostlyWhiteRow(y) && isMostlyWhiteRow(Math.max(0, y - 8))) return y;
+  }
+
+  return targetEndY;
+};
+
 export const generatePDF = async (htmlContent, filename = 'agreement') => {
   try {
     // Create a temporary div to render the HTML
@@ -53,20 +81,21 @@ export const generatePDF = async (htmlContent, filename = 'agreement') => {
     // Calculate the canvas pixel height that corresponds to one A4 page
     const pixelsPerMm = canvas.width / printableWidth;
     const pageCanvasHeight = Math.floor(printableHeight * pixelsPerMm);
-    const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
-
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
     });
 
-    for (let page = 0; page < totalPages; page++) {
+    let page = 0;
+    let srcY = 0;
+    while (srcY < canvas.height) {
       if (page > 0) pdf.addPage();
 
       // Calculate the slice of canvas for this page
-      const srcY = page * pageCanvasHeight;
-      const srcH = Math.min(pageCanvasHeight, canvas.height - srcY);
+      const targetEndY = Math.min(srcY + pageCanvasHeight, canvas.height);
+      const safeEndY = targetEndY < canvas.height ? findSafePageBreak(canvas, srcY, targetEndY) : targetEndY;
+      const srcH = Math.min(Math.max(safeEndY - srcY, 1), canvas.height - srcY);
 
       // Create a canvas for this page slice
       const pageCanvas = document.createElement('canvas');
@@ -89,6 +118,8 @@ export const generatePDF = async (htmlContent, filename = 'agreement') => {
       const sliceHeightMm = (srcH / pixelsPerMm);
 
       pdf.addImage(pageImgData, 'PNG', pageMargin, pageMargin, printableWidth, sliceHeightMm);
+      srcY += srcH;
+      page += 1;
     }
 
     // Save the PDF
@@ -143,18 +174,19 @@ export const generatePDFBase64 = async (htmlContent) => {
     const printableHeight = pdfPageHeight - pageMargin * 2;
     const pixelsPerMm = canvas.width / printableWidth;
     const pageCanvasHeight = Math.floor(printableHeight * pixelsPerMm);
-    const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
-
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
     });
 
-    for (let page = 0; page < totalPages; page++) {
+    let page = 0;
+    let srcY = 0;
+    while (srcY < canvas.height) {
       if (page > 0) pdf.addPage();
-      const srcY = page * pageCanvasHeight;
-      const srcH = Math.min(pageCanvasHeight, canvas.height - srcY);
+      const targetEndY = Math.min(srcY + pageCanvasHeight, canvas.height);
+      const safeEndY = targetEndY < canvas.height ? findSafePageBreak(canvas, srcY, targetEndY) : targetEndY;
+      const srcH = Math.min(Math.max(safeEndY - srcY, 1), canvas.height - srcY);
 
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvas.width;
@@ -167,6 +199,8 @@ export const generatePDFBase64 = async (htmlContent) => {
       const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.8);
       const sliceHeightMm = srcH / pixelsPerMm;
       pdf.addImage(pageImgData, 'JPEG', pageMargin, pageMargin, printableWidth, sliceHeightMm);
+      srcY += srcH;
+      page += 1;
     }
 
     return pdf.output('datauristring');
