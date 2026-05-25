@@ -182,9 +182,16 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
           headers: { authorization: userSession.token },
           body: formData
         });
-        if (res.ok) uploaded++;
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          uploaded++;
+        } else {
+          console.error('Upload failed', data);
+          enqueueSnackbar(data.message || `Failed to upload ${file.name}`, { variant: 'error' });
+        }
       } catch (err) {
         console.error('Upload err', err);
+        enqueueSnackbar(`Failed to upload ${file.name}`, { variant: 'error' });
       }
     }
 

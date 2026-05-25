@@ -13,7 +13,7 @@ import {
 const SecurityRoutes = express.Router();
 
 const requireSecurityAdmin = (req, res, next) => {
-  if (!canManageSecurity(req.user?.user_role)) {
+  if (!canManageSecurity(req.user)) {
     return res.status(403).send({ message: "Only authorized admins can manage security settings." });
   }
   next();

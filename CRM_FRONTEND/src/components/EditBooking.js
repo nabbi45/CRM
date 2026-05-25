@@ -57,6 +57,14 @@ const EditBooking = ({ initialData, onClose }) => {
   const [companyBranches, setCompanyBranches] = useState([]);
   const [users, setUsers] = useState([]);
   const [sharedPersons, setSharedPersons] = useState([]);
+  const userOptions = [
+    ...users,
+    ...(Array.isArray(initialData?.shared_with)
+      ? initialData.shared_with
+          .filter((sw) => sw.user_id && !users.some((u) => String(u._id) === String(sw.user_id)))
+          .map((sw) => ({ _id: sw.user_id, name: sw.user_name || 'Shared employee' }))
+      : []),
+  ];
 
   const nextReceivableTerm = Number(initialData?.term_1 || 0) > 0 && Number(initialData?.term_2 || 0) <= 0
     ? 'Term 2'
@@ -521,7 +529,12 @@ const EditBooking = ({ initialData, onClose }) => {
             <Grid item xs={12}>
               <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <strong>Share Booking Revenue</strong>
+                  <Box>
+                    <strong>Edit Booking Sharing</strong>
+                    <Box sx={{ color: 'text.secondary', fontSize: 12 }}>
+                      Admins can add, remove, or change shared employees and percentages here.
+                    </Box>
+                  </Box>
                   <Button
                     size="small"
                     variant="outlined"
@@ -547,7 +560,7 @@ const EditBooking = ({ initialData, onClose }) => {
                             setSharedPersons(next);
                           }}
                         >
-                          {users.map((u) => (
+                          {userOptions.map((u) => (
                             <MenuItem key={u._id} value={u._id}>{u.name}</MenuItem>
                           ))}
                         </Select>

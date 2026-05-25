@@ -43,7 +43,7 @@ export const FEATURE_LABELS = {
   trash: 'Trash',
   manage_documents: 'Manage Documents (Delete/Reupload)',
   edit_documents: 'Edit Documents',
-  security: 'Security',
+  security: 'Security/IP Settings',
 };
 
 export const ROLE_TEMPLATE_OPTIONS = [
@@ -160,9 +160,7 @@ export const resolveFeaturePermissions = (userSession = {}) => {
   if (!final.includes('dashboard_overview')) final.push('dashboard_overview');
   if (!final.includes('employee_profile')) final.push('employee_profile');
   if (!final.includes('booking_approvals') && ['bdm', 'employee', 'sales'].includes(normalizeRole(userSession?.user_role))) final.push('booking_approvals');
-  if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) {
-    final.push('security');
-  }
+  if (['director', 'super admin', 'dev', 'srdev', 'sr dev'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) final.push('security');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('booking_approvals')) {
     final.push('booking_approvals');
   }

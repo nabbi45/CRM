@@ -15,7 +15,12 @@ const upload = multer({
 });
 
 // Document types mapping
-const DOCUMENT_TYPES = ["agreement", "pitch_deck", "dpr", "application", "aadhaar", "pan", "others"];
+const DOCUMENT_TYPES = [
+    "agreement", "pitch_deck", "dpr", "application", "aadhaar", "pan", "others",
+    "fa_agreement_sent", "fa_agreement_received", "fa_dpr_data",
+    "fa_dpr", "fa_pitch_deck", "fa_app_coordination",
+    "fa_application_service", "fa_acknowledgement_service"
+];
 
 /**
  * Upload a document for a booking

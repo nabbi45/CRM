@@ -18,7 +18,7 @@ export const authenticateUser = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace with your JWT secret
     req.user = decoded; // Attach user data (including role) to request object
 
-    if (!canManageSecurity(decoded.user_role)) {
+    if (!canManageSecurity(decoded)) {
       const clientIp = getClientIp(req);
       const { allowed } = await isIpAllowed(clientIp);
       if (!allowed) {

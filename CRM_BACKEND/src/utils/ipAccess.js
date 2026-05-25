@@ -1,10 +1,20 @@
 import { SecuritySettingsModel } from "../models/SecuritySettingsModel.js";
 
 export const SECURITY_ADMIN_ROLES = ["director", "super admin", "dev", "srdev", "sr dev", "admin", "senior admin"];
+export const SECURITY_SYSTEM_ROLES = ["director", "super admin", "dev", "srdev", "sr dev"];
 
 export const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
 
-export const canManageSecurity = (role = "") => SECURITY_ADMIN_ROLES.includes(normalizeRole(role));
+export const canManageSecurity = (userOrRole = "") => {
+  if (typeof userOrRole === "object" && userOrRole !== null) {
+    const role = normalizeRole(userOrRole.user_role);
+    const permissions = Array.isArray(userOrRole.feature_permissions) ? userOrRole.feature_permissions : [];
+    if (permissions.length === 0) return SECURITY_ADMIN_ROLES.includes(role);
+    return SECURITY_SYSTEM_ROLES.includes(role) || permissions.includes("security");
+  }
+
+  return SECURITY_ADMIN_ROLES.includes(normalizeRole(userOrRole));
+};
 
 export const getClientIp = (req) => {
   const forwarded = req.headers["x-forwarded-for"];
