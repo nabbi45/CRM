@@ -1,6 +1,92 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+const createHiddenRenderRoot = () => {
+  const tempDiv = document.createElement('div');
+  tempDiv.style.position = 'absolute';
+  tempDiv.style.left = '-9999px';
+  tempDiv.style.top = '0';
+  tempDiv.style.width = '794px';
+  tempDiv.style.backgroundColor = 'white';
+  tempDiv.style.padding = '0';
+  document.body.appendChild(tempDiv);
+  return tempDiv;
+};
+
+const waitForImagesAndFonts = async (root) => {
+  await document.fonts.ready;
+  const images = Array.from(root.querySelectorAll('img'));
+  await Promise.all(images.map((img) => {
+    if (img.complete) return Promise.resolve();
+    return new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = () => resolve();
+    });
+  }));
+};
+
+const renderElementToCanvas = async (element, scale = 2) =>
+  html2canvas(element, {
+    scale,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    width: element.scrollWidth,
+    height: element.scrollHeight,
+    windowWidth: element.scrollWidth,
+    windowHeight: element.scrollHeight,
+  });
+
+const addCanvasToPdfPage = (pdf, canvas, { pageMargin = 10, imageType = 'PNG', quality } = {}) => {
+  const pdfWidth = 210;
+  const pdfHeight = 297;
+  const printableWidth = pdfWidth - pageMargin * 2;
+  const printableHeight = pdfHeight - pageMargin * 2;
+  const imgData = imageType === 'JPEG'
+    ? canvas.toDataURL('image/jpeg', quality || 0.92)
+    : canvas.toDataURL('image/png');
+
+  const imgHeightMm = (canvas.height * printableWidth) / canvas.width;
+  const finalHeight = Math.min(imgHeightMm, printableHeight);
+
+  pdf.addImage(imgData, imageType, pageMargin, pageMargin, printableWidth, finalHeight);
+};
+
+const renderAgreementPagesToPdf = async (htmlContent, { filename, asBase64 = false } = {}) => {
+  const tempDiv = createHiddenRenderRoot();
+
+  try {
+    tempDiv.innerHTML = htmlContent;
+    const article = tempDiv.firstElementChild || tempDiv;
+    article.style.width = '794px';
+    article.style.backgroundColor = '#ffffff';
+
+    await waitForImagesAndFonts(tempDiv);
+
+    const pages = Array.from(tempDiv.querySelectorAll('.agreement-page'));
+    if (pages.length === 0) return null;
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    for (let index = 0; index < pages.length; index += 1) {
+      if (index > 0) pdf.addPage();
+      const canvas = await renderElementToCanvas(pages[index], asBase64 ? 1.5 : 2);
+      addCanvasToPdfPage(pdf, canvas, { pageMargin: 0, imageType: asBase64 ? 'JPEG' : 'PNG', quality: 0.9 });
+    }
+
+    if (asBase64) return pdf.output('datauristring');
+
+    pdf.save(`${filename}.pdf`);
+    return true;
+  } finally {
+    document.body.removeChild(tempDiv);
+  }
+};
+
 const findSafePageBreak = (canvas, startY, targetEndY) => {
   const ctx = canvas.getContext('2d');
   const searchRadius = 140;
@@ -31,42 +117,18 @@ const findSafePageBreak = (canvas, startY, targetEndY) => {
 
 export const generatePDF = async (htmlContent, filename = 'agreement') => {
   try {
+    const agreementResult = await renderAgreementPagesToPdf(htmlContent, { filename });
+    if (agreementResult) return Promise.resolve();
+
     // Create a temporary div to render the HTML
-    const tempDiv = document.createElement('div');
+    const tempDiv = createHiddenRenderRoot();
     tempDiv.innerHTML = htmlContent;
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '0';
-    tempDiv.style.width = '794px'; // A4 at 96dpi = 794px
-    tempDiv.style.backgroundColor = 'white';
     tempDiv.style.padding = '40px';
-    document.body.appendChild(tempDiv);
 
-    // Wait for any fonts to load
-    await document.fonts.ready;
-
-    // Wait for all images to load fully before capturing
-    const images = Array.from(tempDiv.querySelectorAll('img'));
-    await Promise.all(images.map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => {
-        img.onload = resolve;
-        img.onerror = () => {
-          console.warn('Image failed to load for PDF rendering:', img.src);
-          resolve();
-        };
-      });
-    }));
+    await waitForImagesAndFonts(tempDiv);
 
     // Generate canvas from HTML
-    const canvas = await html2canvas(tempDiv, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: 794,
-      height: tempDiv.scrollHeight,
-    });
+    const canvas = await renderElementToCanvas(tempDiv, 2);
 
     // Clean up
     document.body.removeChild(tempDiv);
@@ -135,35 +197,16 @@ export const generatePDF = async (htmlContent, filename = 'agreement') => {
 // Generate PDF as Base64 data URL (for email attachment)
 export const generatePDFBase64 = async (htmlContent) => {
   try {
-    const tempDiv = document.createElement('div');
+    const agreementResult = await renderAgreementPagesToPdf(htmlContent, { asBase64: true });
+    if (agreementResult) return agreementResult;
+
+    const tempDiv = createHiddenRenderRoot();
     tempDiv.innerHTML = htmlContent;
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '0';
-    tempDiv.style.width = '794px';
-    tempDiv.style.backgroundColor = 'white';
     tempDiv.style.padding = '40px';
-    document.body.appendChild(tempDiv);
 
-    await document.fonts.ready;
+    await waitForImagesAndFonts(tempDiv);
 
-    const images = Array.from(tempDiv.querySelectorAll('img'));
-    await Promise.all(images.map(img => {
-      if (img.complete) return Promise.resolve();
-      return new Promise(resolve => {
-        img.onload = resolve;
-        img.onerror = () => resolve();
-      });
-    }));
-
-    const canvas = await html2canvas(tempDiv, {
-      scale: 1.5,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      width: 794,
-      height: tempDiv.scrollHeight,
-    });
+    const canvas = await renderElementToCanvas(tempDiv, 1.5);
 
     document.body.removeChild(tempDiv);
 
