@@ -31,6 +31,7 @@ import {
   Tabs,
   Tab,
   Collapse,
+  Pagination,
 } from '@mui/material';
 import { enqueueSnackbar } from 'notistack';
 import SearchIcon from '@mui/icons-material/Search';
@@ -67,10 +68,20 @@ const ClientDocuments = () => {
     totalBookings: 0
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [userSession, setUserSession] = useState(null);
   const [currentTab, setCurrentTab] = useState(0);
   const [expandedBookingId, setExpandedBookingId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    totalCount: 0,
+    totalPages: 1,
+    currentPage: 1,
+    limit: 20,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
   
   // Dialog states
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -104,41 +115,35 @@ const ClientDocuments = () => {
       }
 
       // Fetch bookings with documents
-      const bookingsRes = await fetch(`${apiUrl}/booking-documents/all?limit=50`, {
+      const params = new URLSearchParams({
+        limit: '20',
+        page: String(page),
+      });
+      if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
+
+      const bookingsRes = await fetch(`${apiUrl}/booking-documents/all?${params.toString()}`, {
         headers: { authorization: userSession.token }
       });
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json();
-        setBookings(bookingsData);
+        setBookings(Array.isArray(bookingsData.bookings) ? bookingsData.bookings : []);
+        if (bookingsData.pagination) setPagination(bookingsData.pagination);
       }
     } catch (error) {
       enqueueSnackbar('Error loading documents data. Please try again.', { variant: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [userSession]);
+  }, [userSession, page, appliedSearch]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const handleSearch = async () => {
-    if (!userSession?.token) return;
-    
-    setLoading(true);
-    try {
-      const res = await fetch(`${apiUrl}/booking-documents/all?search=${encodeURIComponent(searchQuery)}&limit=50`, {
-        headers: { authorization: userSession.token }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setBookings(data);
-      }
-    } catch (error) {
-      enqueueSnackbar('Error searching documents. Please try again.', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
+    setAppliedSearch(searchQuery.trim());
+    setPage(1);
+    setExpandedBookingId(null);
   };
 
   const canManageDocuments = () => {
@@ -368,7 +373,7 @@ const ClientDocuments = () => {
           Client Documents
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {stats.totalBookings} bookings found
+          {pagination.totalCount || stats.totalBookings} bookings found
         </Typography>
         
         <Tabs 
@@ -646,65 +651,99 @@ const ClientDocuments = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+        <Typography variant="body2" color="text.secondary">
+          Showing page {pagination.currentPage} of {pagination.totalPages} • 20 bookings per page
+        </Typography>
+        <Pagination
+          color="primary"
+          shape="rounded"
+          page={pagination.currentPage}
+          count={pagination.totalPages}
+          onChange={(_, value) => {
+            setExpandedBookingId(null);
+            setPage(value);
+          }}
+        />
+      </Box>
       </>
       )}
 
       {/* Tab 1: File Activity */}
       {currentTab === 1 && (
-        <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ background: (theme) => theme.palette.mode === 'dark' ? 'rgba(30,41,59,0.8)' : '#f8fafc' }}>
-                <TableCell width="40" />
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Company</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Services</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Date</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {bookings.map((booking) => (
-                <React.Fragment key={booking._id}>
-                  <TableRow 
-                    sx={{ cursor: 'pointer', '&:hover': { background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' } }}
-                    onClick={() => setExpandedBookingId(expandedBookingId === booking._id ? null : booking._id)}
-                  >
-                    <TableCell>
-                      <IconButton size="small">
-                        {expandedBookingId === booking._id ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                      </IconButton>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>{booking.company_name}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {(booking.services || []).map((service, i) => (
-                          <Chip key={i} label={service} size="small" sx={{ fontSize: '0.7rem', height: 20 }} />
-                        ))}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {booking.date ? new Date(booking.date).toLocaleDateString('en-GB') : '-'}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
-                      <Collapse in={expandedBookingId === booking._id} timeout="auto" unmountOnExit>
-                        <Box sx={{ p: 2, background: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#fcfcfc' }}>
-                          <FileActivityTable 
-                            booking={booking} 
-                            userSession={userSession} 
-                            isAdmin={canManageDocuments()} 
-                          />
+        <>
+          <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ background: (theme) => theme.palette.mode === 'dark' ? 'rgba(30,41,59,0.8)' : '#f8fafc' }}>
+                  <TableCell width="40" />
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Company</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Services</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Date</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {bookings.map((booking) => (
+                  <React.Fragment key={booking._id}>
+                    <TableRow 
+                      sx={{ cursor: 'pointer', '&:hover': { background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' } }}
+                      onClick={() => setExpandedBookingId(expandedBookingId === booking._id ? null : booking._id)}
+                    >
+                      <TableCell>
+                        <IconButton size="small">
+                          {expandedBookingId === booking._id ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                        </IconButton>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>{booking.company_name}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {(booking.services || []).map((service, i) => (
+                            <Chip key={i} label={service} size="small" sx={{ fontSize: '0.7rem', height: 20 }} />
+                          ))}
                         </Box>
-                      </Collapse>
-                    </TableCell>
-                  </TableRow>
-                </React.Fragment>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                      </TableCell>
+                      <TableCell>
+                        {booking.date ? new Date(booking.date).toLocaleDateString('en-GB') : '-'}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+                        <Collapse in={expandedBookingId === booking._id} timeout="auto" unmountOnExit>
+                          <Box sx={{ p: 2, background: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#fcfcfc' }}>
+                            <FileActivityTable 
+                              booking={booking} 
+                              userSession={userSession} 
+                              isAdmin={canManageDocuments()} 
+                            />
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing page {pagination.currentPage} of {pagination.totalPages} • 20 bookings per page
+            </Typography>
+            <Pagination
+              color="primary"
+              shape="rounded"
+              page={pagination.currentPage}
+              count={pagination.totalPages}
+              onChange={(_, value) => {
+                setExpandedBookingId(null);
+                setPage(value);
+              }}
+            />
+          </Box>
+        </>
       )}
 
       {/* Upload Dialog */}

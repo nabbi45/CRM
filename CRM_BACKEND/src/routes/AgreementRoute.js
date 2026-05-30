@@ -238,6 +238,39 @@ const renderTable = (lines) => {
     .join("")}</tbody></table>`;
 };
 
+const isFooterMarkerLine = (line = "") => {
+  const normalized = cleanMarkdownLine(line)
+    .replace(/\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  return normalized === "service provider service receiver";
+};
+
+const splitMarkdownIntoPages = (markdown) => {
+  const pages = [];
+  let currentLines = [];
+
+  markdown.split("\n").forEach((line) => {
+    if (isFooterMarkerLine(line)) {
+      if (currentLines.some((entry) => entry.trim())) {
+        pages.push({ markdown: currentLines.join("\n").trim(), showFooter: true });
+      }
+      currentLines = [];
+      return;
+    }
+
+    currentLines.push(line);
+  });
+
+  if (currentLines.some((entry) => entry.trim())) {
+    pages.push({ markdown: currentLines.join("\n").trim(), showFooter: true });
+  }
+
+  return pages;
+};
+
 const markdownToHtml = (markdown) => {
   const lines = markdown.split("\n");
   const html = [];
@@ -324,7 +357,26 @@ const markdownToHtml = (markdown) => {
 };
 
 const buildAgreementHtml = (markdown, meta) => {
-  const bodyHtml = markdownToHtml(markdown);
+  const pages = splitMarkdownIntoPages(markdown);
+  const pageHtml = pages
+    .map(({ markdown: pageMarkdown, showFooter }, index) => {
+      const bodyHtml = markdownToHtml(pageMarkdown);
+      return `
+        <section class="agreement-page ${index < pages.length - 1 ? "agreement-page-break" : ""}">
+          <div class="agreement-page-content">
+            ${bodyHtml}
+          </div>
+          ${showFooter ? `
+            <div class="agreement-page-footer">
+              <span>Service Provider</span>
+              <span>Service Receiver</span>
+            </div>
+          ` : ""}
+        </section>
+      `;
+    })
+    .join("");
+
   return `
     <article class="agreement-document">
       <style>
@@ -332,36 +384,64 @@ const buildAgreementHtml = (markdown, meta) => {
           font-family: "Times New Roman", Times, serif;
           color: #000000;
           background: #ffffff;
-          max-width: 190mm;
+          max-width: 210mm;
           margin: 0 auto;
-          padding: 18mm 16mm;
-          line-height: 1.55;
-          font-size: 14px;
+          line-height: 1.5;
+          font-size: 13.5px;
           font-weight: 400;
           -webkit-font-smoothing: antialiased;
           text-rendering: geometricPrecision;
         }
+        .agreement-page {
+          min-height: 267mm;
+          padding: 18mm 20mm 16mm;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          background: #ffffff;
+        }
+        .agreement-page-break {
+          page-break-after: always;
+          break-after: page;
+        }
+        .agreement-page-content {
+          flex: 1 1 auto;
+        }
+        .agreement-page-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          margin-top: 18mm;
+          padding-top: 8mm;
+          font-size: 13px;
+          font-weight: 700;
+        }
         .agreement-document h1 {
           text-align: center;
           font-size: 18px;
-          margin: 0 0 18px;
+          margin: 0 0 22px;
           text-transform: uppercase;
           letter-spacing: 0;
+          text-decoration: underline;
+          text-decoration-thickness: 1px;
+          text-underline-offset: 4px;
         }
         .agreement-document h2,
         .agreement-document h3,
         .agreement-document h4 {
           font-size: 14px;
-          margin: 18px 0 8px;
+          margin: 18px 0 10px;
           text-transform: uppercase;
           letter-spacing: 0;
+          font-weight: 700;
         }
         .agreement-document p {
-          margin: 0 0 10px;
+          margin: 0 0 12px;
           text-align: justify;
         }
         .agreement-document ul {
-          margin: 0 0 10px 20px;
+          margin: 0 0 12px 22px;
           padding: 0;
         }
         .agreement-document li {
@@ -371,14 +451,15 @@ const buildAgreementHtml = (markdown, meta) => {
         .agreement-table {
           width: 100%;
           border-collapse: collapse;
-          margin: 18px 0;
+          margin: 20px 0 16px;
           page-break-inside: avoid;
         }
         .agreement-table td {
           width: 50%;
-          border: 1px solid #111827;
-          padding: 8px;
+          border: 1px solid #000000;
+          padding: 10px 8px;
           vertical-align: top;
+          font-size: 13.5px;
         }
         .agreement-document a {
           color: #000000;
@@ -389,17 +470,21 @@ const buildAgreementHtml = (markdown, meta) => {
         }
         .agreement-document .page-break {
           page-break-before: always;
-          padding-top: 14px;
-          text-align: center;
+          break-before: page;
+          padding-top: 0;
+          text-align: left;
         }
         @media print {
           .agreement-document {
             padding: 0;
             max-width: none;
           }
+          .agreement-page {
+            min-height: 267mm;
+          }
         }
       </style>
-      ${bodyHtml}
+      ${pageHtml}
     </article>
   `;
 };

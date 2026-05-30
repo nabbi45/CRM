@@ -112,9 +112,10 @@ BookingDocumentRoutes.get("/booking/:bookingId", authenticateUser, async (req, r
  */
 BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
     try {
-        const { search, limit = 50 } = req.query;
+        const { search, limit = 20, page = 1 } = req.query;
+        const limitNumber = Math.max(parseInt(limit, 10) || 20, 1);
+        const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
 
-        // First get recent bookings
         let bookingQuery = { isDeleted: false };
         
         if (search) {
@@ -122,14 +123,17 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
             bookingQuery.$or = [
                 { company_name: searchRegex },
                 { contact_person: searchRegex },
-                { contact_no: { $regex: search } }
+                { bdm: searchRegex }
             ];
         }
+
+        const totalCount = await BookingModel.countDocuments(bookingQuery);
 
         const bookings = await BookingModel.find(bookingQuery)
             .select("_id company_name contact_person contact_no services bdm date status total_amount term_1 term_2 term_3")
             .sort({ createdAt: -1 })
-            .limit(parseInt(limit))
+            .skip((pageNumber - 1) * limitNumber)
+            .limit(limitNumber)
             .lean();
 
         const bookingIds = bookings.map(b => b._id.toString());
@@ -167,7 +171,17 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
             };
         });
 
-        return res.status(200).send(result);
+        return res.status(200).send({
+            bookings: result,
+            pagination: {
+                totalCount,
+                totalPages: Math.max(Math.ceil(totalCount / limitNumber), 1),
+                currentPage: pageNumber,
+                limit: limitNumber,
+                hasNextPage: pageNumber * limitNumber < totalCount,
+                hasPrevPage: pageNumber > 1,
+            }
+        });
     } catch (error) {
         console.error("Error fetching all documents:", error);
         return res.status(500).send({ message: error.message });
