@@ -37,7 +37,6 @@ import {
   buildServiceDeductionMap,
   getBookingDeductionRowsForUser,
   getBookingRevenueForUser,
-  getBookingServiceDeductions,
 } from "../utils/bookingRevenue";
 
 const ACCENT = "#ff3b1f";
@@ -61,7 +60,7 @@ const DashboardContent = () => {
   const [mostRevenueService, setMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [personalMostSoldService, setPersonalMostSoldService] = useState({ name: "-", count: 0 });
   const [personalMostRevenueService, setPersonalMostRevenueService] = useState({ name: "-", revenue: 0 });
-  const [serviceDeductionRows, setServiceDeductionRows] = useState([]);
+  const [serviceDeductionCatalog, setServiceDeductionCatalog] = useState([]);
   const [totalServiceDeductions, setTotalServiceDeductions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
@@ -405,9 +404,20 @@ const DashboardContent = () => {
       const bookingsData = await bookingsRes.json();
       const bookings = bookingsData.Allbookings || bookingsData;
       let serviceDeductionMap = {};
+      let serviceDeductionCatalogRows = [];
       if (servicesRes?.ok) {
         const servicesData = await servicesRes.json();
-        serviceDeductionMap = buildServiceDeductionMap(Array.isArray(servicesData) ? servicesData : []);
+        const normalizedServices = Array.isArray(servicesData) ? servicesData : [];
+        serviceDeductionMap = buildServiceDeductionMap(normalizedServices);
+        serviceDeductionCatalogRows = normalizedServices
+          .map((service) => ({
+            id: service._id || service.name,
+            service: service.name || service.value || "SERVICE",
+            deduction: Number(service.deduction || 0),
+            status: service.status,
+          }))
+          .filter((service) => service.deduction > 0)
+          .sort((a, b) => b.deduction - a.deduction || a.service.localeCompare(b.service));
       }
 
       // Extract options users map to patch up older "Coworker" bug fields
@@ -461,8 +471,6 @@ const DashboardContent = () => {
           : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm, serviceDeductionMap);
 
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
-        const bookingTotalAmount = Number(booking.total_amount || 0);
-
         currentMonthRevenue += currentMonthRev;
 
         if (booking.createdAt?.split("T")[0] === today) {
@@ -620,7 +628,7 @@ const DashboardContent = () => {
         labels: revenueEntries.slice(0, 6).map(([service]) => service),
         values: revenueEntries.slice(0, 6).map(([, revenue]) => Math.round(revenue)),
       });
-      setServiceDeductionRows(currentMonthDeductions);
+      setServiceDeductionCatalog(serviceDeductionCatalogRows);
       setTotalServiceDeductions(
         currentMonthDeductions.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
       );
@@ -1077,42 +1085,45 @@ const DashboardContent = () => {
       {/* ── Service Deductions ── */}
       <Box sx={{ mt: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
-          Service Deductions This Month
+          Services With Deductions
         </Typography>
         <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
           <Table size={isMobile ? "small" : "medium"}>
             <TableHead>
               <TableRow>
-                <TableCell>Booking / Client</TableCell>
-                <TableCell>Company</TableCell>
                 <TableCell>Service</TableCell>
-                <TableCell align="right">Total Deduction</TableCell>
-                <TableCell align="right">{isAdmin ? "Deduction" : "Your Deduction"}</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Deduction</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {serviceDeductionRows.length === 0 && (
+              {serviceDeductionCatalog.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={3} align="center">
                     <Typography variant="body2" color="text.secondary">
-                      No service deductions this month.
+                      No service deductions configured yet.
                     </Typography>
                   </TableCell>
                 </TableRow>
               )}
-              {serviceDeductionRows.map((row, index) => (
-                <TableRow key={`${row.bookingId}-${row.service}-${index}`}>
+              {serviceDeductionCatalog.map((row) => (
+                <TableRow key={row.id}>
                   <TableCell>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {row.bookingName}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {row.clientName}
+                      {row.service}
                     </Typography>
                   </TableCell>
-                  <TableCell>{row.companyName}</TableCell>
-                  <TableCell>{row.service}</TableCell>
-                  <TableCell align="right">₹{Math.round(row.totalDeduction).toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={row.status ? "Active" : "Inactive"}
+                      sx={{
+                        bgcolor: row.status ? "rgba(16,185,129,0.12)" : "rgba(148,163,184,0.16)",
+                        color: row.status ? "#047857" : "#475569",
+                        fontWeight: 700,
+                      }}
+                    />
+                  </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#7c3aed" }}>
                     ₹{Math.round(row.deduction).toLocaleString()}
                   </TableCell>

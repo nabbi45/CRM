@@ -29,6 +29,8 @@ import DescriptionIcon from "@mui/icons-material/Description";
 
 import Mailer from "./mail";
 
+const getCurrentDateInput = () => new Date().toISOString().split("T")[0];
+
 const AddBooking = ({ onClose }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
@@ -39,7 +41,7 @@ const AddBooking = ({ onClose }) => {
     contactPerson: "",
     contactNumber: "",
     email: "",
-    date: new Date().toISOString().split("T")[0],
+    date: getCurrentDateInput(),
     services: [],
     totalAmount: "",
     selectTerm: "",
@@ -123,12 +125,12 @@ const AddBooking = ({ onClose }) => {
     contactPerson: booking?.contact_person || "",
     contactNumber: booking?.contact_no || "",
     email: booking?.email || "",
-    date: formatDateInput(booking?.date) || new Date().toISOString().split("T")[0],
+    date: getCurrentDateInput(),
     services: Array.isArray(booking?.services) ? booking.services : [],
     totalAmount: booking?.total_amount || "",
     selectTerm: forcedTerm || formData.selectTerm,
     amount: "",
-    paymentDate: new Date().toISOString().split("T")[0],
+    paymentDate: getCurrentDateInput(),
     closed: booking?.closed_by || "",
     pan: booking?.pan || "",
     gst: booking?.gst || "",
@@ -461,7 +463,7 @@ const AddBooking = ({ onClose }) => {
           setFormData((prev) => ({
             ...prev,
             amount: "",
-            paymentDate: new Date().toISOString().split("T")[0],
+            paymentDate: getCurrentDateInput(),
           }));
           setLoading(false);
           if (onClose) onClose();
@@ -469,6 +471,7 @@ const AddBooking = ({ onClose }) => {
         }
 
         const dataToSubmit = {
+          date: getCurrentDateInput(),
           user_id: userSession.user_id,
           bdm: userSession.name?.toUpperCase() || "",
           branch_name: formData.branch,
@@ -486,7 +489,6 @@ const AddBooking = ({ onClose }) => {
           pan: formData.pan?.toUpperCase() || "",
           gst: formData.gst?.toUpperCase() || "N/A",
           remark: formData.notes,
-          date: formData.date,
           bank: formData.bank,
           state: formData.state,
           status: "Pending",
@@ -833,9 +835,10 @@ const AddBooking = ({ onClose }) => {
               name="date"
               type="date"
               value={formData.date}
-              onChange={handleChange}
-               InputLabelProps={{ shrink: true }}
+              InputLabelProps={{ shrink: true }}
+              disabled
               variant="outlined"
+              helperText="Booking date is auto-set to today."
               sx={{
                 '& input::-webkit-calendar-picker-indicator': {
                   filter: isDark ? 'invert(1)' : 'none',

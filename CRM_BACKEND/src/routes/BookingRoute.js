@@ -69,6 +69,45 @@ const normalizeForHistory = (value) => {
 const valuesEqualForHistory = (oldValue, newValue) =>
   JSON.stringify(normalizeForHistory(oldValue)) === JSON.stringify(normalizeForHistory(newValue));
 
+const CONTINUATION_EDIT_FIELDS = new Set([
+  "payment_date",
+  "services",
+  "total_amount",
+  "shared_with",
+  "term_shares",
+  "term_2",
+  "term_3",
+]);
+
+const getBookingAccessUserIds = (booking) => {
+  const accessIds = new Set();
+  if (booking?.user_id) accessIds.add(String(booking.user_id));
+  (Array.isArray(booking?.shared_with) ? booking.shared_with : []).forEach((share) => {
+    if (share?.user_id) accessIds.add(String(share.user_id));
+  });
+
+  Object.values(booking?.term_shares || {}).forEach((termShare) => {
+    if (termShare?.creator?.user_id) accessIds.add(String(termShare.creator.user_id));
+    (Array.isArray(termShare?.shared_with) ? termShare.shared_with : []).forEach((share) => {
+      if (share?.user_id) accessIds.add(String(share.user_id));
+    });
+  });
+
+  return accessIds;
+};
+
+const isContinuationEditPayload = (updates = {}) => {
+  const keys = Object.keys(updates || {});
+  if (!keys.length) return false;
+  if (!keys.every((key) => CONTINUATION_EDIT_FIELDS.has(key))) return false;
+
+  const hasTermAmount =
+    Object.prototype.hasOwnProperty.call(updates, "term_2") ||
+    Object.prototype.hasOwnProperty.call(updates, "term_3");
+
+  return hasTermAmount && Object.prototype.hasOwnProperty.call(updates, "term_shares");
+};
+
 const resolveEditorName = async (req, fallback = "") => {
   const directName = req.user?.name || req.headers["user-name"];
   if (directName && directName !== "Unknown") return directName;
@@ -248,6 +287,9 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       return res.status(404).send("Booking not found");
     }
 
+    const requesterUserId = String(req.user?.userId || req.user?.user_id || "");
+    const continuationEdit = isContinuationEditPayload(updates);
+
     if (
       Object.prototype.hasOwnProperty.call(updates, "term_1") ||
       Object.prototype.hasOwnProperty.call(updates, "term_2") ||
@@ -271,6 +313,61 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     updates.refundable_percentage = oldBooking.refundable_percentage || 0;
 
     if (!isAdminRole(user_role)) {
+      if (continuationEdit) {
+        const accessIds = getBookingAccessUserIds(oldBooking);
+        if (!requesterUserId || !accessIds.has(requesterUserId)) {
+          return res.status(403).send({
+            message: "Only the booking owner or shared employees can add continuation terms.",
+          });
+        }
+      } else {
+        return res.status(403).send({
+          message: "Only admins and higher roles can edit bookings.",
+        });
+      }
+    }
+
+    if (continuationEdit) {
+      const incomingTermShares = updates.term_shares || {};
+      const incomingTermKeys = Object.keys(incomingTermShares);
+      const newTermKeys = incomingTermKeys.filter((termKey) => {
+        const existingShare = oldBooking.term_shares?.[termKey];
+        return !existingShare?.creator?.user_id;
+      });
+
+      const isAddingSingleContinuationTerm = newTermKeys.length === 1 &&
+        ((newTermKeys[0] === "term_2" && Object.prototype.hasOwnProperty.call(updates, "term_2")) ||
+          (newTermKeys[0] === "term_3" && Object.prototype.hasOwnProperty.call(updates, "term_3")));
+
+      if (!isAddingSingleContinuationTerm) {
+        return res.status(400).send({
+          message: "Continuation flow can only add one new term at a time.",
+        });
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(updates, "term_2") &&
+        Number(oldBooking.term_2 || 0) > 0
+      ) {
+        return res.status(400).send({ message: "Term 2 already exists for this booking." });
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(updates, "term_3") &&
+        Number(oldBooking.term_3 || 0) > 0
+      ) {
+        return res.status(400).send({ message: "Term 3 already exists for this booking." });
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(updates, "term_3") &&
+        Number(oldBooking.term_2 || 0) <= 0
+      ) {
+        return res.status(400).send({ message: "Term 2 must be completed before Term 3." });
+      }
+    }
+
+    if (!isAdminRole(user_role) && !continuationEdit) {
       return res.status(403).send({
         message: "Only admins and higher roles can edit bookings.",
       });
