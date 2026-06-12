@@ -416,7 +416,6 @@ const DashboardContent = () => {
             deduction: Number(service.deduction || 0),
             status: service.status,
           }))
-          .filter((service) => service.deduction > 0)
           .sort((a, b) => b.deduction - a.deduction || a.service.localeCompare(b.service));
       }
 
@@ -1085,7 +1084,10 @@ const DashboardContent = () => {
       {/* ── Service Deductions ── */}
       <Box sx={{ mt: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
-          Services With Deductions
+          Service Deduction Master
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          Check service-wise deductions here before logging a booking.
         </Typography>
         <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
           <Table size={isMobile ? "small" : "medium"}>
@@ -1101,7 +1103,7 @@ const DashboardContent = () => {
                 <TableRow>
                   <TableCell colSpan={3} align="center">
                     <Typography variant="body2" color="text.secondary">
-                      No service deductions configured yet.
+                      No services configured yet.
                     </Typography>
                   </TableCell>
                 </TableRow>

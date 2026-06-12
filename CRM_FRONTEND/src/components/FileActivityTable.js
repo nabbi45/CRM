@@ -37,6 +37,12 @@ const STATUS_STYLES = {
   Completed: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
 };
 
+const isPreviewableDocument = (doc = {}) => {
+  const mime = String(doc.mimeType || '').toLowerCase();
+  const name = String(doc.fileName || '').toLowerCase();
+  return mime.startsWith('image/') || mime === 'application/pdf' || name.endsWith('.pdf');
+};
+
 const FileActivityTable = ({ booking, userSession, isAdmin }) => {
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -218,6 +224,54 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
 
     setViewDocs(filtered);
     setViewDialogOpen(true);
+  };
+
+  const openDocumentPreview = async (doc) => {
+    if (!doc?.fileUrl) {
+      enqueueSnackbar('Document URL not found', { variant: 'error' });
+      return;
+    }
+
+    if (!isPreviewableDocument(doc)) {
+      await handleDocumentDownload(doc);
+      return;
+    }
+
+    try {
+      const response = await fetch(doc.fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch document');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+      console.error('Preview failed', error);
+      window.open(doc.fileUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleDocumentDownload = async (doc) => {
+    if (!doc?.fileUrl) {
+      enqueueSnackbar('Document URL not found', { variant: 'error' });
+      return;
+    }
+
+    try {
+      const response = await fetch(doc.fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch document');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = doc.fileName || 'document';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Download failed', error);
+      enqueueSnackbar(`Failed to download ${doc.fileName || 'document'}`, { variant: 'error' });
+    }
   };
 
   if (loading || !activity) {
@@ -518,9 +572,14 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
                   </Typography>
                 </Box>
               </Box>
-              <Button size="small" variant="outlined" onClick={() => window.open(doc.fileUrl, '_blank')}>
-                Download
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Button size="small" variant="outlined" onClick={() => openDocumentPreview(doc)}>
+                  View
+                </Button>
+                <Button size="small" variant="contained" onClick={() => handleDocumentDownload(doc)}>
+                  Download
+                </Button>
+              </Box>
             </Box>
           ))}
         </DialogContent>

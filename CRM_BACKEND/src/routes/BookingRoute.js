@@ -328,18 +328,18 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     }
 
     if (continuationEdit) {
-      const incomingTermShares = updates.term_shares || {};
-      const incomingTermKeys = Object.keys(incomingTermShares);
-      const newTermKeys = incomingTermKeys.filter((termKey) => {
-        const existingShare = oldBooking.term_shares?.[termKey];
-        return !existingShare?.creator?.user_id;
-      });
+      const targetTermKey = Object.prototype.hasOwnProperty.call(updates, "term_2")
+        ? "term_2"
+        : Object.prototype.hasOwnProperty.call(updates, "term_3")
+          ? "term_3"
+          : "";
+      const targetTermShare = updates.term_shares?.[targetTermKey];
 
-      const isAddingSingleContinuationTerm = newTermKeys.length === 1 &&
-        ((newTermKeys[0] === "term_2" && Object.prototype.hasOwnProperty.call(updates, "term_2")) ||
-          (newTermKeys[0] === "term_3" && Object.prototype.hasOwnProperty.call(updates, "term_3")));
-
-      if (!isAddingSingleContinuationTerm) {
+      if (
+        !targetTermKey ||
+        !targetTermShare?.creator?.user_id ||
+        !targetTermShare?.payment_date
+      ) {
         return res.status(400).send({
           message: "Continuation flow can only add one new term at a time.",
         });
