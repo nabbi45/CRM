@@ -7,15 +7,14 @@ import { authenticateUser, authorizeFeature } from "../middlewares/authMiddlewar
 const router = express.Router();
 
 // Higher authority roles
-const HIGHER_ROLES = ["admin", "senior admin", "super admin", "hr", "dev", "srdev"];
+const HIGHER_ROLES = ["super admin", "director", "hr", "dev"];
 
 /**
  * Check if user is a higher authority or has employee_profile feature permission
  */
 const isHigherAuthority = (user) => {
   const role = (user?.user_role || "").trim().toLowerCase();
-  const permissions = user?.feature_permissions || [];
-  return HIGHER_ROLES.includes(role) || permissions.includes('employee_profile');
+  return HIGHER_ROLES.includes(role);
 };
 
 /**

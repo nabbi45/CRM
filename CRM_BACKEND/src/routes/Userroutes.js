@@ -406,8 +406,11 @@ UserRoutes.post('/login', async (req, res) => {
       });
     }
 
+    const normalizedEmail = toLowerEmail(email);
+    const submittedPassword = password.toString();
+
     // Find the user by email
-    const user = await UserModel.findOneAndUpdate({ email: toLowerEmail(email) }, { isActive: true });
+    const user = await UserModel.findOne({ email: normalizedEmail });
 
 
     if (!user) {
@@ -416,14 +419,29 @@ UserRoutes.post('/login', async (req, res) => {
       });
     }
 
-    // Compare the provided password with the stored hashed password using bcrypt
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    let isPasswordValid = false;
+    if (typeof user.password === "string" && user.password) {
+      try {
+        isPasswordValid = await bcrypt.compare(submittedPassword, user.password);
+      } catch (error) {
+        isPasswordValid = false;
+      }
+
+      // Backward compatibility for any legacy/plain-text passwords already stored in DB.
+      if (!isPasswordValid && submittedPassword === user.password) {
+        isPasswordValid = true;
+        user.password = await bcrypt.hash(submittedPassword, saltRounds);
+      }
+    }
 
     if (!isPasswordValid) {
       return res.status(401).send({
         message: "Invalid email or password.",
       });
     }
+
+    user.isActive = true;
+    await user.save();
 
     if (!canManageSecurity(user.user_role)) {
       const clientIp = getClientIp(req);
