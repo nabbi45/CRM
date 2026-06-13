@@ -19,6 +19,9 @@ const LeaveSchema = new mongoose.Schema({
     approved_by: { type: String, default: "" },
     approver_role: { type: String, default: "" },
     notes: { type: String, default: "" },
+    supporting_document_url: { type: String, default: "" },
+    supporting_document_file_name: { type: String, default: "" },
+    supporting_document_mime_type: { type: String, default: "" },
 }, { timestamps: true });
 
 export const LeaveModel = mongoose.model("Leave", LeaveSchema);

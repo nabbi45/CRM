@@ -13,6 +13,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import DownloadIcon from '@mui/icons-material/Download';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from './LoginSignup';
 import Loader from './Loader';
@@ -61,6 +62,7 @@ const Timecard = () => {
     const [myLeaves, setMyLeaves] = useState([]);
     const [allLeaves, setAllLeaves] = useState([]);
     const [form, setForm] = useState({ leave_type: '', start_date: '', end_date: '', reason: '' });
+    const [supportingDocument, setSupportingDocument] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [actionDialog, setActionDialog] = useState({ open: false, leave: null, action: '' });
     const [actionNote, setActionNote] = useState('');
@@ -213,15 +215,45 @@ const Timecard = () => {
         }
         setSubmitting(true);
         try {
-            const res = await fetch(`${apiUrl}/leaves`, { method: 'POST', headers, body: JSON.stringify(form) });
+            const leaveForm = new FormData();
+            leaveForm.append('leave_type', form.leave_type);
+            leaveForm.append('start_date', form.start_date);
+            leaveForm.append('end_date', form.end_date);
+            leaveForm.append('reason', form.reason);
+            if (supportingDocument) leaveForm.append('supportingDocument', supportingDocument);
+            const res = await fetch(`${apiUrl}/leaves`, {
+                method: 'POST',
+                headers: { Authorization: session.token || '' },
+                body: leaveForm
+            });
             const data = await res.json();
             if (res.ok) {
                 enqueueSnackbar('Leave request submitted!', { variant: 'success' });
                 setForm({ leave_type: '', start_date: '', end_date: '', reason: '' });
+                setSupportingDocument(null);
                 fetchData();
             } else { enqueueSnackbar(data.message || 'Failed', { variant: 'error' }); }
         } catch (e) { enqueueSnackbar('Error submitting leave.', { variant: 'error' }); }
         setSubmitting(false);
+    };
+
+    const handleDownloadSupportDoc = async (leave) => {
+        if (!leave?.supporting_document_url) return;
+        try {
+            const response = await fetch(leave.supporting_document_url);
+            if (!response.ok) throw new Error('Unable to fetch document');
+            const blob = await response.blob();
+            const objectUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = leave.supporting_document_file_name || 'leave-supporting-document';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(objectUrl);
+        } catch (error) {
+            window.open(leave.supporting_document_url, '_blank', 'noopener,noreferrer');
+        }
     };
 
     const handleActionLeave = async () => {
@@ -527,6 +559,17 @@ const Timecard = () => {
                                     <TextField label="Reason" fullWidth required multiline rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
                                 </Grid>
                                 <Grid item xs={12}>
+                                    <Button component="label" variant="outlined" startIcon={<UploadFileIcon />}>
+                                        {supportingDocument ? supportingDocument.name : 'Upload Supporting Document (Optional)'}
+                                        <input
+                                            type="file"
+                                            hidden
+                                            accept="image/*,.pdf"
+                                            onChange={(e) => setSupportingDocument(e.target.files?.[0] || null)}
+                                        />
+                                    </Button>
+                                </Grid>
+                                <Grid item xs={12}>
                                     <Button type="submit" variant="contained" disabled={submitting} sx={{ px: 4 }}>
                                         {submitting ? 'Submitting...' : 'Submit Leave Request'}
                                     </Button>
@@ -544,11 +587,11 @@ const Timecard = () => {
                         <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                             <TableRow>
                                 <TableCell>Type</TableCell><TableCell>From</TableCell><TableCell>To</TableCell>
-                                <TableCell>Days</TableCell><TableCell>Status</TableCell><TableCell>Notes</TableCell>
+                                <TableCell>Days</TableCell><TableCell>Status</TableCell><TableCell>Document</TableCell><TableCell>Notes</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {myLeaves.length === 0 && <TableRow><TableCell colSpan={6} align="center">No request history</TableCell></TableRow>}
+                            {myLeaves.length === 0 && <TableRow><TableCell colSpan={7} align="center">No request history</TableCell></TableRow>}
                             {myLeaves.map((l) => (
                                 <TableRow key={l._id}>
                                     <TableCell><Chip size="small" label={l.leave_type} sx={{ textTransform: 'capitalize' }} /></TableCell>
@@ -556,6 +599,14 @@ const Timecard = () => {
                                     <TableCell>{formatDate(l.end_date)}</TableCell>
                                     <TableCell>{dayCount(l.start_date, l.end_date)}</TableCell>
                                     <TableCell><Chip size="small" icon={statusIcons[l.status]} label={l.status} sx={{ bgcolor: `${statusColors[l.status]}18`, color: statusColors[l.status], fontWeight: 600, textTransform: 'capitalize' }} /></TableCell>
+                                    <TableCell>
+                                        {l.supporting_document_url ? (
+                                            <Stack direction="row" spacing={1}>
+                                                <Button size="small" variant="outlined" onClick={() => window.open(l.supporting_document_url, '_blank', 'noopener,noreferrer')}>View</Button>
+                                                <Button size="small" onClick={() => handleDownloadSupportDoc(l)}>Download</Button>
+                                            </Stack>
+                                        ) : '-'}
+                                    </TableCell>
                                     <TableCell>{l.notes || '-'}</TableCell>
                                 </TableRow>
                             ))}
@@ -625,12 +676,12 @@ const Timecard = () => {
                         <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                             <TableRow>
                                 <TableCell>Employee</TableCell><TableCell>Type</TableCell><TableCell>From</TableCell>
-                                <TableCell>To</TableCell><TableCell>Reason</TableCell><TableCell>Status</TableCell>
+                                <TableCell>To</TableCell><TableCell>Reason</TableCell><TableCell>Document</TableCell><TableCell>Status</TableCell>
                                 <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {allLeaves.length === 0 && <TableRow><TableCell colSpan={7} align="center">No requests</TableCell></TableRow>}
+                            {allLeaves.length === 0 && <TableRow><TableCell colSpan={8} align="center">No requests</TableCell></TableRow>}
                             {allLeaves.map((l) => (
                                 <TableRow key={l._id}>
                                     <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{l.user_name}</Typography></TableCell>
@@ -638,6 +689,14 @@ const Timecard = () => {
                                     <TableCell>{formatDate(l.start_date)}</TableCell>
                                     <TableCell>{formatDate(l.end_date)}</TableCell>
                                     <TableCell>{l.reason}</TableCell>
+                                    <TableCell>
+                                        {l.supporting_document_url ? (
+                                            <Stack direction="row" spacing={1}>
+                                                <Button size="small" variant="outlined" onClick={() => window.open(l.supporting_document_url, '_blank', 'noopener,noreferrer')}>View</Button>
+                                                <Button size="small" onClick={() => handleDownloadSupportDoc(l)}>Download</Button>
+                                            </Stack>
+                                        ) : '-'}
+                                    </TableCell>
                                     <TableCell><Chip size="small" icon={statusIcons[l.status]} label={l.status} sx={{ bgcolor: `${statusColors[l.status]}18`, color: statusColors[l.status], fontWeight: 600, textTransform: 'capitalize' }} /></TableCell>
                                     <TableCell>
                                         {l.status === 'pending' ? (

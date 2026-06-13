@@ -240,7 +240,6 @@ const EditBooking = ({ initialData, onClose }) => {
           after_disbursement: formData.funddisbursement,
           shared_with: shareEntries,
           term_shares: {
-            ...(initialData.term_shares || {}),
             [termKey]: {
               ...(initialData.term_shares?.[termKey] || {}),
               creator: initialData.term_shares?.[termKey]?.creator || {

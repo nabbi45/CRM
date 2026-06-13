@@ -1,12 +1,16 @@
 import express from "express";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
 import { LeaveModel } from "../models/LeaveModel.js";
 import { NotificationModel } from "../models/NotificationModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
 
 const LeaveRoutes = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
-const APPROVER_ROLES = ["admin", "dev", "srdev", "senior admin", "HR"];
+const APPROVER_ROLES = ["admin", "dev", "srdev", "senior admin", "hr", "super admin", "director"];
+const isApproverRole = (role = "") => APPROVER_ROLES.includes(String(role).trim().toLowerCase());
 
 // Helper to get user name from JWT userId
 const getUserName = async (userId) => {
@@ -14,8 +18,27 @@ const getUserName = async (userId) => {
     return user?.name || "Unknown";
 };
 
+const uploadSupportingDocument = async (file, leaveId) => {
+    if (!file) return {};
+    const b64 = Buffer.from(file.buffer).toString("base64");
+    const dataURI = `data:${file.mimetype};base64,${b64}`;
+    const extension = file.originalname.split(".").pop();
+    const isImage = file.mimetype.startsWith("image/");
+    const result = await cloudinary.uploader.upload(dataURI, {
+        resource_type: isImage ? "image" : "raw",
+        folder: "leave_supporting_documents",
+        public_id: `leave_${leaveId}_${Date.now()}${isImage ? "" : `.${extension}`}`,
+    });
+
+    return {
+        supporting_document_url: result.secure_url,
+        supporting_document_file_name: file.originalname,
+        supporting_document_mime_type: file.mimetype,
+    };
+};
+
 // Submit a leave request
-LeaveRoutes.post("/", authenticateUser, async (req, res) => {
+LeaveRoutes.post("/", authenticateUser, upload.single("supportingDocument"), async (req, res) => {
     try {
         const { leave_type, start_date, end_date, reason } = req.body;
         if (!leave_type || !start_date || !end_date || !reason) {
@@ -32,6 +55,12 @@ LeaveRoutes.post("/", authenticateUser, async (req, res) => {
             end_date,
             reason,
         });
+
+        if (req.file) {
+            const document = await uploadSupportingDocument(req.file, leave._id.toString());
+            Object.assign(leave, document);
+            await leave.save();
+        }
 
         // Notify all admin/HR/dev users about the new leave request
         try {
@@ -56,7 +85,7 @@ LeaveRoutes.post("/", authenticateUser, async (req, res) => {
 // Get all leaves (admin/HR/dev) — with history
 LeaveRoutes.get("/all", authenticateUser, async (req, res) => {
     try {
-        if (!APPROVER_ROLES.includes(req.user?.user_role)) {
+        if (!isApproverRole(req.user?.user_role)) {
             return res.status(403).send({ message: "Access denied." });
         }
         const leaves = await LeaveModel.find().sort({ createdAt: -1 }).lean();
@@ -80,7 +109,7 @@ LeaveRoutes.get("/my", authenticateUser, async (req, res) => {
 // Approve or Reject a leave request
 LeaveRoutes.patch("/:id", authenticateUser, async (req, res) => {
     try {
-        if (!APPROVER_ROLES.includes(req.user?.user_role)) {
+        if (!isApproverRole(req.user?.user_role)) {
             return res.status(403).send({ message: "Access denied." });
         }
 

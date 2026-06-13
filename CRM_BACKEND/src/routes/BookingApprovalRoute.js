@@ -224,13 +224,17 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
         services: payload.services,
         total_amount: payload.total_amount,
         shared_with: payload.shared_with,
-        term_shares: payload.term_shares,
+        term_shares: {
+          ...(existingBooking.term_shares || {}),
+          ...(payload.term_shares || {}),
+        },
         [termKey]: Number(payload[termKey] || 0),
         payment_proof_url: approval.payment_proof_url,
         payment_proof_file_name: approval.payment_proof_file_name,
         payment_proof_mime_type: approval.payment_proof_mime_type,
         payment_proofs: Array.isArray(approval.payment_proofs) ? approval.payment_proofs : [],
       };
+      delete mergedBooking.updatedhistory;
 
       const historyEntry = await buildContinuationHistoryEntry(approval, existingBooking.toObject(), mergedBooking);
       const booking = await BookingModel.findByIdAndUpdate(

@@ -378,6 +378,11 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       ) {
         return res.status(400).send({ message: "Term 2 must be completed before Term 3." });
       }
+
+      updates.term_shares = {
+        ...(oldBooking.term_shares || {}),
+        ...(updates.term_shares || {}),
+      };
     }
 
     if (!isAdminRole(user_role) && !continuationEdit) {

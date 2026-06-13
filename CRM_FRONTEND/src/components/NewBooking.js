@@ -440,7 +440,6 @@ const AddBooking = ({ onClose }) => {
             refundable_percentage: Number(selectedSourceBooking.refundable_percentage || 0),
             shared_with: Array.from(accessUsers.values()),
             term_shares: {
-              ...(selectedSourceBooking.term_shares || {}),
               [termKey]: {
                 creator: {
                   user_id: userSession.user_id,

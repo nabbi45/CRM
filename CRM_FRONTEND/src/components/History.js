@@ -80,7 +80,6 @@ const History = () => {
 
   //changes end
   const [searchInput, setSearchInput] = useState(""); // Single input field for both company name and booking ID
-  const [debouncedSearchInput, setDebouncedSearchInput] = useState(searchInput);
   const [bdmSearch, setBdmSearch] = useState("");
   const [startDate, setStartDate] = useState(""); // Add startDate state
   const [endDate, setEndDate] = useState(""); // Add endDate state
@@ -165,26 +164,6 @@ const History = () => {
       fetchAllBookings(userSession, activeFilters, page, limit); // ✅ Use stored filters
     }
   }, [page]);
-
-
-  // Debounce effect for searchInput
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearchInput(searchInput);
-    }, 900);
-
-    return () => clearTimeout(handler);
-  }, [searchInput]);
-
-  // Effect to fetch when debouncedSearchInput changes
-  useEffect(() => {
-    setPage(1); // reset page to 1 on new search term
-    if (debouncedSearchInput) {
-      fetchAllBookings(userSession, { searchInput: debouncedSearchInput }, 1, limit);
-    } else {
-      fetchAllBookings(userSession, {}, 1, limit);
-    }
-  }, [debouncedSearchInput]);
 
 
   const handleDeleteClick = (bookingId) => {
