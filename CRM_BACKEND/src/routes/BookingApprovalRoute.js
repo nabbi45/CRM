@@ -66,6 +66,27 @@ const validatePayload = (payload) => {
   return missing;
 };
 
+const valuesEqual = (oldValue, newValue) => JSON.stringify(oldValue ?? "") === JSON.stringify(newValue ?? "");
+
+const buildContinuationHistoryEntry = async (approval, oldBooking, nextBooking) => {
+  const changedFields = {};
+  Object.keys(nextBooking).forEach((key) => {
+    if (!valuesEqual(oldBooking?.[key], nextBooking?.[key])) {
+      changedFields[key] = {
+        old: oldBooking?.[key] ?? "",
+        new: nextBooking?.[key] ?? "",
+      };
+    }
+  });
+
+  return {
+    updatedBy: approval.reviewed_by_name || "Unknown",
+    updatedAt: new Date(),
+    note: `${approval.payload?.continuation_term_label || "Continuation term"} approved from booking approval queue`,
+    changes: changedFields,
+  };
+};
+
 const uploadProofs = async (files = [], approvalId) => {
   if (!Array.isArray(files) || files.length === 0) return {};
   const uploadedProofs = [];
@@ -175,6 +196,87 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
     }
 
     const payload = normalizeBookingPayload(approval.payload || {});
+    const isContinuationApproval = Boolean(payload.continuation_of_booking_id && payload.continuation_term_key);
+
+    if (isContinuationApproval) {
+      const existingBooking = await BookingModel.findById(payload.continuation_of_booking_id);
+      if (!existingBooking) {
+        return res.status(404).send({ message: "Original booking for continuation not found." });
+      }
+
+      const termKey = payload.continuation_term_key;
+      if (!["term_2", "term_3"].includes(termKey)) {
+        return res.status(400).send({ message: "Invalid continuation term." });
+      }
+      if (termKey === "term_2" && Number(existingBooking.term_2 || 0) > 0) {
+        return res.status(400).send({ message: "Term 2 already exists for this booking." });
+      }
+      if (termKey === "term_3" && Number(existingBooking.term_3 || 0) > 0) {
+        return res.status(400).send({ message: "Term 3 already exists for this booking." });
+      }
+      if (termKey === "term_3" && Number(existingBooking.term_2 || 0) <= 0) {
+        return res.status(400).send({ message: "Term 2 must be completed before approving Term 3." });
+      }
+
+      const mergedBooking = {
+        ...existingBooking.toObject(),
+        payment_date: payload.payment_date,
+        services: payload.services,
+        total_amount: payload.total_amount,
+        shared_with: payload.shared_with,
+        term_shares: payload.term_shares,
+        [termKey]: Number(payload[termKey] || 0),
+        payment_proof_url: approval.payment_proof_url,
+        payment_proof_file_name: approval.payment_proof_file_name,
+        payment_proof_mime_type: approval.payment_proof_mime_type,
+        payment_proofs: Array.isArray(approval.payment_proofs) ? approval.payment_proofs : [],
+      };
+
+      const historyEntry = await buildContinuationHistoryEntry(approval, existingBooking.toObject(), mergedBooking);
+      const booking = await BookingModel.findByIdAndUpdate(
+        existingBooking._id,
+        {
+          $set: mergedBooking,
+          $push: { updatedhistory: historyEntry },
+        },
+        { new: true }
+      );
+
+      approval.status = "approved";
+      approval.approved_booking_id = booking._id.toString();
+      approval.reviewed_by = getUserId(req);
+      approval.reviewed_by_name = getUserName(req);
+      approval.reviewed_at = new Date();
+      approval.history.push({
+        action: "approved",
+        comment: req.body.comment || "",
+        by: getUserId(req),
+        by_name: getUserName(req),
+        by_role: getUserRole(req),
+      });
+      await approval.save();
+
+      const notifications = [
+        {
+          user_id: approval.submitted_by,
+          type: "booking_approval_approved",
+          message: `Your ${payload.continuation_term_label || "continuation term"} for ${booking.company_name || booking.contact_person} was approved.`,
+          reference_id: approval._id.toString(),
+        },
+        ...collectAffectedUserIds(booking)
+          .filter((userId) => userId !== approval.submitted_by)
+          .map((userId) => ({
+            user_id: userId,
+            type: "booking_shared",
+            message: `${payload.bdm || booking.bdm || "A coworker"} shared an approved ${payload.continuation_term_label || "continuation term"} with you.`,
+            reference_id: booking._id.toString(),
+          })),
+      ];
+      await NotificationModel.insertMany(notifications);
+
+      return res.status(200).send({ message: "Continuation term approved.", approval, booking });
+    }
+
     const bookingPayload = {
       ...payload,
       after_disbursement: payload.after_disbursement || payload.funddisbursement,

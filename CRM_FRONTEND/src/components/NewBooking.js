@@ -342,7 +342,7 @@ const AddBooking = ({ onClose }) => {
       }
     }
     if (!formData.state) validationErrors.state = "State is required";
-    if (!isContinuationTerm && paymentProofs.length === 0) {
+    if (paymentProofs.length === 0) {
       validationErrors.paymentProof = "Payment proof is required";
     }
 
@@ -414,14 +414,30 @@ const AddBooking = ({ onClose }) => {
           });
 
           const continuationPayload = {
+            date: getCurrentDateInput(),
+            user_id: selectedSourceBooking.user_id,
+            bdm: selectedSourceBooking.bdm || userSession.name?.toUpperCase() || "",
+            branch_name: formData.branch,
+            company_name: formData.companyName?.toUpperCase() || "",
+            contact_person: formData.contactPerson?.toUpperCase() || "",
+            email: formData.email?.toLowerCase() || "",
+            contact_no: Number(formData.contactNumber),
             payment_date: formData.paymentDate,
             services: Array.from(new Set([
               ...(Array.isArray(selectedSourceBooking.services) ? selectedSourceBooking.services : []),
               ...(Array.isArray(formData.services) ? formData.services : []),
             ].filter(Boolean))),
             total_amount,
-            updatedBy: userSession.name || "Unknown",
-            note: `${formData.selectTerm} added from continuation flow`,
+            pan: formData.pan?.toUpperCase() || "",
+            gst: formData.gst?.toUpperCase() || "N/A",
+            remark: formData.notes,
+            bank: formData.bank,
+            state: formData.state,
+            status: "Pending",
+            after_disbursement: formData.funddisbursement || "",
+            funddisbursement: formData.funddisbursement || "",
+            is_refundable: Boolean(selectedSourceBooking.is_refundable),
+            refundable_percentage: Number(selectedSourceBooking.refundable_percentage || 0),
             shared_with: Array.from(accessUsers.values()),
             term_shares: {
               ...(selectedSourceBooking.term_shares || {}),
@@ -434,6 +450,9 @@ const AddBooking = ({ onClose }) => {
                 shared_with: termSharedWith,
               },
             },
+            continuation_of_booking_id: selectedSourceBooking._id,
+            continuation_term_key: termKey,
+            continuation_term_label: formData.selectTerm,
           };
 
           if (formData.selectTerm === "Term 2") {
@@ -444,27 +463,32 @@ const AddBooking = ({ onClose }) => {
             continuationPayload.term_3 = receivedAmount;
           }
 
-          const continuationRes = await fetch(`${apiUrl}/booking/editbooking/${selectedSourceBooking._id}`, {
-            method: "PATCH",
+          const continuationForm = new FormData();
+          continuationForm.append("payload", JSON.stringify(continuationPayload));
+          paymentProofs.forEach((file) => continuationForm.append("paymentProofs", file));
+
+          const continuationRes = await fetch(`${apiUrl}/booking-approvals`, {
+            method: "POST",
             headers: {
-              "Content-Type": "application/json",
-              "user-role": userSession.user_role,
               authorization: `${userSession.token}`,
+              "user-name": userSession.name || "",
+              "user-role": userSession.user_role || "",
             },
-            body: JSON.stringify(continuationPayload),
+            body: continuationForm,
           });
 
           const continuationData = await continuationRes.json().catch(() => ({}));
           if (!continuationRes.ok) {
-            throw new Error(continuationData.message || `Error adding ${formData.selectTerm}`);
+            throw new Error(continuationData.message || `Error submitting ${formData.selectTerm} for approval`);
           }
 
-          enqueueSnackbar(`${formData.selectTerm} added successfully!`, { variant: "success" });
+          enqueueSnackbar(`${formData.selectTerm} submitted for approval successfully!`, { variant: "success" });
           setFormData((prev) => ({
             ...prev,
             amount: "",
             paymentDate: getCurrentDateInput(),
           }));
+          setPaymentProofs([]);
           setLoading(false);
           if (onClose) onClose();
           return;
@@ -1177,44 +1201,42 @@ const AddBooking = ({ onClose }) => {
             />
           </Grid>
 
-          {!isContinuationTerm && (
-            <Grid item xs={12}>
-              <Button
-                component="label"
-                variant={errors.paymentProof ? "contained" : "outlined"}
-                color={errors.paymentProof ? "error" : "primary"}
-                startIcon={<CloudUploadIcon />}
-                fullWidth
-              >
-                {paymentProofs.length > 0 ? `${paymentProofs.length} payment proof file(s) selected` : "Attach Payment Screenshot(s) *"}
-                <input
-                  type="file"
-                  hidden
-                  accept="image/*,.pdf"
-                  multiple
-                  onChange={(e) => setPaymentProofs(Array.from(e.target.files || []))}
-                />
-              </Button>
-              {paymentProofs.length > 0 && (
-                <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
-                  {paymentProofs.map((file, index) => (
-                    <Chip
-                      key={`${file.name}-${index}`}
-                      label={file.name}
-                      onDelete={() => setPaymentProofs((prev) => prev.filter((_, i) => i !== index))}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              )}
-              {errors.paymentProof && (
-                <Typography color="error" variant="caption" sx={{ mt: 0.5, display: "block" }}>
-                  {errors.paymentProof}
-                </Typography>
-              )}
-            </Grid>
-          )}
+          <Grid item xs={12}>
+            <Button
+              component="label"
+              variant={errors.paymentProof ? "contained" : "outlined"}
+              color={errors.paymentProof ? "error" : "primary"}
+              startIcon={<CloudUploadIcon />}
+              fullWidth
+            >
+              {paymentProofs.length > 0 ? `${paymentProofs.length} payment proof file(s) selected` : "Attach Payment Screenshot(s) *"}
+              <input
+                type="file"
+                hidden
+                accept="image/*,.pdf"
+                multiple
+                onChange={(e) => setPaymentProofs(Array.from(e.target.files || []))}
+              />
+            </Button>
+            {paymentProofs.length > 0 && (
+              <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
+                {paymentProofs.map((file, index) => (
+                  <Chip
+                    key={`${file.name}-${index}`}
+                    label={file.name}
+                    onDelete={() => setPaymentProofs((prev) => prev.filter((_, i) => i !== index))}
+                    size="small"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            )}
+            {errors.paymentProof && (
+              <Typography color="error" variant="caption" sx={{ mt: 0.5, display: "block" }}>
+                {errors.paymentProof}
+              </Typography>
+            )}
+          </Grid>
 
           {/* Document Upload Section */}
           <Grid item xs={12}>
