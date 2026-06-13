@@ -27,6 +27,11 @@ const BookingApprovalSchema = new mongoose.Schema(
     payment_proof_url: { type: String, default: "" },
     payment_proof_file_name: { type: String, default: "" },
     payment_proof_mime_type: { type: String, default: "" },
+    payment_proofs: [{
+      url: { type: String, default: "" },
+      file_name: { type: String, default: "" },
+      mime_type: { type: String, default: "" },
+    }],
     history: { type: [approvalHistorySchema], default: [] },
     approved_booking_id: { type: String, default: "" },
     reviewed_by: { type: String, default: "" },

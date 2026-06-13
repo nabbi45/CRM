@@ -44,6 +44,12 @@ const bookingSchema = mongoose.Schema(
     approval_id: { type: String, default: "" },
     payment_proof_url: { type: String, default: "" },
     payment_proof_file_name: { type: String, default: "" },
+    payment_proof_mime_type: { type: String, default: "" },
+    payment_proofs: [{
+      url: { type: String, default: "" },
+      file_name: { type: String, default: "" },
+      mime_type: { type: String, default: "" },
+    }],
     term_1: { type: Number },
     term_2: { type: Number },
     term_3: { type: Number },

@@ -61,7 +61,7 @@ const AddBooking = ({ onClose }) => {
   // Document upload state
   const [documents, setDocuments] = useState([]);
   const [documentType, setDocumentType] = useState("others");
-  const [paymentProof, setPaymentProof] = useState(null);
+  const [paymentProofs, setPaymentProofs] = useState([]);
 
   const [errors, setErrors] = useState({});
   const [openDialog, setOpenDialog] = useState(false); // Dialog state for popup
@@ -342,7 +342,7 @@ const AddBooking = ({ onClose }) => {
       }
     }
     if (!formData.state) validationErrors.state = "State is required";
-    if (!isContinuationTerm && !paymentProof) {
+    if (!isContinuationTerm && paymentProofs.length === 0) {
       validationErrors.paymentProof = "Payment proof is required";
     }
 
@@ -513,7 +513,7 @@ const AddBooking = ({ onClose }) => {
         if (!isAdminRole) {
           const approvalForm = new FormData();
           approvalForm.append("payload", JSON.stringify(dataToSubmit));
-          if (paymentProof) approvalForm.append("paymentProof", paymentProof);
+          paymentProofs.forEach((file) => approvalForm.append("paymentProofs", file));
 
           const approvalResponse = await fetch(`${apiUrl}/booking-approvals`, {
             method: "POST",
@@ -533,7 +533,7 @@ const AddBooking = ({ onClose }) => {
           enqueueSnackbar("Booking submitted for approval. It will appear in All Bookings after approval.", {
             variant: "success",
           });
-          setPaymentProof(null);
+          setPaymentProofs([]);
           setLoading(false);
           if (onClose) onClose();
           return;
@@ -541,7 +541,7 @@ const AddBooking = ({ onClose }) => {
 
         const directForm = new FormData();
         directForm.append("payload", JSON.stringify(dataToSubmit));
-        directForm.append("paymentProof", paymentProof);
+        paymentProofs.forEach((file) => directForm.append("paymentProofs", file));
 
         const response = await fetch(`${apiUrl}/booking/addbooking`, {
           method: "POST",
@@ -641,6 +641,7 @@ const AddBooking = ({ onClose }) => {
         });
         setSharedPersons([]);
         setShareCount(0);
+        setPaymentProofs([]);
         setLoading(false);
 
         if (onClose) onClose();
@@ -1185,14 +1186,28 @@ const AddBooking = ({ onClose }) => {
                 startIcon={<CloudUploadIcon />}
                 fullWidth
               >
-                {paymentProof ? `Payment Proof: ${paymentProof.name}` : "Attach Payment Screenshot *"}
+                {paymentProofs.length > 0 ? `${paymentProofs.length} payment proof file(s) selected` : "Attach Payment Screenshot(s) *"}
                 <input
                   type="file"
                   hidden
                   accept="image/*,.pdf"
-                  onChange={(e) => setPaymentProof(e.target.files?.[0] || null)}
+                  multiple
+                  onChange={(e) => setPaymentProofs(Array.from(e.target.files || []))}
                 />
               </Button>
+              {paymentProofs.length > 0 && (
+                <Box sx={{ mt: 1, display: "grid", gap: 0.5 }}>
+                  {paymentProofs.map((file, index) => (
+                    <Chip
+                      key={`${file.name}-${index}`}
+                      label={file.name}
+                      onDelete={() => setPaymentProofs((prev) => prev.filter((_, i) => i !== index))}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              )}
               {errors.paymentProof && (
                 <Typography color="error" variant="caption" sx={{ mt: 0.5, display: "block" }}>
                   {errors.paymentProof}

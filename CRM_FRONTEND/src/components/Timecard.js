@@ -12,6 +12,7 @@ import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import DownloadIcon from '@mui/icons-material/Download';
 import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from './LoginSignup';
 import Loader from './Loader';
@@ -36,6 +37,12 @@ const ATTENDANCE_COLORS = {
     "Full Day Leave": { bg: 'rgba(220, 38, 38, 0.15)', color: '#dc2626', border: 'rgba(220, 38, 38, 0.3)' },
     "Week Off":       { bg: 'rgba(147, 51, 234, 0.15)', color: '#9333ea', border: 'rgba(147, 51, 234, 0.3)' },
     "Holiday":        { bg: 'rgba(219, 39, 119, 0.15)', color: '#db2777', border: 'rgba(219, 39, 119, 0.3)' },
+};
+
+const toDateKey = (value) => new Date(value).toISOString().slice(0, 10);
+const isWeekendDate = (value) => {
+    const day = new Date(value).getDay();
+    return day === 0 || day === 6;
 };
 
 const Timecard = () => {
@@ -291,6 +298,12 @@ const Timecard = () => {
     // ─── CALCULATIONS ─────────────────────────────────────────────
     const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     const dayCount = (s, e) => Math.max(1, Math.ceil((new Date(e) - new Date(s)) / 86400000) + 1);
+    const getImplicitStatusForDate = (dateValue) => {
+        const dateKey = toDateKey(dateValue);
+        if (holidays.some((holiday) => toDateKey(holiday.date) === dateKey)) return "Holiday";
+        if (isWeekendDate(dateValue)) return "Week Off";
+        return "Not Marked";
+    };
 
     const stats = useMemo(() => {
         let present = 0, fullDayLeave = 0, weekOff = 0, holiday = 0, halfDay = 0, wfh = 0, elTaken = 0;
@@ -304,11 +317,25 @@ const Timecard = () => {
             if (att.status === 'EL Taken') elTaken++;
         });
 
+        const existingAttendanceDays = new Set(myAttendance.map((att) => toDateKey(att.date)));
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateValue = new Date(year, month - 1, day);
+            const dateKey = toDateKey(dateValue);
+            if (existingAttendanceDays.has(dateKey)) continue;
+            if (holidays.some((holiday) => toDateKey(holiday.date) === dateKey)) {
+                holiday++;
+            } else if (isWeekendDate(dateValue)) {
+                weekOff++;
+            }
+        }
+
         const totalLeave = fullDayLeave + halfDay;
         const payableDays = present + weekOff + holiday + halfDay + wfh + elTaken;
 
         return { present, fullDayLeave, weekOff, holiday, halfDay, wfh, elTaken, totalLeave, payableDays };
-    }, [myAttendance]);
+    }, [myAttendance, selectedMonth, holidays]);
 
     const dailyAttendanceByUser = useMemo(() => {
         const map = new Map();
@@ -325,17 +352,47 @@ const Timecard = () => {
 
         employees.forEach((emp) => {
             const record = dailyAttendanceByUser.get(emp._id?.toString());
-            if (record?.status && summary[record.status] !== undefined) {
-                summary[record.status] += 1;
-            } else if (record?.status) {
-                summary[record.status] = (summary[record.status] || 0) + 1;
+            const effectiveStatus = record?.status || getImplicitStatusForDate(attendanceDate);
+            if (effectiveStatus && summary[effectiveStatus] !== undefined) {
+                summary[effectiveStatus] += 1;
+            } else if (effectiveStatus && effectiveStatus !== "Not Marked") {
+                summary[effectiveStatus] = (summary[effectiveStatus] || 0) + 1;
             } else {
                 notMarked += 1;
             }
         });
 
         return { ...summary, notMarked };
-    }, [dailyAttendanceByUser, employees]);
+    }, [dailyAttendanceByUser, employees, attendanceDate, holidays]);
+
+    const downloadDailyAttendanceExcel = () => {
+        const rows = employees.map((emp) => {
+            const record = dailyAttendanceByUser.get(emp._id?.toString());
+            return {
+                employee: emp.name || "-",
+                email: emp.email || "-",
+                role: emp.user_role || "-",
+                status: record?.status || getImplicitStatusForDate(attendanceDate),
+                notes: record?.notes || "-",
+            };
+        });
+
+        const html = `
+          <table>
+            <tr><th>Employee</th><th>Email</th><th>Role</th><th>Status</th><th>Notes</th></tr>
+            ${rows.map((row) => `<tr><td>${String(row.employee).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td><td>${String(row.email).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td><td>${String(row.role).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td><td>${String(row.status).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td><td>${String(row.notes).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td></tr>`).join("")}
+          </table>
+        `;
+        const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `daily_attendance_${attendanceDate}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    };
 
     const tabsToRender = [
         { label: "My Timecard", show: true },
@@ -605,14 +662,19 @@ const Timecard = () => {
                             <Typography variant="h6" sx={{ fontWeight: 700 }}>All Employees Attendance</Typography>
                             <Typography variant="body2" color="text.secondary">View marked attendance for every employee on a selected date.</Typography>
                         </Box>
-                        <TextField
-                            label="Attendance Date"
-                            type="date"
-                            size="small"
-                            value={attendanceDate}
-                            onChange={(e) => setAttendanceDate(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                            <TextField
+                                label="Attendance Date"
+                                type="date"
+                                size="small"
+                                value={attendanceDate}
+                                onChange={(e) => setAttendanceDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={downloadDailyAttendanceExcel}>
+                                Download Excel
+                            </Button>
+                        </Stack>
                     </Box>
 
                     <Grid container spacing={1.5} sx={{ mb: 3 }}>
@@ -651,7 +713,7 @@ const Timecard = () => {
                                 ) : (
                                     employees.map((emp) => {
                                         const record = dailyAttendanceByUser.get(emp._id?.toString());
-                                        const status = record?.status || 'Not Marked';
+                                        const status = record?.status || getImplicitStatusForDate(attendanceDate);
                                         const statusColor = ATTENDANCE_COLORS[status];
                                         return (
                                             <TableRow key={`daily-${emp._id}`}>

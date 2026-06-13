@@ -15,6 +15,11 @@ import {
   Paper,
   Avatar,
   Chip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -53,6 +58,7 @@ const DashboardContent = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [recentBookings, setRecentBookings] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardDialogOpen, setLeaderboardDialogOpen] = useState(false);
   const [monthlyRevData, setMonthlyRevData] = useState({ labels: [], values: [] });
   const [serviceSoldData, setServiceSoldData] = useState({ labels: [], values: [] });
   const [serviceRevenueData, setServiceRevenueData] = useState({ labels: [], values: [] });
@@ -81,6 +87,7 @@ const DashboardContent = () => {
   const isAdmin = ["admin", "super admin", "director", "dev", "senior admin", "srdev", "sr dev"].includes(
     (userSession?.user_role || "").toLowerCase()
   );
+  const topLeaderboardEntries = leaderboard.slice(0, 3);
 
   const getTodayDate = () => new Date().toISOString().split("T")[0];
 
@@ -941,7 +948,7 @@ const DashboardContent = () => {
                           </TableCell>
                         </TableRow>
                       )}
-                      {leaderboard.map((entry, idx) => (
+                      {topLeaderboardEntries.map((entry, idx) => (
                         <TableRow
                           key={entry.name}
                           sx={{
@@ -976,6 +983,13 @@ const DashboardContent = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                {leaderboard.length > 3 && (
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.5 }}>
+                    <Button size="small" onClick={() => setLeaderboardDialogOpen(true)}>
+                      See All
+                    </Button>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
@@ -1099,16 +1113,18 @@ const DashboardContent = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {serviceDeductionCatalog.length === 0 && (
+              {serviceDeductionCatalog.filter((row) => Number(row.deduction || 0) > 0).length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} align="center">
                     <Typography variant="body2" color="text.secondary">
-                      No services configured yet.
+                      No service deductions configured yet.
                     </Typography>
                   </TableCell>
                 </TableRow>
               )}
-              {serviceDeductionCatalog.map((row) => (
+              {serviceDeductionCatalog
+                .filter((row) => Number(row.deduction || 0) > 0)
+                .map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -1135,6 +1151,39 @@ const DashboardContent = () => {
           </Table>
         </TableContainer>
       </Box>
+
+      <Dialog open={leaderboardDialogOpen} onClose={() => setLeaderboardDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Revenue Leaderboard</DialogTitle>
+        <DialogContent dividers>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>#</TableCell>
+                  <TableCell>Employee</TableCell>
+                  <TableCell align="right">Bookings</TableCell>
+                  <TableCell align="right">Deduction</TableCell>
+                  <TableCell align="right">Revenue</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {leaderboard.map((entry, idx) => (
+                  <TableRow key={`full-${entry.name}`}>
+                    <TableCell sx={{ fontWeight: 700 }}>{idx < 3 ? medals[idx] : idx + 1}</TableCell>
+                    <TableCell>{entry.name}</TableCell>
+                    <TableCell align="right">{entry.count}</TableCell>
+                    <TableCell align="right">₹{Math.round(entry.deduction || 0).toLocaleString()}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>₹{entry.revenue.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeaderboardDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Recent Bookings ── */}
       <Box sx={{ mt: 3 }}>

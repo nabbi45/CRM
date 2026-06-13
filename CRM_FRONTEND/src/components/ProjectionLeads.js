@@ -32,6 +32,7 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PublishedWithChangesOutlinedIcon from "@mui/icons-material/PublishedWithChangesOutlined";
 import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { enqueueSnackbar } from "notistack";
 import { useNavigate } from "react-router-dom";
 import { apiUrl } from "./LoginSignup";
@@ -280,6 +281,26 @@ const ProjectionLeads = () => {
     });
   };
 
+  const handleDeleteLead = async (lead) => {
+    if (!window.confirm(`Delete projection lead for ${lead?.name || "this employee"}?`)) return;
+    try {
+      const res = await fetch(`${apiUrl}/projection-leads/${lead._id}`, {
+        method: "DELETE",
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || "Unable to delete projection lead");
+      enqueueSnackbar("Projection lead deleted.", { variant: "success" });
+      fetchLeads(false);
+      if (canViewAll) {
+        fetchLeads(true);
+      }
+      if (editingLeadId === lead._id) resetForm();
+    } catch (error) {
+      enqueueSnackbar(error.message || "Unable to delete projection lead", { variant: "error" });
+    }
+  };
+
   const renderActions = (lead) => {
     const editable = canEditLead(lead);
 
@@ -293,6 +314,18 @@ const ProjectionLeads = () => {
               onClick={() => startEdit(lead)}
             >
               <EditOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {editable && (
+          <Tooltip title="Delete Lead">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => handleDeleteLead(lead)}
+            >
+              <DeleteOutlineOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
         )}

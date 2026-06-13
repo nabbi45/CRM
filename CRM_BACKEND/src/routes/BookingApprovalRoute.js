@@ -66,21 +66,33 @@ const validatePayload = (payload) => {
   return missing;
 };
 
-const uploadProof = async (file, approvalId) => {
-  if (!file) return {};
-  const b64 = Buffer.from(file.buffer).toString("base64");
-  const dataURI = `data:${file.mimetype};base64,${b64}`;
-  const isImage = file.mimetype.startsWith("image/");
-  const extension = file.originalname.split(".").pop();
-  const result = await cloudinary.uploader.upload(dataURI, {
-    resource_type: isImage ? "image" : "raw",
-    folder: "booking_approval_proofs",
-    public_id: `approval_${approvalId}_${Date.now()}${isImage ? "" : `.${extension}`}`,
-  });
+const uploadProofs = async (files = [], approvalId) => {
+  if (!Array.isArray(files) || files.length === 0) return {};
+  const uploadedProofs = [];
+
+  for (const file of files) {
+    const b64 = Buffer.from(file.buffer).toString("base64");
+    const dataURI = `data:${file.mimetype};base64,${b64}`;
+    const isImage = file.mimetype.startsWith("image/");
+    const extension = file.originalname.split(".").pop();
+    const result = await cloudinary.uploader.upload(dataURI, {
+      resource_type: isImage ? "image" : "raw",
+      folder: "booking_approval_proofs",
+      public_id: `approval_${approvalId}_${Date.now()}_${uploadedProofs.length}${isImage ? "" : `.${extension}`}`,
+    });
+    uploadedProofs.push({
+      url: result.secure_url,
+      file_name: file.originalname,
+      mime_type: file.mimetype,
+    });
+  }
+
+  const primaryProof = uploadedProofs[0] || {};
   return {
-    payment_proof_url: result.secure_url,
-    payment_proof_file_name: file.originalname,
-    payment_proof_mime_type: file.mimetype,
+    payment_proof_url: primaryProof.url || "",
+    payment_proof_file_name: primaryProof.file_name || "",
+    payment_proof_mime_type: primaryProof.mime_type || "",
+    payment_proofs: uploadedProofs,
   };
 };
 
@@ -98,9 +110,9 @@ const notifyApprovers = async (approval, type = "booking_approval_submitted") =>
   if (notifications.length) await NotificationModel.insertMany(notifications);
 };
 
-BookingApprovalRoutes.post("/", authenticateUser, upload.single("paymentProof"), async (req, res) => {
+BookingApprovalRoutes.post("/", authenticateUser, upload.array("paymentProofs", 10), async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.files?.length) {
       return res.status(400).send({ message: "Payment proof is required." });
     }
 
@@ -124,8 +136,8 @@ BookingApprovalRoutes.post("/", authenticateUser, upload.single("paymentProof"),
       }],
     });
 
-    if (req.file) {
-      const proof = await uploadProof(req.file, approval._id.toString());
+    if (req.files?.length) {
+      const proof = await uploadProofs(req.files, approval._id.toString());
       await BookingApprovalModel.findByIdAndUpdate(approval._id, { $set: proof });
       Object.assign(approval, proof);
     }
@@ -168,6 +180,8 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
       after_disbursement: payload.after_disbursement || payload.funddisbursement,
       payment_proof_url: approval.payment_proof_url,
       payment_proof_file_name: approval.payment_proof_file_name,
+      payment_proof_mime_type: approval.payment_proof_mime_type,
+      payment_proofs: Array.isArray(approval.payment_proofs) ? approval.payment_proofs : [],
       approval_id: approval._id.toString(),
       ...(await prepareBookingFinancials(payload)),
     };
@@ -280,7 +294,7 @@ BookingApprovalRoutes.patch("/:id/send-back", authenticateUser, async (req, res)
   }
 });
 
-BookingApprovalRoutes.patch("/:id/resubmit", authenticateUser, upload.single("paymentProof"), async (req, res) => {
+BookingApprovalRoutes.patch("/:id/resubmit", authenticateUser, upload.array("paymentProofs", 10), async (req, res) => {
   try {
     const approval = await BookingApprovalModel.findById(req.params.id);
     if (!approval) return res.status(404).send({ message: "Approval request not found." });
@@ -290,7 +304,7 @@ BookingApprovalRoutes.patch("/:id/resubmit", authenticateUser, upload.single("pa
     if (approval.status !== "sent_back") {
       return res.status(400).send({ message: "Only sent-back bookings can be resubmitted." });
     }
-    if (!req.file && !approval.payment_proof_url) {
+    if ((!req.files || req.files.length === 0) && !approval.payment_proof_url) {
       return res.status(400).send({ message: "Payment proof is required." });
     }
 
@@ -300,7 +314,7 @@ BookingApprovalRoutes.patch("/:id/resubmit", authenticateUser, upload.single("pa
       return res.status(400).send({ message: `Missing required fields: ${missing.join(", ")}` });
     }
 
-    const proof = req.file ? await uploadProof(req.file, approval._id.toString()) : {};
+    const proof = req.files?.length ? await uploadProofs(req.files, approval._id.toString()) : {};
     approval.payload = payload;
     approval.status = "pending";
     approval.admin_comment = "";

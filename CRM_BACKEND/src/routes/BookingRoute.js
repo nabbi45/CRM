@@ -18,20 +18,33 @@ import {
 const BookingRoutes = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
-const uploadPaymentProof = async (file, bookingId) => {
-  if (!file) return {};
-  const b64 = Buffer.from(file.buffer).toString("base64");
-  const dataURI = `data:${file.mimetype};base64,${b64}`;
-  const isImage = file.mimetype.startsWith("image/");
-  const extension = file.originalname.split(".").pop();
-  const result = await cloudinary.uploader.upload(dataURI, {
-    resource_type: isImage ? "image" : "raw",
-    folder: "booking_payment_proofs",
-    public_id: `booking_${bookingId}_${Date.now()}${isImage ? "" : `.${extension}`}`,
-  });
+const uploadPaymentProofs = async (files = [], bookingId) => {
+  if (!Array.isArray(files) || files.length === 0) return {};
+
+  const uploadedProofs = [];
+  for (const file of files) {
+    const b64 = Buffer.from(file.buffer).toString("base64");
+    const dataURI = `data:${file.mimetype};base64,${b64}`;
+    const isImage = file.mimetype.startsWith("image/");
+    const extension = file.originalname.split(".").pop();
+    const result = await cloudinary.uploader.upload(dataURI, {
+      resource_type: isImage ? "image" : "raw",
+      folder: "booking_payment_proofs",
+      public_id: `booking_${bookingId}_${Date.now()}_${uploadedProofs.length}${isImage ? "" : `.${extension}`}`,
+    });
+    uploadedProofs.push({
+      url: result.secure_url,
+      file_name: file.originalname,
+      mime_type: file.mimetype,
+    });
+  }
+
+  const primaryProof = uploadedProofs[0] || {};
   return {
-    payment_proof_url: result.secure_url,
-    payment_proof_file_name: file.originalname,
+    payment_proof_url: primaryProof.url || "",
+    payment_proof_file_name: primaryProof.file_name || "",
+    payment_proof_mime_type: primaryProof.mime_type || "",
+    payment_proofs: uploadedProofs,
   };
 };
 
@@ -122,7 +135,7 @@ const resolveEditorName = async (req, fallback = "") => {
 };
 
 //Addbooking
-BookingRoutes.post("/addbooking", authenticateUser, upload.single("paymentProof"), async (req, res) => {
+BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs", 10), async (req, res) => {
   const requestBody = req.body.payload ? JSON.parse(req.body.payload) : req.body;
   const {
     user_id,
@@ -190,7 +203,7 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.single("paymentProof"
         message: "Employee bookings must be submitted through the booking approval queue.",
       });
     }
-    if (!req.file && !requestBody.payment_proof_url) {
+    if ((!req.files || req.files.length === 0) && !requestBody.payment_proof_url) {
       return res.status(400).send({ message: "Payment proof is required." });
     }
 
@@ -234,8 +247,8 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.single("paymentProof"
     };
 
     const booking = await BookingModel.create(new_booking);
-    if (req.file) {
-      const proof = await uploadPaymentProof(req.file, booking._id.toString());
+    if (req.files?.length) {
+      const proof = await uploadPaymentProofs(req.files, booking._id.toString());
       Object.assign(booking, proof);
       await booking.save();
     }

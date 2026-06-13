@@ -906,8 +906,25 @@ const History = () => {
               <div className="booking-item" key={booking._id} style={{
                 backgroundColor: mode === 'light' ? '#ffffff' : '#0f172a',
                 borderColor: mode === 'light' ? 'rgba(148, 163, 184, 0.35)' : 'rgba(30, 64, 175, 0.7)',
-                color: mode === 'light' ? '#333' : '#e5e7eb'
+                color: mode === 'light' ? '#333' : '#e5e7eb',
+                position: 'relative'
               }}>
+                {(Number(booking.term_2 || 0) > 0 || Number(booking.term_3 || 0) > 0) && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    background: mode === 'light' ? '#111827' : '#f97316',
+                    color: '#fff',
+                    padding: '4px 8px',
+                    borderRadius: '999px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    zIndex: 1,
+                  }}>
+                    MULTIPLE TERMS
+                  </div>
+                )}
                 <div className="booking-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {booking.is_refundable && (

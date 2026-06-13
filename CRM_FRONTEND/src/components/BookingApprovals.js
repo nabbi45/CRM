@@ -128,42 +128,58 @@ const BookingApprovals = () => {
       /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
   };
 
-  const fetchProofBlob = async (approval) => {
-    const response = await fetch(approval.payment_proof_url);
+  const getApprovalProofs = (approval) => {
+    const proofList = Array.isArray(approval?.payment_proofs) ? approval.payment_proofs : [];
+    if (proofList.length > 0) return proofList;
+    if (approval?.payment_proof_url) {
+      return [{
+        url: approval.payment_proof_url,
+        file_name: approval.payment_proof_file_name || "payment-proof",
+        mime_type: approval.payment_proof_mime_type || "",
+      }];
+    }
+    return [];
+  };
+
+  const fetchProofBlob = async (proof) => {
+    const response = await fetch(proof.url);
     if (!response.ok) throw new Error("Unable to fetch payment proof.");
     return response.blob();
   };
 
-  const handleViewProof = async (approval) => {
+  const handleViewProof = async (proof) => {
     try {
-      const blob = await fetchProofBlob(approval);
+      const blob = await fetchProofBlob(proof);
       const objectUrl = URL.createObjectURL(blob);
       setProofPreview({
         open: true,
-        url: approval.payment_proof_url,
+        url: proof.url,
         objectUrl,
-        fileName: approval.payment_proof_file_name || "payment-proof",
-        mimeType: blob.type || approval.payment_proof_mime_type || "",
-        isImage: isImageProof(approval, blob.type),
+        fileName: proof.file_name || "payment-proof",
+        mimeType: blob.type || proof.mime_type || "",
+        isImage: isImageProof({
+          payment_proof_file_name: proof.file_name,
+          payment_proof_mime_type: proof.mime_type,
+        }, blob.type),
       });
     } catch (err) {
-      window.open(approval.payment_proof_url, "_blank", "noopener,noreferrer");
+      window.open(proof.url, "_blank", "noopener,noreferrer");
     }
   };
 
-  const handleDownloadProof = async (approval) => {
+  const handleDownloadProof = async (proof) => {
     try {
-      const blob = await fetchProofBlob(approval);
+      const blob = await fetchProofBlob(proof);
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
-      link.download = approval.payment_proof_file_name || "payment-proof";
+      link.download = proof.file_name || "payment-proof";
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(objectUrl);
     } catch (err) {
-      window.open(approval.payment_proof_url, "_blank", "noopener,noreferrer");
+      window.open(proof.url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -204,14 +220,23 @@ const BookingApprovals = () => {
                     {approval.admin_comment}
                   </Alert>
                 )}
-                {approval.payment_proof_url && (
-                  <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap">
-                    <Button variant="outlined" size="small" onClick={() => handleViewProof(approval)}>
-                      View payment proof
-                    </Button>
-                    <Button variant="text" size="small" onClick={() => handleDownloadProof(approval)}>
-                      Download
-                    </Button>
+                {getApprovalProofs(approval).length > 0 && (
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Payment proof(s): {getApprovalProofs(approval).length}
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {getApprovalProofs(approval).map((proof, proofIndex) => (
+                        <Button
+                          key={`${approval._id}-proof-${proofIndex}`}
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleViewProof(proof)}
+                        >
+                          View Proof {proofIndex + 1}
+                        </Button>
+                      ))}
+                    </Stack>
                   </Stack>
                 )}
               </Grid>
@@ -334,9 +359,9 @@ const BookingApprovals = () => {
           <Button
             variant="contained"
             onClick={() => handleDownloadProof({
-              payment_proof_url: proofPreview.url,
-              payment_proof_file_name: proofPreview.fileName,
-              payment_proof_mime_type: proofPreview.mimeType,
+              url: proofPreview.url,
+              file_name: proofPreview.fileName,
+              mime_type: proofPreview.mimeType,
             })}
           >
             Download

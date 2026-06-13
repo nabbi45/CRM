@@ -193,4 +193,22 @@ ProjectionLeadRoutes.patch("/:id/mark-transferred", authenticateUser, async (req
   }
 });
 
+ProjectionLeadRoutes.delete("/:id", authenticateUser, async (req, res) => {
+  try {
+    const lead = await ProjectionLeadModel.findById(req.params.id);
+    if (!lead) {
+      return res.status(404).send({ message: "Projection lead not found." });
+    }
+
+    if (!canEditLead(req.user, lead, req.user.userId)) {
+      return res.status(403).send({ message: "You do not have permission to delete this lead." });
+    }
+
+    await ProjectionLeadModel.findByIdAndDelete(req.params.id);
+    return res.status(200).send({ message: "Projection lead deleted." });
+  } catch (error) {
+    return res.status(500).send({ message: error.message });
+  }
+});
+
 export default ProjectionLeadRoutes;
