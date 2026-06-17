@@ -842,7 +842,7 @@ const DashboardContent = () => {
   const compactLeaderboardEntries = leaderboard.slice(1, 5);
   const previewDeductionRows = deductionRows.slice(0, isMobile ? 4 : 6);
   const medals = ["1", "2", "3"];
-  const sectionSpacing = { xs: 2, sm: 2.25, md: 2.75 };
+  const sectionSpacing = { xs: 1.5, sm: 2.25, md: 2.75 };
   const pageShellSx = { width: "100%", maxWidth: { xl: 1680 }, mx: { xl: "auto" } };
   const cardSurfaceSx = {
     borderRadius: "8px",
@@ -861,7 +861,7 @@ const DashboardContent = () => {
   }
 
   return (
-    <Box sx={{ px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 1, sm: 1.5 }, width: "100%" }}>
+    <Box sx={{ px: { xs: 0.75, sm: 1.5, md: 2 }, py: { xs: 0.75, sm: 1.5 }, width: "100%" }}>
       <Box sx={pageShellSx}>
         <Box
           sx={{
@@ -911,7 +911,7 @@ const DashboardContent = () => {
                   sx={{
                     ...cardSurfaceSx,
                     height: "100%",
-                    minHeight: { xs: 150, sm: 170, md: 160 },
+                    minHeight: { xs: 134, sm: 170, md: 160 },
                     aspectRatio: { xs: "1 / 1", sm: "1 / 1", md: "auto" },
                     background: palette.bg,
                     overflow: "hidden",
@@ -941,11 +941,12 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: "text.secondary",
-                            fontSize: { xs: "0.68rem", sm: "0.72rem" },
+                            fontSize: { xs: "0.62rem", sm: "0.72rem" },
                             fontWeight: 700,
                             display: "block",
                             mb: 0.35,
                             textTransform: "uppercase",
+                            lineHeight: 1.15,
                           }}
                         >
                           {card.label}
@@ -953,7 +954,7 @@ const DashboardContent = () => {
                         <Typography
                           sx={{
                             fontWeight: 800,
-                            fontSize: { xs: "1rem", sm: "1.2rem", md: "1.3rem" },
+                            fontSize: { xs: "0.9rem", sm: "1.2rem", md: "1.3rem" },
                             lineHeight: 1.15,
                             wordBreak: "break-word",
                             mt: 0.55,
@@ -965,10 +966,13 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: "text.secondary",
-                            fontSize: { xs: "0.66rem", sm: "0.72rem" },
-                            display: "block",
-                            mt: 0.85,
-                            lineHeight: 1.32,
+                            fontSize: { xs: "0.58rem", sm: "0.72rem" },
+                            mt: 0.65,
+                            lineHeight: 1.22,
+                            display: "-webkit-box",
+                            WebkitLineClamp: { xs: 2, sm: "unset" },
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
                           }}
                         >
                           {card.sub}
@@ -977,8 +981,8 @@ const DashboardContent = () => {
 
                       <Avatar
                         sx={{
-                          width: { xs: 34, sm: 38 },
-                          height: { xs: 34, sm: 38 },
+                          width: { xs: 30, sm: 38 },
+                          height: { xs: 30, sm: 38 },
                           bgcolor: palette.iconBg,
                           color: palette.iconColor,
                           borderRadius: "8px",
@@ -999,7 +1003,7 @@ const DashboardContent = () => {
         <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
           {isAdmin && (
             <Grid item xs={12} lg={4} order={{ xs: 1, lg: 2 }}>
-              <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 320, md: 380, lg: 430 } }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 0, md: 380, lg: 430 } }}>
                 <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 }, height: "100%", display: "flex", flexDirection: "column" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
                     <EmojiEventsOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
@@ -1021,9 +1025,9 @@ const DashboardContent = () => {
 
                   {featuredLeaderboardEntry ? (
                     <Box
-                      sx={{
-                        p: 1.5,
-                        borderRadius: "8px",
+                        sx={{
+                          p: { xs: 1.1, sm: 1.5 },
+                          borderRadius: "8px",
                         border: "1px solid rgba(255,59,31,0.16)",
                         background: theme.palette.mode === "dark"
                           ? "linear-gradient(180deg, rgba(255,59,31,0.10) 0%, rgba(255,255,255,0.02) 100%)"
@@ -1035,8 +1039,8 @@ const DashboardContent = () => {
                         <Avatar
                           src={featuredLeaderboardEntry.profilePicture || ""}
                           sx={{
-                            width: 54,
-                            height: 54,
+                            width: { xs: 44, sm: 54 },
+                            height: { xs: 44, sm: 54 },
                             bgcolor: "rgba(255,59,31,0.16)",
                             color: ACCENT_DARK,
                             fontWeight: 700,
@@ -1046,7 +1050,7 @@ const DashboardContent = () => {
                         </Avatar>
 
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 800 }} noWrap>
+                          <Typography variant="body2" sx={{ fontWeight: 800, fontSize: { xs: "0.9rem", sm: "1rem" } }} noWrap>
                             {featuredLeaderboardEntry.name}
                           </Typography>
                           {featuredLeaderboardEntry.role ? (
@@ -1068,7 +1072,7 @@ const DashboardContent = () => {
                           <Typography variant="caption" color="text.secondary">
                             Bookings
                           </Typography>
-                          <Typography sx={{ fontWeight: 700, mt: 0.25 }}>
+                          <Typography sx={{ fontWeight: 700, mt: 0.25, fontSize: { xs: "0.8rem", sm: "1rem" } }}>
                             {featuredLeaderboardEntry.count}
                           </Typography>
                         </Grid>
@@ -1076,7 +1080,7 @@ const DashboardContent = () => {
                           <Typography variant="caption" color="text.secondary">
                             Deduction
                           </Typography>
-                          <Typography sx={{ fontWeight: 700, mt: 0.25 }}>
+                          <Typography sx={{ fontWeight: 700, mt: 0.25, fontSize: { xs: "0.74rem", sm: "1rem" } }}>
                             {formatCurrency(Math.round(featuredLeaderboardEntry.deduction || 0))}
                           </Typography>
                         </Grid>
@@ -1084,7 +1088,7 @@ const DashboardContent = () => {
                           <Typography variant="caption" color="text.secondary">
                             Revenue
                           </Typography>
-                          <Typography sx={{ fontWeight: 700, mt: 0.25, color: ACCENT_DARK }}>
+                          <Typography sx={{ fontWeight: 700, mt: 0.25, color: ACCENT_DARK, fontSize: { xs: "0.74rem", sm: "1rem" } }}>
                             {formatCurrency(featuredLeaderboardEntry.revenue)}
                           </Typography>
                         </Grid>
@@ -1113,8 +1117,8 @@ const DashboardContent = () => {
                         <Avatar
                           src={entry.profilePicture || ""}
                           sx={{
-                            width: 34,
-                            height: 34,
+                            width: { xs: 30, sm: 34 },
+                            height: { xs: 30, sm: 34 },
                             fontSize: "0.8rem",
                             bgcolor: "rgba(59,130,246,0.14)",
                             color: "#2563eb",
@@ -1123,7 +1127,7 @@ const DashboardContent = () => {
                           {getInitials(entry.name)}
                         </Avatar>
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                          <Typography variant="body2" sx={{ fontWeight: 700, fontSize: { xs: "0.82rem", sm: "0.875rem" } }} noWrap>
                             {entry.name}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" noWrap>
@@ -1148,7 +1152,7 @@ const DashboardContent = () => {
           )}
 
           <Grid item xs={12} lg={8} order={{ xs: isAdmin ? 2 : 1, lg: 1 }}>
-            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 320, md: 380, lg: 430 } }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 0, md: 380, lg: 430 } }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1162,7 +1166,7 @@ const DashboardContent = () => {
                   </Typography>
                 </Box>
 
-                <Box sx={{ height: { xs: 240, md: 320, lg: 350 } }}>
+                <Box sx={{ height: { xs: 210, md: 320, lg: 350 } }}>
                   <canvas ref={chartRef} />
                 </Box>
               </CardContent>
@@ -1203,7 +1207,7 @@ const DashboardContent = () => {
                     >
                       <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                          <Typography variant="body2" sx={{ fontWeight: 700, pr: 0.5, lineHeight: 1.3 }} noWrap={!isMobile}>
                             {booking.company_name || "Untitled Company"}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
@@ -1220,16 +1224,23 @@ const DashboardContent = () => {
                                   bgcolor: "rgba(15,23,42,0.05)",
                                   fontWeight: 600,
                                   maxWidth: "100%",
+                                  "& .MuiChip-label": {
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                    maxWidth: { xs: 120, sm: "100%" },
+                                    display: "block",
+                                  },
                                 }}
                               />
                             ))}
                           </Box>
                         </Box>
-                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: { xs: "flex-start", sm: "flex-end" }, gap: 0.6 }}>
-                          <Typography sx={{ fontWeight: 800, color: ACCENT_DARK }}>
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: { xs: "stretch", sm: "flex-end" }, gap: 0.6, width: { xs: "100%", sm: "auto" } }}>
+                          <Typography sx={{ fontWeight: 800, color: ACCENT_DARK, textAlign: { xs: "left", sm: "right" } }}>
                             {formatCurrency((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0))}
                           </Typography>
-                          <Button size="small" onClick={() => handleOpenBooking(booking._id)}>
+                          <Button size="small" fullWidth={isMobile} onClick={() => handleOpenBooking(booking._id)}>
                             Open
                           </Button>
                         </Box>
@@ -1324,7 +1335,7 @@ const DashboardContent = () => {
                   />
                 )}
 
-                <Box sx={{ height: { xs: 220, md: 230 } }}>
+                <Box sx={{ height: { xs: 190, md: 230 } }}>
                   {serviceSoldData.labels.length > 0 ? (
                     <canvas ref={soldChartRef} />
                   ) : (
@@ -1362,7 +1373,7 @@ const DashboardContent = () => {
                   />
                 )}
 
-                <Box sx={{ height: { xs: 220, md: 230 } }}>
+                <Box sx={{ height: { xs: 190, md: 230 } }}>
                   {serviceRevenueData.labels.length > 0 ? (
                     <canvas ref={revenueChartRef} />
                   ) : (
@@ -1389,7 +1400,7 @@ const DashboardContent = () => {
                   </Typography>
                 </Box>
 
-                <Box sx={{ height: { xs: 240, md: 280 } }}>
+                <Box sx={{ height: { xs: 220, md: 280 } }}>
                   {serviceRevenueData.labels.length > 0 ? (
                     <canvas ref={revenuePieChartRef} />
                   ) : (

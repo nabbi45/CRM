@@ -119,13 +119,14 @@ const PaymentReminders = ({ onOpenBooking }) => {
           : 'linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)',
         border: `1px solid ${theme.palette.mode === 'dark' ? '#991b1b' : '#fecaca'}`,
         borderRadius: 2,
-        p: 2,
-        mb: 3,
+        p: { xs: 1.5, sm: 2 },
+        mb: { xs: 2, sm: 3 },
         display: 'flex',
-        alignItems: 'center',
+        alignItems: { xs: 'stretch', sm: 'center' },
         justifyContent: 'space-between',
-        gap: 2,
-        flexWrap: { xs: 'wrap', sm: 'nowrap' },
+        gap: { xs: 1.5, sm: 2 },
+        flexWrap: { xs: 'nowrap', sm: 'nowrap' },
+        flexDirection: { xs: 'column', sm: 'row' },
         transition: 'all 0.3s ease',
         '&:hover': {
           boxShadow: theme.palette.mode === 'dark'
@@ -135,11 +136,11 @@ const PaymentReminders = ({ onOpenBooking }) => {
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
         <Box
           sx={{
-            width: 44,
-            height: 44,
+            width: { xs: 40, sm: 44 },
+            height: { xs: 40, sm: 44 },
             borderRadius: '12px',
             background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
             display: 'flex',
@@ -156,10 +157,11 @@ const PaymentReminders = ({ onOpenBooking }) => {
             sx={{
               fontWeight: 700,
               color: theme.palette.mode === 'dark' ? '#fca5a5' : '#991b1b',
-              fontSize: { xs: '1rem', sm: '1.25rem' },
+              fontSize: { xs: '0.95rem', sm: '1.25rem' },
               display: 'flex',
               alignItems: 'center',
               gap: 1,
+              lineHeight: 1.2,
             }}
           >
             {loading ? <Skeleton width={40} /> : pendingCount} Payments to collect
@@ -168,8 +170,9 @@ const PaymentReminders = ({ onOpenBooking }) => {
             variant="body2"
             sx={{
               color: theme.palette.mode === 'dark' ? '#fca5a5' : '#7f1d1d',
-              fontSize: '0.85rem',
+              fontSize: { xs: '0.78rem', sm: '0.85rem' },
               mt: 0.3,
+              lineHeight: 1.35,
             }}
           >
             Pending collections that need follow-up from the team.
@@ -184,8 +187,9 @@ const PaymentReminders = ({ onOpenBooking }) => {
         sx={{
           background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)',
           borderRadius: 2,
-          px: 3,
+          px: { xs: 2, sm: 3 },
           py: 1,
+          width: { xs: '100%', sm: 'auto' },
           textTransform: 'none',
           fontWeight: 600,
           boxShadow: '0 4px 14px rgba(124, 58, 237, 0.4)',
