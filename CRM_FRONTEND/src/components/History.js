@@ -13,6 +13,7 @@ import {
   FormControlLabel,
   Button,
   Box,
+  Paper,
   IconButton,
   Tooltip,
   Table,
@@ -32,6 +33,8 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
+import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { canAccessFeature, isHigherAuthority } from "../utils/featureAccess";
 import { jsonToCSV, downloadCSV } from "./exelData";
 import { useColorMode } from "../context/AppThemeProvider"; // Import for theming
@@ -130,6 +133,7 @@ const History = () => {
   const [bookingDocuments, setBookingDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [usersMap, setUsersMap] = useState({});
+  const [selectedBookingDetails, setSelectedBookingDetails] = useState(null);
 
   const toggleTermCard = (bookingId, termKey) => {
     const stateKey = `${bookingId}-${termKey}`;
@@ -179,6 +183,14 @@ const History = () => {
       <div className="booking-detail-value">{value}</div>
     </div>
   );
+
+  const openBookingDetails = (booking) => {
+    setSelectedBookingDetails(booking);
+  };
+
+  const closeBookingDetails = () => {
+    setSelectedBookingDetails(null);
+  };
 
   const cardTones = [
     { bg: "#f5fbff", border: "rgba(96, 165, 250, 0.30)", term2: "#f0f7ff", term3: "#edf5ff" },
@@ -1000,7 +1012,7 @@ const History = () => {
                     className="copy-button"
                     onClick={() => handleCopy(booking)}
                   >
-                    Copy
+                    <ContentCopyOutlinedIcon fontSize="small" />
                   </button>
                 </div>
                 <div className="booking-hero">
@@ -1333,6 +1345,13 @@ const History = () => {
                 </table>
                 <div className="booking-footer booking-footer-split">
                   <div className="booking-footer-left">
+                    <button
+                      className="details-link"
+                      onClick={() => openBookingDetails(booking)}
+                    >
+                      <VisibilityOutlinedIcon fontSize="small" />
+                      View Details
+                    </button>
                     {term2Visible && (
                       <button
                         className="term-toggle-button"
@@ -1436,6 +1455,81 @@ const History = () => {
           <p>No bookings found for the selected filters.</p>
         )}
       </div>
+
+      <Dialog open={Boolean(selectedBookingDetails)} onClose={closeBookingDetails} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Booking Details
+          <IconButton onClick={closeBookingDetails} sx={{ position: "absolute", right: 8, top: 8 }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedBookingDetails && (
+            <Box sx={{ display: "grid", gap: 1.25 }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                {upperText(selectedBookingDetails.company_name)}
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+                  gap: 1.1,
+                }}
+              >
+                {[
+                  ["Booking ID", selectedBookingDetails._id],
+                  ["Booking Date", formatDisplayDate(selectedBookingDetails.date)],
+                  ["Payment Date", formatDisplayDate(selectedBookingDetails.payment_date)],
+                  ["Contact Person", upperText(selectedBookingDetails.contact_person)],
+                  ["Email", lowerEmail(selectedBookingDetails.email)],
+                  ["Contact Number", selectedBookingDetails.contact_no || "N/A"],
+                  ["Services", Array.isArray(selectedBookingDetails.services) ? selectedBookingDetails.services.join(", ") : selectedBookingDetails.services || "N/A"],
+                  ["Total Amount", `INR ${Number(selectedBookingDetails.total_amount || 0).toLocaleString("en-IN")}`],
+                  ["Received Amount", `INR ${getReceivedAmount(selectedBookingDetails).toLocaleString("en-IN")}`],
+                  ["Pending Amount", `INR ${(Number(selectedBookingDetails.total_amount || 0) - getReceivedAmount(selectedBookingDetails)).toLocaleString("en-IN")}`],
+                  ["Creator / BDM", upperText(selectedBookingDetails.bdm)],
+                  ["Closed By", selectedBookingDetails.closed_by || "N/A"],
+                  ["GST", upperText(selectedBookingDetails.gst)],
+                  ["PAN", upperText(selectedBookingDetails.pan)],
+                  ["Payment Mode", selectedBookingDetails.bank || "N/A"],
+                  ["State", selectedBookingDetails.state || "N/A"],
+                  ["After Disbursement", selectedBookingDetails.after_disbursement || "N/A"],
+                  ["Notes", selectedBookingDetails.remark || "N/A"],
+                  ["Shared With", Array.isArray(selectedBookingDetails.shared_with) && selectedBookingDetails.shared_with.length > 0 ? selectedBookingDetails.shared_with.map((sw) => `${upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")} - ${sw.percentage}%`).join(", ") : "Not Shared"],
+                ].map(([label, value]) => (
+                  <Paper key={label} variant="outlined" sx={{ p: 1.25, borderRadius: "8px" }}>
+                    <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 700 }}>
+                      {label}
+                    </Typography>
+                    <Typography sx={{ mt: 0.35, fontWeight: 700 }}>{value}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+
+              <Typography variant="subtitle1" sx={{ fontWeight: 800, mt: 1 }}>
+                Terms
+              </Typography>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 1.1 }}>
+                {["term_1", "term_2", "term_3"].filter((termKey) => Number(selectedBookingDetails?.[termKey] || 0) > 0).map((termKey) => {
+                  const info = getTermShareInfo(selectedBookingDetails, termKey);
+                  return (
+                    <Paper key={termKey} variant="outlined" sx={{ p: 1.25, borderRadius: "8px" }}>
+                      <Typography sx={{ fontWeight: 800, mb: 0.5 }}>{termKey.replace("_", " ").toUpperCase()}</Typography>
+                      <Typography variant="body2"><strong>Amount:</strong> INR {Number(selectedBookingDetails?.[termKey] || 0).toLocaleString("en-IN")}</Typography>
+                      <Typography variant="body2"><strong>Payment Date:</strong> {formatDisplayDate(info.paymentDate)}</Typography>
+                      <Typography variant="body2"><strong>Created By:</strong> {info.creatorName}</Typography>
+                      <Typography variant="body2"><strong>Shared With:</strong> {Array.isArray(info.sharedWith) && info.sharedWith.length > 0 ? info.sharedWith.map((sw) => `${upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")} - ${sw.percentage}%`).join(", ") : "Not Shared"}</Typography>
+                    </Paper>
+                  );
+                })}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeBookingDetails}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modal for View Details */}
       <Dialog open={openDialogInfo.bookingIndex !== null} onClose={handleCloseModal}>

@@ -40,6 +40,17 @@ const STATUS_STYLES = {
   Received: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
 };
 
+const STAGE_TONES = {
+  agreementSent: { bg: 'rgba(254,242,242,0.9)', accent: '#ef4444' },
+  agreementReceived: { bg: 'rgba(239,246,255,0.94)', accent: '#2563eb' },
+  dprPitchDeckDataCollection: { bg: 'rgba(250,245,255,0.96)', accent: '#9333ea' },
+  dpr: { bg: 'rgba(255,247,237,0.96)', accent: '#ea580c' },
+  pitchDeck: { bg: 'rgba(240,253,250,0.96)', accent: '#0f766e' },
+  applicationDetailsCoordination: { bg: 'rgba(254,249,195,0.62)', accent: '#ca8a04' },
+  application: { bg: 'rgba(240,249,255,0.95)', accent: '#0284c7' },
+  acknowledgement: { bg: 'rgba(236,253,245,0.96)', accent: '#059669' },
+};
+
 const TECHNICAL_SERVICE_ENDINGS = [
   'REPORT',
   'WEBSITE',
@@ -336,30 +347,40 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
   };
 
   const ActionButtons = ({ config, hasDocs, compact = false }) => (
-    <Box sx={{ display: 'flex', gap: 1, mt: 1.25 }}>
+    <Box sx={{ display: 'flex', gap: 1, mt: 1.25, flexDirection: { xs: compact ? 'row' : 'column', sm: 'row' } }}>
       <Button
         size="small"
-        variant="outlined"
+        variant="contained"
         startIcon={<CloudUploadIcon />}
         onClick={() => handleOpenUpload(config)}
         disabled={!isAdmin}
         sx={{
           flex: 1,
-          borderColor: '#fecaca',
-          color: '#dc2626',
+          bgcolor: '#ff6b57',
+          color: '#fff',
           minHeight: compact ? 34 : 38,
           fontWeight: 700,
-          '&:hover': { borderColor: '#ef4444', bgcolor: '#fef2f2' },
+          borderRadius: '8px',
+          boxShadow: 'none',
+          '&:hover': { bgcolor: '#f04f39', boxShadow: 'none' },
         }}
       >
         Upload
       </Button>
       <Button
         size="small"
-        variant="outlined"
+        variant={hasDocs ? 'contained' : 'outlined'}
         color={hasDocs ? 'primary' : 'inherit'}
         onClick={() => handleViewDocs(config.docType, config.serviceName)}
-        sx={{ minWidth: compact ? 42 : 48, minHeight: compact ? 34 : 38 }}
+        sx={{
+          minWidth: compact ? 42 : 48,
+          minHeight: compact ? 34 : 38,
+          borderRadius: '8px',
+          boxShadow: 'none',
+          bgcolor: hasDocs ? 'rgba(59,130,246,0.9)' : 'transparent',
+          color: hasDocs ? '#fff' : 'inherit',
+          '&:hover': { boxShadow: 'none' },
+        }}
       >
         <VisibilityIcon fontSize="small" />
       </Button>
@@ -370,6 +391,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
   const renderStageCard = (key, config) => {
     const stageData = activity.stages[key] || {};
     const hasDocs = documents.some(d => d.documentType === config.docType);
+    const tone = STAGE_TONES[key] || { bg: '#ffffff', accent: '#2563eb' };
 
     return (
       <Paper
@@ -378,17 +400,18 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
         sx={{
           p: 2,
           borderRadius: '8px',
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : '#ffffff',
-          borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : '#e5e7eb',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : tone.bg,
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : `${tone.accent}22`,
           minHeight: 172,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
+          boxShadow: theme.palette.mode === 'dark' ? 'none' : `0 10px 24px ${tone.accent}10`,
         }}
       >
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'flex-start', mb: 0.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#111827', lineHeight: 1.25 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827', lineHeight: 1.25 }}>
               {config.label}
             </Typography>
             {hasDocs && <Chip size="small" label={documents.filter(d => d.documentType === config.docType).length} color="primary" sx={{ height: 22, minWidth: 30 }} />}
@@ -404,7 +427,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
             fullWidth
             value={stageData.status || getStatusOptions(key)[0]}
             onChange={(e) => handleStatusChange('stage', key, e.target.value)}
-            sx={{ fontSize: '0.85rem', bgcolor: '#f9fafb', borderRadius: 1.5 }}
+            sx={{ fontSize: '0.85rem', bgcolor: '#ffffffcc', borderRadius: '8px' }}
           >
             {getStatusOptions(key).map((option) => (
               <MenuItem key={option} value={option}>{option}</MenuItem>
@@ -423,9 +446,20 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
   // Helper to render Service Arrays (Application & Acknowledgement)
   const renderServiceGroup = (type, title, sla, docType) => {
     const services = activity[type] || [];
+    const tone = STAGE_TONES[type] || { bg: '#ffffff', accent: '#2563eb' };
     return (
-      <Paper key={type} variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff', borderColor: '#e5e7eb' }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#111827' }}>{title}</Typography>
+      <Paper
+        key={type}
+        variant="outlined"
+        sx={{
+          p: 2,
+          borderRadius: '8px',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : tone.bg,
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : `${tone.accent}22`,
+          boxShadow: theme.palette.mode === 'dark' ? 'none' : `0 10px 24px ${tone.accent}10`,
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827' }}>{title}</Typography>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5, fontStyle: 'italic' }}>
           {sla}
         </Typography>
@@ -440,8 +474,17 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
               const hasDocs = documents.some(d => d.documentType === docType && d.notes?.includes(svc.serviceName));
               const config = { label: title, docType, serviceName: svc.serviceName };
               return (
-                <Box key={`${svc.serviceName}-${idx}`} sx={{ p: 1.25, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: '1px solid', borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.15)' : '#eef2f7', borderRadius: '8px' }}>
-                  <Typography variant="caption" sx={{ fontWeight: 800, color: '#111827', display: 'block', mb: 0.75 }}>
+                <Box
+                  key={`${svc.serviceName}-${idx}`}
+                  sx={{
+                    p: 1.25,
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : '#ffffffcc',
+                    border: '1px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.15)' : `${tone.accent}18`,
+                    borderRadius: '8px',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827', display: 'block', mb: 0.75 }}>
                     {svc.serviceName}
                   </Typography>
 
@@ -451,7 +494,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
                       fullWidth
                       value={svc.status || getStatusOptions(type)[0]}
                       onChange={(e) => handleStatusChange(type, null, e.target.value, svc.serviceName)}
-                      sx={{ fontSize: '0.8rem', bgcolor: '#fff', borderRadius: 1.5 }}
+                      sx={{ fontSize: '0.8rem', bgcolor: '#fff', borderRadius: '8px' }}
                     >
                       {getStatusOptions(type).map((option) => (
                         <MenuItem key={option} value={option}>{option}</MenuItem>
