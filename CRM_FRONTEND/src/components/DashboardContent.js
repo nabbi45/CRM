@@ -843,7 +843,12 @@ const DashboardContent = () => {
   const previewDeductionRows = deductionRows.slice(0, isMobile ? 4 : 6);
   const medals = ["1", "2", "3"];
   const sectionSpacing = { xs: 1.5, sm: 2.25, md: 2.75 };
-  const pageShellSx = { width: "100%", maxWidth: { xl: 1680 }, mx: { xl: "auto" } };
+  const pageShellSx = {
+    width: { xs: "92%", sm: "100%" },
+    maxWidth: { xl: 1680 },
+    mx: "auto",
+    overflowX: "clip",
+  };
   const cardSurfaceSx = {
     borderRadius: "8px",
     border: "1px solid",
@@ -861,7 +866,7 @@ const DashboardContent = () => {
   }
 
   return (
-    <Box sx={{ px: { xs: 0.75, sm: 1.5, md: 2 }, py: { xs: 0.75, sm: 1.5 }, width: "100%" }}>
+    <Box sx={{ px: { xs: 0, sm: 1.5, md: 2 }, py: { xs: 0.75, sm: 1.5 }, width: "100%", overflowX: "hidden" }}>
       <Box sx={pageShellSx}>
         <Box
           sx={{
@@ -902,17 +907,18 @@ const DashboardContent = () => {
 
         <PaymentReminders onOpenBooking={handleOpenBooking} />
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
+        <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
           {statCards.map((card, index) => {
             const palette = statCardThemes[index % statCardThemes.length];
             return (
-              <Grid item xs={6} md={3} key={card.label}>
+              <Grid item xs={6} md={3} key={card.label} sx={{ minWidth: 0 }}>
                 <Card
                   sx={{
                     ...cardSurfaceSx,
                     height: "100%",
-                    minHeight: { xs: 134, sm: 170, md: 160 },
-                    aspectRatio: { xs: "1 / 1", sm: "1 / 1", md: "auto" },
+                    width: "100%",
+                    minHeight: { xs: 112, sm: 170, md: 160 },
+                    aspectRatio: { xs: "1.18 / 1", sm: "1 / 1", md: "auto" },
                     background: palette.bg,
                     overflow: "hidden",
                     position: "relative",
@@ -941,7 +947,7 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: "text.secondary",
-                            fontSize: { xs: "0.62rem", sm: "0.72rem" },
+                            fontSize: { xs: "0.58rem", sm: "0.72rem" },
                             fontWeight: 700,
                             display: "block",
                             mb: 0.35,
@@ -954,10 +960,10 @@ const DashboardContent = () => {
                         <Typography
                           sx={{
                             fontWeight: 800,
-                            fontSize: { xs: "0.9rem", sm: "1.2rem", md: "1.3rem" },
+                            fontSize: { xs: "0.82rem", sm: "1.2rem", md: "1.3rem" },
                             lineHeight: 1.15,
                             wordBreak: "break-word",
-                            mt: 0.55,
+                            mt: 0.4,
                           }}
                         >
                           {card.value}
@@ -966,11 +972,11 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: "text.secondary",
-                            fontSize: { xs: "0.58rem", sm: "0.72rem" },
-                            mt: 0.65,
-                            lineHeight: 1.22,
+                            fontSize: { xs: "0.54rem", sm: "0.72rem" },
+                            mt: 0.4,
+                            lineHeight: 1.14,
                             display: "-webkit-box",
-                            WebkitLineClamp: { xs: 2, sm: "unset" },
+                            WebkitLineClamp: { xs: 1, sm: "unset" },
                             WebkitBoxOrient: "vertical",
                             overflow: "hidden",
                           }}
@@ -981,8 +987,8 @@ const DashboardContent = () => {
 
                       <Avatar
                         sx={{
-                          width: { xs: 30, sm: 38 },
-                          height: { xs: 30, sm: 38 },
+                          width: { xs: 26, sm: 38 },
+                          height: { xs: 26, sm: 38 },
                           bgcolor: palette.iconBg,
                           color: palette.iconColor,
                           borderRadius: "8px",
@@ -1000,10 +1006,10 @@ const DashboardContent = () => {
           })}
         </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
+        <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
           {isAdmin && (
-            <Grid item xs={12} lg={4} order={{ xs: 1, lg: 2 }}>
-            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 0, md: 380, lg: 430 } }}>
+            <Grid item xs={12} lg={4} order={{ xs: 1, lg: 2 }} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 0, md: 380, lg: 430 }, width: "100%", overflow: "hidden" }}>
                 <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 }, height: "100%", display: "flex", flexDirection: "column" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
                     <EmojiEventsOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
@@ -1151,8 +1157,8 @@ const DashboardContent = () => {
             </Grid>
           )}
 
-          <Grid item xs={12} lg={8} order={{ xs: isAdmin ? 2 : 1, lg: 1 }}>
-            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 0, md: 380, lg: 430 } }}>
+          <Grid item xs={12} lg={8} order={{ xs: isAdmin ? 2 : 1, lg: 1 }} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 0, md: 380, lg: 430 }, width: "100%", overflow: "hidden" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1174,9 +1180,9 @@ const DashboardContent = () => {
           </Grid>
         </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
-          <Grid item xs={12} xl={7}>
-            <Card sx={{ ...cardSurfaceSx, height: "100%" }}>
+        <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
+          <Grid item xs={12} xl={7} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", width: "100%", overflow: "hidden" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -1252,8 +1258,8 @@ const DashboardContent = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} xl={5}>
-            <Card sx={cardSurfaceSx}>
+          <Grid item xs={12} xl={5} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, width: "100%", overflow: "hidden" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Box>
@@ -1309,9 +1315,9 @@ const DashboardContent = () => {
           </Grid>
         </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
-          <Grid item xs={12} lg={7}>
-            <Card sx={{ ...cardSurfaceSx, height: "100%" }}>
+        <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
+          <Grid item xs={12} lg={7} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", width: "100%", overflow: "hidden" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1348,8 +1354,8 @@ const DashboardContent = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} lg={5}>
-            <Card sx={{ ...cardSurfaceSx, height: "100%" }}>
+          <Grid item xs={12} lg={5} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", width: "100%", overflow: "hidden" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1387,9 +1393,9 @@ const DashboardContent = () => {
           </Grid>
         </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
-          <Grid item xs={12}>
-            <Card sx={cardSurfaceSx}>
+        <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
+          <Grid item xs={12} sx={{ minWidth: 0 }}>
+            <Card sx={{ ...cardSurfaceSx, width: "100%", overflow: "hidden" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
