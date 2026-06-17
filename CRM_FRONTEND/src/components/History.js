@@ -122,6 +122,7 @@ const History = () => {
 
   // NEW State for Shared Bookings Toggle
   const [shareFilter, setShareFilter] = useState("All"); // "All" | "SharedByMe" | "SharedWithMe"
+  const [expandedTerms, setExpandedTerms] = useState({});
 
   // Document viewing state
   const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
@@ -129,6 +130,55 @@ const History = () => {
   const [bookingDocuments, setBookingDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [usersMap, setUsersMap] = useState({});
+
+  const toggleTermCard = (bookingId, termKey) => {
+    const stateKey = `${bookingId}-${termKey}`;
+    setExpandedTerms((prev) => ({
+      ...prev,
+      [stateKey]: !prev[stateKey],
+    }));
+  };
+
+  const isTermExpanded = (bookingId, termKey) => Boolean(expandedTerms[`${bookingId}-${termKey}`]);
+
+  const getTermAmount = (booking, termKey) => Number(booking?.[termKey] || 0);
+
+  const getTermShareInfo = (booking, termKey) => {
+    const termShare = booking?.term_shares?.[termKey] || {};
+    const creator = termShare?.creator || {
+      user_id: booking?.user_id,
+      user_name: booking?.bdm,
+    };
+    const sharedWith = Array.isArray(termShare?.shared_with) ? termShare.shared_with : [];
+
+    return {
+      creatorName: upperText(creator?.user_name || usersMap[creator?.user_id] || booking?.bdm || "N/A"),
+      paymentDate: termShare?.payment_date || booking?.payment_date || booking?.date,
+      sharedWith,
+    };
+  };
+
+  const getReceivedAmount = (booking) =>
+    Number(booking?.term_1 || 0) + Number(booking?.term_2 || 0) + Number(booking?.term_3 || 0);
+
+  const renderSharedWithList = (sharedList = [], emptyLabel = "Not Shared") => (
+    Array.isArray(sharedList) && sharedList.length > 0 ? (
+      <ul className="booking-meta-list">
+        {sharedList.map((sw, idx) => (
+          <li key={`${sw.user_id || "shared"}-${idx}`}>
+            <strong>{upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")}</strong> - {sw.percentage}%
+          </li>
+        ))}
+      </ul>
+    ) : emptyLabel
+  );
+
+  const renderDetailItem = (label, value, options = {}) => (
+    <div className={`booking-detail-item${options.highlight ? " booking-detail-item-highlight" : ""}`}>
+      <span className="booking-detail-label">{label}</span>
+      <div className="booking-detail-value">{value}</div>
+    </div>
+  );
 
   useEffect(() => {
     // Retroactively map user IDs to names for older bookings
@@ -881,8 +931,17 @@ const History = () => {
               }
               return true;
             })
-            .map((booking) => (
-              <div className="booking-item" key={booking._id} style={{
+            .map((booking) => {
+              const receivedAmount = getReceivedAmount(booking);
+              const term2Visible = Number(booking.term_2 || 0) > 0;
+              const term3Visible = Number(booking.term_3 || 0) > 0;
+              const term1ShareInfo = getTermShareInfo(booking, "term_1");
+              const term2ShareInfo = getTermShareInfo(booking, "term_2");
+              const term3ShareInfo = getTermShareInfo(booking, "term_3");
+
+              return (
+              <div className="booking-stack" key={booking._id}>
+              <div className="booking-item booking-item-primary" style={{
                 backgroundColor: mode === 'light' ? '#ffffff' : '#0f172a',
                 borderColor: mode === 'light' ? 'rgba(148, 163, 184, 0.35)' : 'rgba(30, 64, 175, 0.7)',
                 color: mode === 'light' ? '#333' : '#e5e7eb',
@@ -916,6 +975,26 @@ const History = () => {
                   >
                     Copy
                   </button>
+                </div>
+                <div className="booking-hero">
+                  <div>
+                    <p className="booking-overline">Company</p>
+                    <h3 className="booking-company-name">{upperText(booking.company_name)}</h3>
+                    <p className="booking-subtitle">
+                      {upperText(booking.contact_person)} • {lowerEmail(booking.email)}
+                    </p>
+                  </div>
+                  <div className="booking-hero-side">
+                    <span className="booking-total-label">Total Amount</span>
+                    <strong className="booking-total-value">{Number(booking.total_amount || 0)} ₹</strong>
+                  </div>
+                </div>
+                <div className="booking-metrics">
+                  {renderDetailItem("Received", `${receivedAmount} ₹`, { highlight: true })}
+                  {renderDetailItem("Pending", `${Number(booking.total_amount || 0) - receivedAmount} ₹`)}
+                  {renderDetailItem("Booking Date", formatDisplayDate(booking.date))}
+                  {renderDetailItem("Creator", term1ShareInfo.creatorName)}
+                  {renderDetailItem("Payment Mode", booking.bank || "N/A")}
                 </div>
                 <table className="booking-table">
                   <tbody>
@@ -1225,7 +1304,26 @@ const History = () => {
                     </tr>
                   </tbody>
                 </table>
-                <div className="booking-footer">
+                <div className="booking-footer booking-footer-split">
+                  <div className="booking-footer-left">
+                    {term2Visible && (
+                      <button
+                        className="term-toggle-button"
+                        onClick={() => toggleTermCard(booking._id, "term_2")}
+                      >
+                        {isTermExpanded(booking._id, "term_2") ? "Hide Term 2" : "View Term 2"}
+                      </button>
+                    )}
+                    {term3Visible && (
+                      <button
+                        className="term-toggle-button"
+                        onClick={() => toggleTermCard(booking._id, "term_3")}
+                      >
+                        {isTermExpanded(booking._id, "term_3") ? "Hide Term 3" : "View Term 3"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="booking-footer-right">
                   <button
                     className="view-docs-link"
                     onClick={() => handleViewDocuments(booking)}
@@ -1263,9 +1361,58 @@ const History = () => {
                       Delete
                     </button>
                   )}
+                  </div>
                 </div>
               </div>
-            ))
+              {term2Visible && isTermExpanded(booking._id, "term_2") && (
+                <div
+                  className="booking-item booking-item-term"
+                  style={{
+                    backgroundColor: mode === "light" ? "#f8fafc" : "#111827",
+                    borderColor: mode === "light" ? "rgba(129, 140, 248, 0.28)" : "rgba(129, 140, 248, 0.55)",
+                    color: mode === "light" ? "#1f2937" : "#e5e7eb",
+                  }}
+                >
+                  <div className="booking-section-header">
+                    <h4>Continuation Card</h4>
+                    <span>Term 2</span>
+                  </div>
+                  <div className="booking-details-grid">
+                    {renderDetailItem("Company", upperText(booking.company_name))}
+                    {renderDetailItem("Term Amount", `${getTermAmount(booking, "term_2")} ₹`, { highlight: true })}
+                    {renderDetailItem("Payment Date", formatDisplayDate(term2ShareInfo.paymentDate))}
+                    {renderDetailItem("Created By", term2ShareInfo.creatorName)}
+                    {renderDetailItem("Services", Array.isArray(booking.services) ? booking.services.join(", ") : (booking.services || "N/A"))}
+                    {renderDetailItem("Shared With", renderSharedWithList(term2ShareInfo.sharedWith))}
+                  </div>
+                </div>
+              )}
+              {term3Visible && isTermExpanded(booking._id, "term_3") && (
+                <div
+                  className="booking-item booking-item-term"
+                  style={{
+                    backgroundColor: mode === "light" ? "#f8fafc" : "#111827",
+                    borderColor: mode === "light" ? "rgba(16, 185, 129, 0.28)" : "rgba(16, 185, 129, 0.55)",
+                    color: mode === "light" ? "#1f2937" : "#e5e7eb",
+                  }}
+                >
+                  <div className="booking-section-header">
+                    <h4>Continuation Card</h4>
+                    <span>Term 3</span>
+                  </div>
+                  <div className="booking-details-grid">
+                    {renderDetailItem("Company", upperText(booking.company_name))}
+                    {renderDetailItem("Term Amount", `${getTermAmount(booking, "term_3")} ₹`, { highlight: true })}
+                    {renderDetailItem("Payment Date", formatDisplayDate(term3ShareInfo.paymentDate))}
+                    {renderDetailItem("Created By", term3ShareInfo.creatorName)}
+                    {renderDetailItem("Services", Array.isArray(booking.services) ? booking.services.join(", ") : (booking.services || "N/A"))}
+                    {renderDetailItem("Shared With", renderSharedWithList(term3ShareInfo.sharedWith))}
+                  </div>
+                </div>
+              )}
+              </div>
+            );
+            })
         ) : (
           <p>No bookings found for the selected filters.</p>
         )}

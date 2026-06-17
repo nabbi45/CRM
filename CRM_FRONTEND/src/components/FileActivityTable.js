@@ -35,7 +35,44 @@ const STATUS_STYLES = {
   Pending: { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' },
   'In Progress': { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
   Completed: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
+  Sent: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  Received: { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
 };
+
+const TECHNICAL_SERVICE_ENDINGS = [
+  'REPORT',
+  'WEBSITE',
+  'CERTIFICATE',
+  'CODE',
+  'LICENSE',
+  'REGISTRATION',
+  'INCORPORATION',
+  'CREATION',
+  'DSC',
+];
+
+const isTechnicalOnlyService = (service = '') => {
+  const upper = String(service || '').trim().toUpperCase();
+  if (!upper) return false;
+  if (upper.includes('ISO')) return true;
+  return TECHNICAL_SERVICE_ENDINGS.some((ending) => upper.endsWith(ending));
+};
+
+const isTechnicalOnlyBooking = (services = []) => {
+  const normalized = Array.isArray(services) ? services.filter(Boolean) : [];
+  return normalized.length > 0 && normalized.every((service) => isTechnicalOnlyService(service));
+};
+
+const SENT_RECEIVED_STAGES = new Set([
+  'dprPitchDeckDataCollection',
+  'applicationDetailsCoordination',
+  'acknowledgement',
+]);
+
+const getStatusOptions = (key) =>
+  SENT_RECEIVED_STAGES.has(key)
+    ? ['Sent', 'Received']
+    : ['Pending', 'In Progress', 'Completed'];
 
 const isPreviewableDocument = (doc = {}) => {
   const mime = String(doc.mimeType || '').toLowerCase();
@@ -55,6 +92,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
   
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewDocs, setViewDocs] = useState([]);
+  const technicalOnlyBooking = isTechnicalOnlyBooking(booking?.services || []);
 
   useEffect(() => {
     if (booking && booking._id) {
@@ -362,17 +400,17 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
           <Select
             size="small"
             fullWidth
-            value={stageData.status || 'Pending'}
+            value={stageData.status || getStatusOptions(key)[0]}
             onChange={(e) => handleStatusChange('stage', key, e.target.value)}
             sx={{ fontSize: '0.85rem', bgcolor: '#f9fafb', borderRadius: 1.5 }}
           >
-            <MenuItem value="Pending">Pending</MenuItem>
-            <MenuItem value="In Progress">In Progress</MenuItem>
-            <MenuItem value="Completed">Completed</MenuItem>
+            {getStatusOptions(key).map((option) => (
+              <MenuItem key={option} value={option}>{option}</MenuItem>
+            ))}
           </Select>
         )}
         {!isAdmin && (
-          <Box sx={{ mb: 0.25 }}>{statusChip(stageData.status || 'Pending')}</Box>
+          <Box sx={{ mb: 0.25 }}>{statusChip(stageData.status || getStatusOptions(key)[0])}</Box>
         )}
 
         <ActionButtons config={config} hasDocs={hasDocs} />
@@ -409,16 +447,16 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
                     <Select
                       size="small"
                       fullWidth
-                      value={svc.status || 'Pending'}
+                      value={svc.status || getStatusOptions(type)[0]}
                       onChange={(e) => handleStatusChange(type, null, e.target.value, svc.serviceName)}
                       sx={{ fontSize: '0.8rem', bgcolor: '#fff', borderRadius: 1.5 }}
                     >
-                      <MenuItem value="Pending">Pending</MenuItem>
-                      <MenuItem value="In Progress">In Progress</MenuItem>
-                      <MenuItem value="Completed">Completed</MenuItem>
+                      {getStatusOptions(type).map((option) => (
+                        <MenuItem key={option} value={option}>{option}</MenuItem>
+                      ))}
                     </Select>
                   ) : (
-                    statusChip(svc.status || 'Pending')
+                    statusChip(svc.status || getStatusOptions(type)[0])
                   )}
 
                   <ActionButtons config={config} hasDocs={hasDocs} compact />
@@ -442,6 +480,8 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
           {statusChip('Pending')}
           {statusChip('In Progress')}
           {statusChip('Completed')}
+          {statusChip('Sent')}
+          {statusChip('Received')}
         </Box>
       </Box>
 
@@ -458,9 +498,9 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
       >
         {renderStageCard('agreementSent', STAGE_KEYS.agreementSent)}
         {renderStageCard('agreementReceived', STAGE_KEYS.agreementReceived)}
-        {renderStageCard('dprPitchDeckDataCollection', STAGE_KEYS.dprPitchDeckDataCollection)}
-        {renderStageCard('dpr', STAGE_KEYS.dpr)}
-        {renderStageCard('pitchDeck', STAGE_KEYS.pitchDeck)}
+        {!technicalOnlyBooking && renderStageCard('dprPitchDeckDataCollection', STAGE_KEYS.dprPitchDeckDataCollection)}
+        {!technicalOnlyBooking && renderStageCard('dpr', STAGE_KEYS.dpr)}
+        {!technicalOnlyBooking && renderStageCard('pitchDeck', STAGE_KEYS.pitchDeck)}
         {renderStageCard('applicationDetailsCoordination', STAGE_KEYS.applicationDetailsCoordination)}
       </Box>
 

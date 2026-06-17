@@ -143,7 +143,7 @@ const DashboardContent = () => {
         labels: monthlyRevData.labels,
         datasets: [
           {
-            label: "Revenue (₹)",
+            label: "Bookings",
             data: monthlyRevData.values,
             backgroundColor: monthlyRevData.values.map((_, idx, arr) =>
               idx === arr.length - 1 ? ACCENT : "rgba(255,90,31,0.78)"
@@ -168,7 +168,7 @@ const DashboardContent = () => {
             bodyColor: isDark ? "#e2e8f0" : "#0f172a",
             displayColors: false,
             callbacks: {
-              label: (ctx) => `₹${ctx.raw.toLocaleString()}`,
+              label: (ctx) => `Ã¢â€šÂ¹${ctx.raw.toLocaleString()}`,
             },
           },
         },
@@ -180,7 +180,7 @@ const DashboardContent = () => {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: (v) => `₹${(v / 1000).toFixed(0)}k`,
+              callback: (v) => `Ã¢â€šÂ¹${(v / 1000).toFixed(0)}k`,
               font: { size: 11 },
               color: tickColor,
             },
@@ -257,7 +257,7 @@ const DashboardContent = () => {
         labels: serviceRevenueData.labels,
         datasets: [
           {
-            label: "Revenue (₹)",
+            label: "Bookings",
             data: serviceRevenueData.values,
             backgroundColor: serviceRevenueData.labels.map((_, idx) => palette[idx % palette.length]),
             borderRadius: 8,
@@ -272,7 +272,7 @@ const DashboardContent = () => {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `₹${Number(ctx.raw || 0).toLocaleString()}`,
+              label: (ctx) => `${Number(ctx.raw || 0).toLocaleString()} bookings`,
             },
           },
         },
@@ -285,7 +285,7 @@ const DashboardContent = () => {
             beginAtZero: true,
             ticks: {
               color: isDark ? "#cbd5e1" : "#334155",
-              callback: (v) => `₹${(Number(v) / 1000).toFixed(0)}k`,
+              callback: (v) => `${Number(v).toLocaleString()}`,
             },
             grid: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.22)" },
           },
@@ -336,7 +336,7 @@ const DashboardContent = () => {
                 const value = Number(ctx.raw || 0);
                 const total = (ctx.dataset.data || []).reduce((sum, v) => sum + Number(v || 0), 0);
                 const percent = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
-                return `${ctx.label}: ₹${value.toLocaleString()} (${percent}%)`;
+                return `${ctx.label}: ${value.toLocaleString()} bookings (${percent}%)`;
               },
             },
           },
@@ -601,7 +601,7 @@ const DashboardContent = () => {
         }
 
         const personalSoldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
-        const personalRevenueEntries = Object.entries(serviceRevenueMap).sort((a, b) => b[1] - a[1]);
+        const personalRevenueEntries = Object.entries(companySoldMap).sort((a, b) => b[1] - a[1]);
         const personalSoldTop = personalSoldEntries[0] || ["-", 0];
         const personalRevenueTop = personalRevenueEntries[0] || ["-", 0];
         setPersonalMostSoldService({ name: personalSoldTop[0], count: personalSoldTop[1] });
@@ -617,7 +617,7 @@ const DashboardContent = () => {
       }
 
       const soldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
-      const revenueEntries = Object.entries(serviceRevenueMap).sort((a, b) => b[1] - a[1]);
+      const revenueEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
 
       const soldTop = soldEntries[0] || ["-", 0];
       const revenueTop = revenueEntries[0] || ["-", 0];
@@ -669,7 +669,7 @@ const DashboardContent = () => {
     );
   }
 
-  const medals = ["🥇", "🥈", "🥉"];
+  const medals = ["Ã°Å¸Â¥â€¡", "Ã°Å¸Â¥Ë†", "Ã°Å¸Â¥â€°"];
 
   const handleOpenBooking = async (bookingId) => {
     try {
@@ -716,7 +716,7 @@ const DashboardContent = () => {
         </Typography>
       </Box>
 
-      {/* ── Branches Display ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Branches Display Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {companyBranches.length > 0 && (
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
           <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mr: 1, fontWeight: 600 }}>
@@ -738,10 +738,10 @@ const DashboardContent = () => {
         </Box>
       )}
 
-      {/* ── Payment Reminders Banner ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Payment Reminders Banner Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <PaymentReminders onOpenBooking={handleOpenBooking} />
 
-      {/* ── Stat Cards ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Stat Cards Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <Grid container spacing={2.5}>
         {[
           {
@@ -766,21 +766,21 @@ const DashboardContent = () => {
             label: `Revenue ${new Date().toLocaleString("default", {
               month: "short",
             })}`,
-            value: `₹${totalRevenue.toLocaleString()}`,
+            value: `Ã¢â€šÂ¹${totalRevenue.toLocaleString()}`,
             sub: "This month after deductions",
             icon: <CurrencyRupeeOutlinedIcon />,
             color: ACCENT,
           },
           {
             label: "Service Deductions",
-            value: `₹${Math.round(totalServiceDeductions).toLocaleString()}`,
+            value: `Ã¢â€šÂ¹${Math.round(totalServiceDeductions).toLocaleString()}`,
             sub: "Vendor costs this month",
             icon: <PaidOutlinedIcon />,
             color: "#7c3aed",
           },
           {
             label: "Today's Revenue",
-            value: `₹${todayRevenue.toLocaleString()}`,
+            value: `Ã¢â€šÂ¹${todayRevenue.toLocaleString()}`,
             sub: "From today's bookings after deductions",
             icon: <TodayOutlinedIcon />,
             color: "#ff7a1f",
@@ -860,7 +860,7 @@ const DashboardContent = () => {
         ))}
       </Grid>
 
-      {/* ── Charts + Leaderboard Row ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Charts + Leaderboard Row Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <Grid container spacing={2.5} sx={{ mt: 1 }}>
         {/* Monthly Revenue Chart */}
         <Grid item xs={12} md={isAdmin ? 7 : 12}>
@@ -893,7 +893,7 @@ const DashboardContent = () => {
           </Card>
         </Grid>
 
-        {/* Leaderboard — only for admin */}
+        {/* Leaderboard Ã¢â‚¬â€ only for admin */}
         {isAdmin && (
           <Grid item xs={12} md={5}>
             <Card sx={{ height: "100%" }}>
@@ -971,11 +971,11 @@ const DashboardContent = () => {
                           </TableCell>
                           <TableCell align="right">{entry.count}</TableCell>
                           <TableCell align="right">
-                            ₹{Math.round(entry.deduction || 0).toLocaleString()}
+                            Ã¢â€šÂ¹{Math.round(entry.deduction || 0).toLocaleString()}
                           </TableCell>
                           <TableCell align="right" sx={{ fontWeight: 600 }}>
                             <Box component="span" sx={{ color: ACCENT_DARK }}>
-                              ₹{entry.revenue.toLocaleString()}
+                              Ã¢â€šÂ¹{entry.revenue.toLocaleString()}
                             </Box>
                           </TableCell>
                         </TableRow>
@@ -1009,7 +1009,7 @@ const DashboardContent = () => {
                 </Box>
                 <Chip
                   size="small"
-                  label={`${mostSoldService.name} • ${mostSoldService.count}`}
+                  label={`${mostSoldService.name} Ã¢â‚¬Â¢ ${mostSoldService.count}`}
                   sx={{ bgcolor: "rgba(59,130,246,0.14)", color: "#1d4ed8", fontWeight: 700 }}
                 />
               </Box>
@@ -1038,19 +1038,19 @@ const DashboardContent = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <PaidOutlinedIcon sx={{ color: ACCENT }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Most Revenue Service (Last 3 Months)
+                    Service Activity Range (Last 3 Months)
                   </Typography>
                 </Box>
                 <Chip
                   size="small"
-                  label={`${mostRevenueService.name} • ₹${mostRevenueService.revenue.toLocaleString()}`}
+                  label={`${mostRevenueService.name} Ã¢â‚¬Â¢ Ã¢â€šÂ¹${mostRevenueService.revenue.toLocaleString()}`}
                   sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, fontWeight: 700 }}
                 />
               </Box>
               {!isAdmin && (
                 <Chip
                   size="small"
-                  label={`Mine: ${personalMostRevenueService.name} - Rs ${personalMostRevenueService.revenue.toLocaleString()}`}
+                  label={`Mine: ${personalMostRevenueService.name} - ${personalMostRevenueService.revenue.toLocaleString()} bookings`}
                   sx={{ mb: 1.5, bgcolor: "rgba(16,185,129,0.14)", color: "#047857", fontWeight: 700 }}
                 />
               )}
@@ -1058,7 +1058,7 @@ const DashboardContent = () => {
                 {serviceRevenueData.labels.length > 0 ? (
                   <canvas ref={revenueChartRef} />
                 ) : (
-                  <Typography variant="body2" color="text.secondary">No service revenue in the last 3 months.</Typography>
+                  <Typography variant="body2" color="text.secondary">No service activity in the last 3 months.</Typography>
                 )}
               </Box>
             </CardContent>
@@ -1074,11 +1074,11 @@ const DashboardContent = () => {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <PaidOutlinedIcon sx={{ color: "#6366f1" }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Company Service Revenue Distribution (Last 3 Months)
+                    Company Service Distribution (Last 3 Months)
                   </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  Amount + percentage per service
+                  Booking volume + percentage per service
                 </Typography>
               </Box>
               <Box sx={{ height: 320 }}>
@@ -1086,7 +1086,7 @@ const DashboardContent = () => {
                   <canvas ref={revenuePieChartRef} />
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    No service revenue in the last 3 months.
+                    No service activity in the last 3 months.
                   </Typography>
                 )}
               </Box>
@@ -1095,7 +1095,7 @@ const DashboardContent = () => {
         </Grid>
       </Grid>
 
-      {/* ── Service Deductions ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Service Deductions Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <Box sx={{ mt: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
           Service Deduction Master
@@ -1143,7 +1143,7 @@ const DashboardContent = () => {
                     />
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700, color: "#7c3aed" }}>
-                    ₹{Math.round(row.deduction).toLocaleString()}
+                    Ã¢â€šÂ¹{Math.round(row.deduction).toLocaleString()}
                   </TableCell>
                 </TableRow>
               ))}
@@ -1172,8 +1172,8 @@ const DashboardContent = () => {
                     <TableCell sx={{ fontWeight: 700 }}>{idx < 3 ? medals[idx] : idx + 1}</TableCell>
                     <TableCell>{entry.name}</TableCell>
                     <TableCell align="right">{entry.count}</TableCell>
-                    <TableCell align="right">₹{Math.round(entry.deduction || 0).toLocaleString()}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>₹{entry.revenue.toLocaleString()}</TableCell>
+                    <TableCell align="right">Ã¢â€šÂ¹{Math.round(entry.deduction || 0).toLocaleString()}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>Ã¢â€šÂ¹{entry.revenue.toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1185,7 +1185,7 @@ const DashboardContent = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ── Recent Bookings ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Recent Bookings Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <Box sx={{ mt: 3 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
           Recent Bookings
@@ -1214,7 +1214,7 @@ const DashboardContent = () => {
                   </TableCell>
                   <TableCell align="right" sx={{ fontWeight: 600 }}>
                     <Box component="span" sx={{ color: ACCENT_DARK }}>
-                      ₹
+                      Ã¢â€šÂ¹
                       {(
                         (booking.term_1 || 0) +
                         (booking.term_2 || 0) +
@@ -1229,7 +1229,7 @@ const DashboardContent = () => {
         </TableContainer>
       </Box>
 
-      {/* ── Booking Edit Popup ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Booking Edit Popup Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {isBookingPopupOpen && (
         <Popup isOpen={isBookingPopupOpen} onClose={handleCloseBookingPopup}>
           <EditBooking

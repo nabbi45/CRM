@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const stageSchema = mongoose.Schema(
   {
-    status: { type: String, enum: ["Pending", "In Progress", "Completed"], default: "Pending" },
+    status: { type: String, enum: ["Pending", "In Progress", "Completed", "Sent", "Received"], default: "Pending" },
     date: { type: Date },
     // Files will be uploaded to BookingDocumentModel, linked via bookingId and documentType
   },
@@ -12,7 +12,7 @@ const stageSchema = mongoose.Schema(
 const serviceStageSchema = mongoose.Schema(
   {
     serviceName: { type: String, required: true },
-    status: { type: String, enum: ["Pending", "In Progress", "Completed"], default: "Pending" },
+    status: { type: String, enum: ["Pending", "In Progress", "Completed", "Sent", "Received"], default: "Pending" },
     date: { type: Date },
   },
   { _id: false }

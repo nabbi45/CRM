@@ -49,6 +49,7 @@ import { apiUrl } from './LoginSignup';
 import { canAccessFeature, isHigherAuthority } from '../utils/featureAccess';
 import FileActivityTable from './FileActivityTable';
 
+
 const DOCUMENT_TYPES = [
   { key: 'agreement', label: 'Agreement', color: '#8b5cf6' },
   { key: 'pitch_deck', label: 'Pitch Deck', color: '#06b6d4' },
@@ -94,6 +95,18 @@ const ClientDocuments = () => {
   const [documentNotes, setDocumentNotes] = useState('');
   const [selectedDocumentForNotes, setSelectedDocumentForNotes] = useState(null);
   const [documentTypeFilter, setDocumentTypeFilter] = useState(null);
+  const [fileActivities, setFileActivities] = useState({});
+  const [fileActivityFilters, setFileActivityFilters] = useState({
+    company: '',
+    agreementSent: '',
+    agreementReceived: '',
+    dprPitchDeckDataCollection: '',
+    dpr: '',
+    pitchDeck: '',
+    applicationDetailsCoordination: '',
+    application: '',
+    acknowledgement: '',
+  });
 
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('userSession'));
@@ -126,8 +139,33 @@ const ClientDocuments = () => {
       });
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json();
-        setBookings(Array.isArray(bookingsData.bookings) ? bookingsData.bookings : []);
+        const nextBookings = Array.isArray(bookingsData.bookings) ? bookingsData.bookings : [];
+        setBookings(nextBookings);
         if (bookingsData.pagination) setPagination(bookingsData.pagination);
+
+        if (nextBookings.length > 0) {
+          const activityRes = await fetch(`${apiUrl}/file-activity/bulk`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              authorization: userSession.token,
+            },
+            body: JSON.stringify({ bookingIds: nextBookings.map((booking) => booking._id) }),
+          });
+
+          if (activityRes.ok) {
+            const activityData = await activityRes.json();
+            const activityMap = {};
+            (Array.isArray(activityData) ? activityData : []).forEach((activity) => {
+              activityMap[String(activity.bookingId)] = activity;
+            });
+            setFileActivities(activityMap);
+          } else {
+            setFileActivities({});
+          }
+        } else {
+          setFileActivities({});
+        }
       }
     } catch (error) {
       enqueueSnackbar('Error loading documents data. Please try again.', { variant: 'error' });
@@ -309,6 +347,52 @@ const ClientDocuments = () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
+  const getActivityStageStatus = (booking, key) => {
+    const activity = fileActivities[String(booking._id)] || {};
+    return activity?.stages?.[key]?.status || '';
+  };
+
+  const getServiceStageStatuses = (booking, key) => {
+    const activity = fileActivities[String(booking._id)] || {};
+    const rows = Array.isArray(activity?.[key]) ? activity[key] : [];
+    return rows.map((row) => row?.status).filter(Boolean);
+  };
+
+  const filteredFileActivityBookings = bookings.filter((booking) => {
+    const companyFilter = String(fileActivityFilters.company || '').trim().toLowerCase();
+    if (companyFilter) {
+      const company = String(booking.company_name || '').toLowerCase();
+      if (!company.includes(companyFilter)) return false;
+    }
+
+    const stageChecks = [
+      ['agreementSent', getActivityStageStatus(booking, 'agreementSent')],
+      ['agreementReceived', getActivityStageStatus(booking, 'agreementReceived')],
+      ['dprPitchDeckDataCollection', getActivityStageStatus(booking, 'dprPitchDeckDataCollection')],
+      ['dpr', getActivityStageStatus(booking, 'dpr')],
+      ['pitchDeck', getActivityStageStatus(booking, 'pitchDeck')],
+      ['applicationDetailsCoordination', getActivityStageStatus(booking, 'applicationDetailsCoordination')],
+    ];
+
+    for (const [filterKey, value] of stageChecks) {
+      if (fileActivityFilters[filterKey] && fileActivityFilters[filterKey] !== value) {
+        return false;
+      }
+    }
+
+    if (fileActivityFilters.application) {
+      const statuses = getServiceStageStatuses(booking, 'application');
+      if (!statuses.includes(fileActivityFilters.application)) return false;
+    }
+
+    if (fileActivityFilters.acknowledgement) {
+      const statuses = getServiceStageStatuses(booking, 'acknowledgement');
+      if (!statuses.includes(fileActivityFilters.acknowledgement)) return false;
+    }
+
+    return true;
+  });
 
   const StatCard = ({ title, count, total, color }) => {
     const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
@@ -673,6 +757,53 @@ const ClientDocuments = () => {
       {/* Tab 1: File Activity */}
       {currentTab === 1 && (
         <>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2,
+              mb: 2,
+              borderRadius: 3,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+              gap: 1.5,
+              background: (theme) => theme.palette.mode === 'dark'
+                ? 'rgba(30, 41, 59, 0.6)'
+                : 'rgba(255, 255, 255, 0.8)',
+              border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+            }}
+          >
+            <TextField
+              size="small"
+              label="Company Name"
+              value={fileActivityFilters.company}
+              onChange={(e) => setFileActivityFilters((prev) => ({ ...prev, company: e.target.value }))}
+            />
+            {[
+              ['agreementSent', 'Agreement Sent', ['Pending', 'In Progress', 'Completed']],
+              ['agreementReceived', 'Agreement Received', ['Pending', 'In Progress', 'Completed']],
+              ['dprPitchDeckDataCollection', 'DPR & Pitch Deck Data Collection', ['Sent', 'Received']],
+              ['dpr', 'DPR', ['Pending', 'In Progress', 'Completed']],
+              ['pitchDeck', 'Pitch Deck', ['Pending', 'In Progress', 'Completed']],
+              ['applicationDetailsCoordination', 'Application Details Coordination', ['Sent', 'Received']],
+              ['application', 'Application', ['Pending', 'In Progress', 'Completed']],
+              ['acknowledgement', 'Acknowledgement', ['Sent', 'Received']],
+            ].map(([key, label, options]) => (
+              <FormControl key={key} size="small">
+                <InputLabel>{label}</InputLabel>
+                <Select
+                  label={label}
+                  value={fileActivityFilters[key]}
+                  onChange={(e) => setFileActivityFilters((prev) => ({ ...prev, [key]: e.target.value }))}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {options.map((option) => (
+                    <MenuItem key={option} value={option}>{option}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ))}
+          </Paper>
+
           <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
             <Table>
               <TableHead>
@@ -684,7 +815,7 @@ const ClientDocuments = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {bookings.map((booking) => (
+                {filteredFileActivityBookings.map((booking) => (
                   <React.Fragment key={booking._id}>
                     <TableRow 
                       sx={{ cursor: 'pointer', '&:hover': { background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' } }}
@@ -730,7 +861,7 @@ const ClientDocuments = () => {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mt: 2, flexWrap: 'wrap' }}>
             <Typography variant="body2" color="text.secondary">
-              Showing page {pagination.currentPage} of {pagination.totalPages} • 20 bookings per page
+              Showing {filteredFileActivityBookings.length} booking{filteredFileActivityBookings.length === 1 ? '' : 's'} on page {pagination.currentPage} of {pagination.totalPages}
             </Typography>
             <Pagination
               color="primary"
