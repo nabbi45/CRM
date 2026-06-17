@@ -840,7 +840,7 @@ const DashboardContent = () => {
 
   const featuredLeaderboardEntry = leaderboard[0] || null;
   const compactLeaderboardEntries = leaderboard.slice(1, 5);
-  const previewDeductionRows = deductionRows.slice(0, isMobile ? 4 : 6);
+  const previewDeductionRows = deductionRows.slice(0, 8);
   const medals = ["1", "2", "3"];
   const sectionSpacing = { xs: 1.5, sm: 2.25, md: 2.75 };
   const pageShellSx = {
@@ -1309,6 +1309,15 @@ const DashboardContent = () => {
                       </Typography>
                     </Box>
                   ))}
+                  {deductionRows.length > previewDeductionRows.length && (
+                    <Button
+                      size="small"
+                      onClick={() => setDeductionDialogOpen(true)}
+                      sx={{ mt: 0.25, alignSelf: "stretch" }}
+                    >
+                      View More
+                    </Button>
+                  )}
                 </Box>
               </CardContent>
             </Card>

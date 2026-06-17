@@ -3,7 +3,7 @@ import { Grid, FormControl, useTheme } from "@mui/material";
 import SelectReact from "react-select";
 import { apiUrl } from "./LoginSignup";
 
-const ServiceDropdown = ({ formData, setFormData }) => {
+const ServiceDropdown = ({ formData, setFormData, accentColor = "#8b5cf6", surfaceColor = "#fbf7ff" }) => {
   const [serviceOptions, setServiceOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
@@ -67,12 +67,19 @@ const ServiceDropdown = ({ formData, setFormData }) => {
           placeholder={loading ? "Loading services..." : "Search and select services"}
           isSearchable
           styles={{
-            control: (base) => ({
+            control: (base, state) => ({
               ...base,
               minHeight: "56px",
               padding: "5px",
-              backgroundColor: isDark ? '#1e293b' : '#f9f9f9',
-              borderColor: isDark ? 'rgba(255,255,255,0.2)' : base.borderColor,
+              borderRadius: 8,
+              backgroundColor: isDark ? '#1e293b' : surfaceColor,
+              borderColor: state.isFocused ? accentColor : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(148,163,184,0.22)'),
+              boxShadow: state.isFocused
+                ? (isDark ? 'none' : `0 0 0 3px ${accentColor}18`)
+                : 'none',
+              "&:hover": {
+                borderColor: accentColor,
+              },
             }),
             menu: (base) => ({
               ...base,

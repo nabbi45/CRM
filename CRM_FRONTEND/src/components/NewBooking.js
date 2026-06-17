@@ -26,6 +26,13 @@ import { apiUrl } from "./LoginSignup";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DescriptionIcon from "@mui/icons-material/Description";
+import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import GroupAddOutlinedIcon from "@mui/icons-material/GroupAddOutlined";
+import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
+import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
 
 import Mailer from "./mail";
 
@@ -748,33 +755,103 @@ const AddBooking = ({ onClose }) => {
     return `${booking?.company_name || "No Company"} | ${booking?.bdm || "Unknown"} | ${bookingDate || "No Date"} | ID: ${bookingIdShort}`;
   };
 
+  const sectionCardSx = (tint, accent = "#94a3b8", inputTint = "#f8fbff") => ({
+    p: { xs: 1.5, sm: 2.25 },
+    borderRadius: "8px",
+    border: "1px solid",
+    borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(148,163,184,0.18)",
+    background: isDark
+      ? `linear-gradient(180deg, rgba(15,23,42,0.92) 0%, rgba(15,23,42,0.8) 100%)`
+      : `linear-gradient(180deg, ${tint} 0%, #ffffff 100%)`,
+    boxShadow: isDark ? "none" : "0 14px 30px rgba(15,23,42,0.06)",
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "8px",
+      backgroundColor: isDark ? "rgba(15,23,42,0.72)" : inputTint,
+      "& fieldset": {
+        borderColor: isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.22)",
+      },
+      "&:hover fieldset": {
+        borderColor: accent,
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: accent,
+        boxShadow: isDark ? "none" : `0 0 0 3px ${accent}18`,
+      },
+    },
+    "& .MuiInputBase-input::placeholder, & textarea::placeholder": {
+      opacity: 1,
+      color: isDark ? "rgba(248,250,252,0.48)" : "rgba(100,116,139,0.88)",
+    },
+    "& .MuiInputLabel-root.Mui-focused": {
+      color: accent,
+    },
+    "& .MuiFormHelperText-root": {
+      ml: 0.25,
+    },
+  });
+
+  const SectionTitle = ({ icon, title, color }) => (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+      <Box
+        sx={{
+          width: 30,
+          height: 30,
+          borderRadius: "8px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: isDark ? `${color}22` : `${color}18`,
+          color,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Typography variant="h6" sx={{ fontSize: { xs: "1rem", sm: "1.08rem" }, fontWeight: 700 }}>
+        {title}
+      </Typography>
+    </Box>
+  );
+
   return (
     <Box
       sx={{
-        paddingTop: 4,
-        paddingBottom: 4,
-        paddingLeft: { xs: 2, sm: 10, md: 20 }, // Responsive padding
-        paddingRight: { xs: 2, sm: 10, md: 20 }, // Responsive padding
-        backgroundColor: "background.paper",
-        borderRadius: 3,
-        boxShadow: 3,
+        py: { xs: 1.5, sm: 2.5 },
+        px: { xs: 1, sm: 2.5, md: 4 },
+        width: "100%",
+        "& .MuiOutlinedInput-root": {
+          borderRadius: "8px",
+        },
+        "& .MuiTextField-root .MuiOutlinedInput-root, & .MuiFormControl-root .MuiOutlinedInput-root": {
+          backgroundColor: isDark ? "rgba(15,23,42,0.75)" : "#f8fbff",
+        },
+        "& .MuiTextField-root .MuiFormHelperText-root, & .MuiFormControl-root .MuiFormHelperText-root": {
+          ml: 0.25,
+        },
       }}
     >
+      <Box sx={{ maxWidth: 1180, mx: "auto" }}>
       <Typography
         variant="h5"
         component="h2"
         sx={{
-          marginBottom: 3,
-          textAlign: "center",
-          fontWeight: "bold",
+          mb: 0.5,
+          textAlign: { xs: "left", sm: "left" },
+          fontWeight: 800,
           color: "text.primary",
         }}
       >
         Create New Booking
       </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Capture client details, booking information, revenue sharing, and attachments in one clean flow.
+      </Typography>
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={3}>
-          {/* Left Side Inputs */}
+        <Grid container spacing={2.25}>
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={sectionCardSx("#f4f8ff", "#3b82f6", "#f7fbff")}>
+              <SectionTitle icon={<BusinessOutlinedIcon fontSize="small" />} title="Client Information" color="#3b82f6" />
+              <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth error={Boolean(errors.branch)}>
               <InputLabel>Branch *</InputLabel>
@@ -870,9 +947,15 @@ const AddBooking = ({ onClose }) => {
               }}
             />
           </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
 
-
-          <ServiceDropdown formData={formData} setFormData={setFormData} />
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={sectionCardSx("#faf7ff", "#8b5cf6", "#fbf7ff")}>
+              <SectionTitle icon={<FactCheckOutlinedIcon fontSize="small" />} title="Booking Specifics" color="#8b5cf6" />
+              <Grid container spacing={2}>
+                <ServiceDropdown formData={formData} setFormData={setFormData} accentColor="#8b5cf6" surfaceColor="#fbf7ff" />
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -934,7 +1017,14 @@ const AddBooking = ({ onClose }) => {
               />
             </Grid>
           )}
+              </Grid>
+            </Paper>
+          </Grid>
 
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={sectionCardSx("#f4fbf6", "#10b981", "#f6fcf9")}>
+              <SectionTitle icon={<AccountBalanceWalletOutlinedIcon fontSize="small" />} title="Financial Details" color="#10b981" />
+              <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
@@ -978,9 +1068,16 @@ const AddBooking = ({ onClose }) => {
               </Paper>
             </Grid>
           )}
+              </Grid>
+            </Paper>
+          </Grid>
 
           <Grid item xs={12}>
-            <FormControl fullWidth sx={{ mt: 2 }}>
+            <Paper elevation={0} sx={sectionCardSx("#fff9ef", "#f59e0b", "#fffaf3")}>
+              <SectionTitle icon={<GroupAddOutlinedIcon fontSize="small" />} title="Revenue Sharing" color="#f59e0b" />
+              <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <FormControl fullWidth>
               <InputLabel>Number of Salespersons to Share</InputLabel>
               <Select
                 value={shareCount}
@@ -1039,7 +1136,14 @@ const AddBooking = ({ onClose }) => {
               </Grid>
             </Grid>
           ))}
+              </Grid>
+            </Paper>
+          </Grid>
 
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={sectionCardSx("#fff8f2", "#f97316", "#fff8f2")}>
+              <SectionTitle icon={<NotesOutlinedIcon fontSize="small" />} title="Follow-up and Notes" color="#f97316" />
+              <Grid container spacing={2}>
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -1199,7 +1303,14 @@ const AddBooking = ({ onClose }) => {
               variant="outlined"
             />
           </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
 
+          <Grid item xs={12}>
+            <Paper elevation={0} sx={sectionCardSx("#fff7fb", "#ec4899", "#fff9fc")}>
+              <SectionTitle icon={<AttachFileOutlinedIcon fontSize="small" />} title="Attachments" color="#ec4899" />
+              <Grid container spacing={2}>
           <Grid item xs={12}>
             <Button
               component="label"
@@ -1207,6 +1318,7 @@ const AddBooking = ({ onClose }) => {
               color={errors.paymentProof ? "error" : "primary"}
               startIcon={<CloudUploadIcon />}
               fullWidth
+              sx={{ minHeight: 48, borderRadius: "8px" }}
             >
               {paymentProofs.length > 0 ? `${paymentProofs.length} payment proof file(s) selected` : "Attach Payment Screenshot(s) *"}
               <input
@@ -1311,6 +1423,9 @@ const AddBooking = ({ onClose }) => {
               )}
             </Paper>
           </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
 
           {/* Loader */}
           {loading && (
@@ -1335,14 +1450,20 @@ const AddBooking = ({ onClose }) => {
               fullWidth
               disabled={loading} // Disable the submit button when loading
               sx={{
-                mt: 1,
+                mt: 0.5,
+                minHeight: 52,
+                borderRadius: "8px",
+                fontWeight: 700,
+                boxShadow: isDark ? "none" : "0 12px 22px rgba(255,59,31,0.18)",
               }}
+              startIcon={<SendRoundedIcon />}
             >
               {loading ? "Submitting..." : "Submit Booking"}
             </Button>
           </Grid>
         </Grid>
       </form>
+      </Box>
     </Box>
   );
 };
