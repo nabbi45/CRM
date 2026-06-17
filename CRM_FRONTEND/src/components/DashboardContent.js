@@ -49,6 +49,17 @@ const ACCENT = "#ff3b1f";
 const ACCENT_DARK = "#e03118";
 const ACCENT_LIGHT = "rgba(255,59,31,0.14)";
 
+const statCardThemes = [
+  { bg: "linear-gradient(180deg, #fff7f2 0%, #ffffff 100%)", iconBg: "rgba(255,104,47,0.14)", iconColor: "#ff5722" },
+  { bg: "linear-gradient(180deg, #f6fbff 0%, #ffffff 100%)", iconBg: "rgba(59,130,246,0.14)", iconColor: "#2563eb" },
+  { bg: "linear-gradient(180deg, #faf7ff 0%, #ffffff 100%)", iconBg: "rgba(124,58,237,0.14)", iconColor: "#7c3aed" },
+  { bg: "linear-gradient(180deg, #fffaf2 0%, #ffffff 100%)", iconBg: "rgba(245,158,11,0.16)", iconColor: "#d97706" },
+  { bg: "linear-gradient(180deg, #f3fcf8 0%, #ffffff 100%)", iconBg: "rgba(16,185,129,0.14)", iconColor: "#059669" },
+  { bg: "linear-gradient(180deg, #fff6fb 0%, #ffffff 100%)", iconBg: "rgba(236,72,153,0.14)", iconColor: "#db2777" },
+  { bg: "linear-gradient(180deg, #f4fbff 0%, #ffffff 100%)", iconBg: "rgba(6,182,212,0.14)", iconColor: "#0891b2" },
+  { bg: "linear-gradient(180deg, #fff8f0 0%, #ffffff 100%)", iconBg: "rgba(234,88,12,0.14)", iconColor: "#ea580c" },
+];
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -84,17 +95,6 @@ const roleLabel = (role = "") =>
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ");
-
-const statCardThemes = [
-  { bg: "linear-gradient(180deg, #fff9f5 0%, #ffffff 100%)", iconBg: "rgba(255,59,31,0.12)", iconColor: ACCENT },
-  { bg: "linear-gradient(180deg, #f7fbff 0%, #ffffff 100%)", iconBg: "rgba(59,130,246,0.14)", iconColor: "#2563eb" },
-  { bg: "linear-gradient(180deg, #faf7ff 0%, #ffffff 100%)", iconBg: "rgba(124,58,237,0.14)", iconColor: "#7c3aed" },
-  { bg: "linear-gradient(180deg, #fffaf2 0%, #ffffff 100%)", iconBg: "rgba(245,158,11,0.16)", iconColor: "#d97706" },
-  { bg: "linear-gradient(180deg, #f5fbf8 0%, #ffffff 100%)", iconBg: "rgba(16,185,129,0.14)", iconColor: "#059669" },
-  { bg: "linear-gradient(180deg, #fff7fb 0%, #ffffff 100%)", iconBg: "rgba(236,72,153,0.14)", iconColor: "#db2777" },
-  { bg: "linear-gradient(180deg, #f6fbff 0%, #ffffff 100%)", iconBg: "rgba(6,182,212,0.14)", iconColor: "#0891b2" },
-  { bg: "linear-gradient(180deg, #fff8f1 0%, #ffffff 100%)", iconBg: "rgba(234,88,12,0.14)", iconColor: "#ea580c" },
-];
 
 const DashboardContent = () => {
   const userSession = JSON.parse(localStorage.getItem("userSession"));
@@ -185,7 +185,7 @@ const DashboardContent = () => {
 
     const isDark = theme.palette.mode === "dark";
     const tickColor = isDark ? "#cbd5e1" : "#475569";
-    const gridColor = isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.22)";
+    const gridColor = isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.18)";
 
     chartInstance.current = new Chart(ctx, {
       type: "bar",
@@ -195,30 +195,43 @@ const DashboardContent = () => {
           {
             label: "Revenue",
             data: monthlyRevData.values,
-            backgroundColor: monthlyRevData.values.map((_, idx, arr) =>
-              idx === arr.length - 1 ? ACCENT : "rgba(255,90,31,0.78)"
-            ),
-            borderColor: ACCENT_DARK,
-            borderWidth: 1,
-            borderRadius: 6,
-            barPercentage: 0.55,
+            backgroundColor: (context) => {
+              const { chart } = context;
+              const { ctx: chartCtx, chartArea } = chart;
+              if (!chartArea) return "rgba(255,132,53,0.92)";
+              const gradient = chartCtx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+              gradient.addColorStop(0, "rgba(255,205,158,1)");
+              gradient.addColorStop(1, "rgba(255,120,36,1)");
+              return gradient;
+            },
+            hoverBackgroundColor: "rgba(255,120,36,0.92)",
+            borderSkipped: false,
+            borderWidth: 0,
+            borderRadius: 10,
+            barPercentage: 0.42,
+            categoryPercentage: 0.58,
+            maxBarThickness: 30,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+          duration: 900,
+          easing: "easeOutQuart",
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
             backgroundColor: isDark ? "#111827" : "#ffffff",
-            borderColor: isDark ? "rgba(255,255,255,0.14)" : "rgba(255,59,31,0.25)",
+            borderColor: isDark ? "rgba(255,255,255,0.14)" : "rgba(255,59,31,0.2)",
             borderWidth: 1,
             titleColor: isDark ? "#f8fafc" : "#0f172a",
             bodyColor: isDark ? "#e2e8f0" : "#0f172a",
             displayColors: false,
             callbacks: {
-              label: (ctx) => formatCurrency(ctx.raw),
+              label: (tooltipItem) => formatCurrency(tooltipItem.raw),
             },
           },
         },
@@ -230,7 +243,7 @@ const DashboardContent = () => {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: (v) => formatCurrency(v),
+              callback: (value) => formatCurrency(value),
               font: { size: 11 },
               color: tickColor,
             },
@@ -281,7 +294,7 @@ const DashboardContent = () => {
           },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.label}: ${ctx.raw} bookings`,
+              label: (ctxLabel) => `${ctxLabel.label}: ${ctxLabel.raw} bookings`,
             },
           },
         },
@@ -323,7 +336,7 @@ const DashboardContent = () => {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${Number(ctx.raw || 0).toLocaleString()} bookings`,
+              label: (tooltipItem) => `${Number(tooltipItem.raw || 0).toLocaleString()} bookings`,
             },
           },
         },
@@ -336,7 +349,7 @@ const DashboardContent = () => {
             beginAtZero: true,
             ticks: {
               color: isDark ? "#cbd5e1" : "#334155",
-              callback: (v) => `${Number(v).toLocaleString()}`,
+              callback: (value) => `${Number(value).toLocaleString()}`,
             },
             grid: { color: isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.22)" },
           },
@@ -384,11 +397,11 @@ const DashboardContent = () => {
           },
           tooltip: {
             callbacks: {
-              label: (ctx) => {
-                const value = Number(ctx.raw || 0);
-                const total = (ctx.dataset.data || []).reduce((sum, item) => sum + Number(item || 0), 0);
+              label: (ctxLabel) => {
+                const value = Number(ctxLabel.raw || 0);
+                const total = (ctxLabel.dataset.data || []).reduce((sum, item) => sum + Number(item || 0), 0);
                 const percent = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
-                return `${ctx.label}: ${value.toLocaleString()} bookings (${percent}%)`;
+                return `${ctxLabel.label}: ${value.toLocaleString()} bookings (${percent}%)`;
               },
             },
           },
@@ -499,6 +512,7 @@ const DashboardContent = () => {
           });
         }
       }
+
       const allCompanyBookings = !isAdmin && companyBookingsRes?.ok
         ? ((await companyBookingsRes.json()).Allbookings || [])
         : bookings;
@@ -506,7 +520,7 @@ const DashboardContent = () => {
       if (isAdmin && allUsersRes?.ok) {
         const usersData = await allUsersRes.json();
         setTotalUsers(usersData.Users?.length || 0);
-      } else if (!isAdmin) {
+      } else {
         setTotalUsers(0);
       }
 
@@ -794,81 +808,21 @@ const DashboardContent = () => {
 
   const statCards = useMemo(() => {
     const adminCards = [
-      {
-        label: "Bookings",
-        value: totalBookings.toLocaleString(),
-        sub: "All accessible bookings",
-        icon: <BookOnlineOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Revenue This Month",
-        value: formatCurrency(totalRevenue),
-        sub: "After deductions",
-        icon: <CurrencyRupeeOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Service Deductions",
-        value: formatCurrency(Math.round(totalServiceDeductions)),
-        sub: "Vendor costs this month",
-        icon: <PaidOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Today's Revenue",
-        value: formatCurrency(todayRevenue),
-        sub: "Live today after deductions",
-        icon: <TodayOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Total Users",
-        value: totalUsers.toLocaleString(),
-        sub: "Active CRM users",
-        icon: <PeopleAltOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Bookings This Month",
-        value: bookingsThisMonth.toLocaleString(),
-        sub: "Created this month",
-        icon: <LocalOfferOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Bookings Today",
-        value: bookingsToday.toLocaleString(),
-        sub: "Created today",
-        icon: <BookOnlineOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Pending Approvals",
-        value: pendingApprovals.toLocaleString(),
-        sub: "Awaiting review",
-        icon: <PendingActionsOutlinedIcon fontSize="small" />,
-      },
+      { label: "Bookings", value: totalBookings.toLocaleString(), sub: "All accessible bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
+      { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" /> },
+      { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "Live today after deductions", icon: <TodayOutlinedIcon fontSize="small" /> },
+      { label: "Total Users", value: totalUsers.toLocaleString(), sub: "Active CRM users", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
+      { label: "Bookings This Month", value: bookingsThisMonth.toLocaleString(), sub: "Created this month", icon: <LocalOfferOutlinedIcon fontSize="small" /> },
+      { label: "Bookings Today", value: bookingsToday.toLocaleString(), sub: "Created today", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
+      { label: "Pending Approvals", value: pendingApprovals.toLocaleString(), sub: "Awaiting review", icon: <PendingActionsOutlinedIcon fontSize="small" /> },
     ];
 
     const userCards = [
-      {
-        label: "Bookings",
-        value: totalBookings.toLocaleString(),
-        sub: "Your live bookings",
-        icon: <BookOnlineOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Revenue This Month",
-        value: formatCurrency(totalRevenue),
-        sub: "After deductions",
-        icon: <CurrencyRupeeOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Service Deductions",
-        value: formatCurrency(Math.round(totalServiceDeductions)),
-        sub: "This month",
-        icon: <PaidOutlinedIcon fontSize="small" />,
-      },
-      {
-        label: "Today's Revenue",
-        value: formatCurrency(todayRevenue),
-        sub: "From today's bookings",
-        icon: <TodayOutlinedIcon fontSize="small" />,
-      },
+      { label: "Bookings", value: totalBookings.toLocaleString(), sub: "Your live bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
+      { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "This month", icon: <PaidOutlinedIcon fontSize="small" /> },
+      { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "From today's bookings", icon: <TodayOutlinedIcon fontSize="small" /> },
     ];
 
     return isAdmin ? adminCards : userCards;
@@ -888,17 +842,19 @@ const DashboardContent = () => {
   const compactLeaderboardEntries = leaderboard.slice(1, 5);
   const previewDeductionRows = deductionRows.slice(0, isMobile ? 4 : 6);
   const medals = ["1", "2", "3"];
+  const sectionSpacing = { xs: 2, sm: 2.25, md: 2.75 };
+  const pageShellSx = { width: "100%", maxWidth: { xl: 1680 }, mx: { xl: "auto" } };
+  const cardSurfaceSx = {
+    borderRadius: "8px",
+    border: "1px solid",
+    borderColor: "divider",
+    backgroundColor: theme.palette.background.paper,
+    boxShadow: theme.palette.mode === "light" ? "0 12px 28px rgba(15,23,42,0.06)" : "none",
+  };
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <Loader />
       </Box>
     );
@@ -906,7 +862,7 @@ const DashboardContent = () => {
 
   return (
     <Box sx={{ px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 1, sm: 1.5 }, width: "100%" }}>
-      <Box sx={{ width: "100%", maxWidth: { xl: 1680 }, mx: { xl: "auto" } }}>
+      <Box sx={pageShellSx}>
         <Box
           sx={{
             display: "flex",
@@ -924,11 +880,7 @@ const DashboardContent = () => {
 
         {companyBranches.length > 0 && (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ display: "flex", alignItems: "center", mr: 0.5, fontWeight: 600 }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ display: "flex", alignItems: "center", mr: 0.5, fontWeight: 600 }}>
               Current Branch:
             </Typography>
             {companyBranches.map((branch, index) => (
@@ -950,24 +902,41 @@ const DashboardContent = () => {
 
         <PaymentReminders onOpenBooking={handleOpenBooking} />
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.25 }}>
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
           {statCards.map((card, index) => {
             const palette = statCardThemes[index % statCardThemes.length];
             return (
               <Grid item xs={6} md={3} key={card.label}>
                 <Card
                   sx={{
+                    ...cardSurfaceSx,
                     height: "100%",
-                    borderRadius: "8px",
-                    border: "1px solid",
-                    borderColor: "divider",
+                    minHeight: { xs: 150, sm: 170, md: 160 },
+                    aspectRatio: { xs: "1 / 1", sm: "1 / 1", md: "auto" },
                     background: palette.bg,
-                    boxShadow: theme.palette.mode === "light" ? "0 10px 24px rgba(15,23,42,0.05)" : "none",
+                    overflow: "hidden",
+                    position: "relative",
+                    "&::after": {
+                      content: '""',
+                      position: "absolute",
+                      inset: 0,
+                      background: "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 38%)",
+                      pointerEvents: "none",
+                    },
                   }}
                 >
-                  <CardContent sx={{ p: { xs: 1.25, sm: 1.5 }, "&:last-child": { pb: { xs: 1.25, sm: 1.5 } } }}>
+                  <CardContent
+                    sx={{
+                      p: { xs: 1.25, sm: 1.5 },
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      "&:last-child": { pb: { xs: 1.25, sm: 1.5 } },
+                    }}
+                  >
                     <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-                      <Box sx={{ minWidth: 0 }}>
+                      <Box sx={{ minWidth: 0, pr: 0.5 }}>
                         <Typography
                           variant="caption"
                           sx={{
@@ -975,9 +944,8 @@ const DashboardContent = () => {
                             fontSize: { xs: "0.68rem", sm: "0.72rem" },
                             fontWeight: 700,
                             display: "block",
-                            mb: 0.5,
+                            mb: 0.35,
                             textTransform: "uppercase",
-                            letterSpacing: 0,
                           }}
                         >
                           {card.label}
@@ -985,9 +953,10 @@ const DashboardContent = () => {
                         <Typography
                           sx={{
                             fontWeight: 800,
-                            fontSize: { xs: "0.98rem", sm: "1.2rem", md: "1.28rem" },
+                            fontSize: { xs: "1rem", sm: "1.2rem", md: "1.3rem" },
                             lineHeight: 1.15,
                             wordBreak: "break-word",
+                            mt: 0.55,
                           }}
                         >
                           {card.value}
@@ -998,21 +967,23 @@ const DashboardContent = () => {
                             color: "text.secondary",
                             fontSize: { xs: "0.66rem", sm: "0.72rem" },
                             display: "block",
-                            mt: 0.5,
-                            lineHeight: 1.3,
+                            mt: 0.85,
+                            lineHeight: 1.32,
                           }}
                         >
                           {card.sub}
                         </Typography>
                       </Box>
+
                       <Avatar
                         sx={{
-                          width: { xs: 30, sm: 34 },
-                          height: { xs: 30, sm: 34 },
+                          width: { xs: 34, sm: 38 },
+                          height: { xs: 34, sm: 38 },
                           bgcolor: palette.iconBg,
                           color: palette.iconColor,
                           borderRadius: "8px",
                           flexShrink: 0,
+                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.24)",
                         }}
                       >
                         {card.icon}
@@ -1025,32 +996,11 @@ const DashboardContent = () => {
           })}
         </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} lg={8}>
-            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
-              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <TrendingUpOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      Monthly Revenue
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Last 6 months
-                  </Typography>
-                </Box>
-                <Box sx={{ height: { xs: 220, md: 240 } }}>
-                  <canvas ref={chartRef} />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
           {isAdmin && (
-            <Grid item xs={12} lg={4}>
-              <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
-                <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 }, height: "100%" }}>
+            <Grid item xs={12} lg={4} order={{ xs: 1, lg: 2 }}>
+              <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 320, md: 380, lg: 430 } }}>
+                <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 }, height: "100%", display: "flex", flexDirection: "column" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
                     <EmojiEventsOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -1074,10 +1024,10 @@ const DashboardContent = () => {
                       sx={{
                         p: 1.5,
                         borderRadius: "8px",
-                        border: "1px solid rgba(255,59,31,0.18)",
+                        border: "1px solid rgba(255,59,31,0.16)",
                         background: theme.palette.mode === "dark"
                           ? "linear-gradient(180deg, rgba(255,59,31,0.10) 0%, rgba(255,255,255,0.02) 100%)"
-                          : "linear-gradient(180deg, rgba(255,59,31,0.08) 0%, rgba(255,255,255,1) 100%)",
+                          : "linear-gradient(180deg, rgba(255,244,237,1) 0%, rgba(255,255,255,1) 100%)",
                         mb: 1.25,
                       }}
                     >
@@ -1085,8 +1035,8 @@ const DashboardContent = () => {
                         <Avatar
                           src={featuredLeaderboardEntry.profilePicture || ""}
                           sx={{
-                            width: 52,
-                            height: 52,
+                            width: 54,
+                            height: 54,
                             bgcolor: "rgba(255,59,31,0.16)",
                             color: ACCENT_DARK,
                             fontWeight: 700,
@@ -1094,8 +1044,9 @@ const DashboardContent = () => {
                         >
                           {getInitials(featuredLeaderboardEntry.name)}
                         </Avatar>
+
                         <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 700 }} noWrap>
+                          <Typography variant="body1" sx={{ fontWeight: 800 }} noWrap>
                             {featuredLeaderboardEntry.name}
                           </Typography>
                           {featuredLeaderboardEntry.role ? (
@@ -1104,6 +1055,7 @@ const DashboardContent = () => {
                             </Typography>
                           ) : null}
                         </Box>
+
                         <Chip
                           size="small"
                           label="#1"
@@ -1178,17 +1130,13 @@ const DashboardContent = () => {
                             {entry.count} bookings · {formatCurrency(entry.revenue)}
                           </Typography>
                         </Box>
-                        <Chip
-                          size="small"
-                          label={`#${index + 2}`}
-                          sx={{ borderRadius: "8px", fontWeight: 700 }}
-                        />
+                        <Chip size="small" label={`#${index + 2}`} sx={{ borderRadius: "8px", fontWeight: 700 }} />
                       </Box>
                     ))}
                   </Box>
 
                   {leaderboard.length > 4 && (
-                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.25 }}>
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: "auto", pt: 1.25 }}>
                       <Button size="small" onClick={() => setLeaderboardDialogOpen(true)}>
                         View All
                       </Button>
@@ -1198,85 +1146,33 @@ const DashboardContent = () => {
               </Card>
             </Grid>
           )}
-        </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} lg={7}>
-            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+          <Grid item xs={12} lg={8} order={{ xs: isAdmin ? 2 : 1, lg: 1 }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%", minHeight: { xs: 320, md: 380, lg: 430 } }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <LocalOfferOutlinedIcon sx={{ color: "#3b82f6" }} />
+                    <TrendingUpOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      Most Sold Services
+                      Monthly Revenue
                     </Typography>
                   </Box>
-                  <Chip
-                    size="small"
-                    label={`${mostSoldService.name} · ${mostSoldService.count}`}
-                    sx={{ bgcolor: "rgba(59,130,246,0.12)", color: "#1d4ed8", borderRadius: "8px", fontWeight: 700 }}
-                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Last 6 months
+                  </Typography>
                 </Box>
-                {!isAdmin && (
-                  <Chip
-                    size="small"
-                    label={`Mine: ${personalMostSoldService.name} · ${personalMostSoldService.count}`}
-                    sx={{ mb: 1.25, bgcolor: "rgba(16,185,129,0.12)", color: "#047857", borderRadius: "8px", fontWeight: 700 }}
-                  />
-                )}
-                <Box sx={{ height: { xs: 220, md: 230 } }}>
-                  {serviceSoldData.labels.length > 0 ? (
-                    <canvas ref={soldChartRef} />
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No service sales in the last 3 months.
-                    </Typography>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
 
-          <Grid item xs={12} lg={5}>
-            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
-              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <PaidOutlinedIcon sx={{ color: ACCENT }} />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      Service Activity Range
-                    </Typography>
-                  </Box>
-                  <Chip
-                    size="small"
-                    label={`${mostRevenueService.name} · ${mostRevenueService.revenue.toLocaleString()} bookings`}
-                    sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, borderRadius: "8px", fontWeight: 700 }}
-                  />
-                </Box>
-                {!isAdmin && (
-                  <Chip
-                    size="small"
-                    label={`Mine: ${personalMostRevenueService.name} · ${personalMostRevenueService.revenue.toLocaleString()} bookings`}
-                    sx={{ mb: 1.25, bgcolor: "rgba(16,185,129,0.12)", color: "#047857", borderRadius: "8px", fontWeight: 700 }}
-                  />
-                )}
-                <Box sx={{ height: { xs: 220, md: 230 } }}>
-                  {serviceRevenueData.labels.length > 0 ? (
-                    <canvas ref={revenueChartRef} />
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      No service activity in the last 3 months.
-                    </Typography>
-                  )}
+                <Box sx={{ height: { xs: 240, md: 320, lg: 350 } }}>
+                  <canvas ref={chartRef} />
                 </Box>
               </CardContent>
             </Card>
           </Grid>
         </Grid>
 
-        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.5 }}>
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
           <Grid item xs={12} xl={7}>
-            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%" }}>
               <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -1286,12 +1182,14 @@ const DashboardContent = () => {
                     Latest live bookings
                   </Typography>
                 </Box>
+
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {recentBookings.length === 0 && (
                     <Typography variant="body2" color="text.secondary">
                       No recent bookings found.
                     </Typography>
                   )}
+
                   {recentBookings.map((booking) => (
                     <Paper
                       key={booking._id}
@@ -1343,88 +1241,165 @@ const DashboardContent = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={12} xl={5}>
-            <Grid container spacing={{ xs: 1.25, sm: 1.5 }}>
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider" }}>
-                  <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
-                      <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          Service Deduction Master
+          <Grid item xs={12} xl={5}>
+            <Card sx={cardSurfaceSx}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Service Deduction Master
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Only services with active deductions
+                    </Typography>
+                  </Box>
+                  {deductionRows.length > previewDeductionRows.length && (
+                    <Button size="small" onClick={() => setDeductionDialogOpen(true)}>
+                      View All
+                    </Button>
+                  )}
+                </Box>
+
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
+                  {previewDeductionRows.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No service deductions configured yet.
+                    </Typography>
+                  )}
+                  {previewDeductionRows.map((row) => (
+                    <Box
+                      key={row.id}
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0,1fr) auto",
+                        gap: 1,
+                        alignItems: "center",
+                        p: 1,
+                        borderRadius: "8px",
+                        backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(124,58,237,0.05)",
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                          {row.service}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Only services with active deductions
+                          {row.status ? "Active" : "Inactive"}
                         </Typography>
                       </Box>
-                      {deductionRows.length > previewDeductionRows.length && (
-                        <Button size="small" onClick={() => setDeductionDialogOpen(true)}>
-                          View All
-                        </Button>
-                      )}
-                    </Box>
-
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
-                      {previewDeductionRows.length === 0 && (
-                        <Typography variant="body2" color="text.secondary">
-                          No service deductions configured yet.
-                        </Typography>
-                      )}
-                      {previewDeductionRows.map((row) => (
-                        <Box
-                          key={row.id}
-                          sx={{
-                            display: "grid",
-                            gridTemplateColumns: "minmax(0,1fr) auto",
-                            gap: 1,
-                            alignItems: "center",
-                            p: 1,
-                            borderRadius: "8px",
-                            backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(124,58,237,0.05)",
-                          }}
-                        >
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                              {row.service}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {row.status ? "Active" : "Inactive"}
-                            </Typography>
-                          </Box>
-                          <Typography sx={{ fontWeight: 800, color: "#7c3aed" }}>
-                            {formatCurrency(Math.round(row.deduction))}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider" }}>
-                  <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                        Service Distribution
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Last 3 months
+                      <Typography sx={{ fontWeight: 800, color: "#7c3aed" }}>
+                        {formatCurrency(Math.round(row.deduction))}
                       </Typography>
                     </Box>
-                    <Box sx={{ height: { xs: 240, md: 260 } }}>
-                      {serviceRevenueData.labels.length > 0 ? (
-                        <canvas ref={revenuePieChartRef} />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No service activity in the last 3 months.
-                        </Typography>
-                      )}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
+          <Grid item xs={12} lg={7}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <LocalOfferOutlinedIcon sx={{ color: "#3b82f6" }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Most Sold Services
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label={`${mostSoldService.name} · ${mostSoldService.count}`}
+                    sx={{ bgcolor: "rgba(59,130,246,0.12)", color: "#1d4ed8", borderRadius: "8px", fontWeight: 700 }}
+                  />
+                </Box>
+
+                {!isAdmin && (
+                  <Chip
+                    size="small"
+                    label={`Mine: ${personalMostSoldService.name} · ${personalMostSoldService.count}`}
+                    sx={{ mb: 1.25, bgcolor: "rgba(16,185,129,0.12)", color: "#047857", borderRadius: "8px", fontWeight: 700 }}
+                  />
+                )}
+
+                <Box sx={{ height: { xs: 220, md: 230 } }}>
+                  {serviceSoldData.labels.length > 0 ? (
+                    <canvas ref={soldChartRef} />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No service sales in the last 3 months.
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} lg={5}>
+            <Card sx={{ ...cardSurfaceSx, height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <PaidOutlinedIcon sx={{ color: ACCENT }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Service Activity Range
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label={`${mostRevenueService.name} · ${mostRevenueService.revenue.toLocaleString()} bookings`}
+                    sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, borderRadius: "8px", fontWeight: 700 }}
+                  />
+                </Box>
+
+                {!isAdmin && (
+                  <Chip
+                    size="small"
+                    label={`Mine: ${personalMostRevenueService.name} · ${personalMostRevenueService.revenue.toLocaleString()} bookings`}
+                    sx={{ mb: 1.25, bgcolor: "rgba(16,185,129,0.12)", color: "#047857", borderRadius: "8px", fontWeight: 700 }}
+                  />
+                )}
+
+                <Box sx={{ height: { xs: 220, md: 230 } }}>
+                  {serviceRevenueData.labels.length > 0 ? (
+                    <canvas ref={revenueChartRef} />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No service activity in the last 3 months.
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing }}>
+          <Grid item xs={12}>
+            <Card sx={cardSurfaceSx}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Service Distribution
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Last 3 months
+                  </Typography>
+                </Box>
+
+                <Box sx={{ height: { xs: 240, md: 280 } }}>
+                  {serviceRevenueData.labels.length > 0 ? (
+                    <canvas ref={revenuePieChartRef} />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No service activity in the last 3 months.
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
 

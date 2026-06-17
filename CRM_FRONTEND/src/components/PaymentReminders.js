@@ -10,7 +10,6 @@ import {
   DialogTitle,
   DialogContent,
   Slide,
-  Divider,
   useTheme,
   Skeleton,
 } from '@mui/material';
@@ -119,7 +118,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
           ? 'linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%)'
           : 'linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)',
         border: `1px solid ${theme.palette.mode === 'dark' ? '#991b1b' : '#fecaca'}`,
-        borderRadius: 3,
+        borderRadius: 2,
         p: 2,
         mb: 3,
         display: 'flex',
@@ -141,7 +140,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
           sx={{
             width: 44,
             height: 44,
-            borderRadius: '50%',
+            borderRadius: '12px',
             background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
             display: 'flex',
             alignItems: 'center',
@@ -163,7 +162,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
               gap: 1,
             }}
           >
-            💰 {loading ? <Skeleton width={40} /> : pendingCount} Payments to collect!
+            {loading ? <Skeleton width={40} /> : pendingCount} Payments to collect
           </Typography>
           <Typography
             variant="body2"
@@ -173,7 +172,7 @@ const PaymentReminders = ({ onOpenBooking }) => {
               mt: 0.3,
             }}
           >
-            Don't let the 💸 slip away – time to chase those payments!
+            Pending collections that need follow-up from the team.
           </Typography>
         </Box>
       </Box>
