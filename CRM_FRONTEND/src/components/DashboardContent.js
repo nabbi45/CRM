@@ -910,6 +910,9 @@ const DashboardContent = () => {
         <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
           {statCards.map((card, index) => {
             const palette = statCardThemes[index % statCardThemes.length];
+            const tileTitleColor = theme.palette.mode === "dark" ? "#475569" : "#64748b";
+            const tileValueColor = "#0f172a";
+            const tileSubColor = theme.palette.mode === "dark" ? "#64748b" : "#94a3b8";
             return (
               <Grid item xs={6} md={3} key={card.label} sx={{ minWidth: 0 }}>
                 <Card
@@ -946,7 +949,7 @@ const DashboardContent = () => {
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "text.secondary",
+                            color: tileTitleColor,
                             fontSize: { xs: "0.58rem", sm: "0.72rem" },
                             fontWeight: 700,
                             display: "block",
@@ -959,6 +962,7 @@ const DashboardContent = () => {
                         </Typography>
                         <Typography
                           sx={{
+                            color: tileValueColor,
                             fontWeight: 800,
                             fontSize: { xs: "0.82rem", sm: "1.2rem", md: "1.3rem" },
                             lineHeight: 1.15,
@@ -971,7 +975,7 @@ const DashboardContent = () => {
                         <Typography
                           variant="caption"
                           sx={{
-                            color: "text.secondary",
+                            color: tileSubColor,
                             fontSize: { xs: "0.54rem", sm: "0.72rem" },
                             mt: 0.4,
                             lineHeight: 1.14,

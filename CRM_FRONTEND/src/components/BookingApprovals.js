@@ -14,7 +14,15 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import ApprovalOutlinedIcon from "@mui/icons-material/ApprovalOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
 
@@ -23,6 +31,8 @@ const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "
 const BookingApprovals = () => {
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
   const isAdmin = adminRoles.includes((userSession.user_role || "").toLowerCase());
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [approvals, setApprovals] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -188,33 +198,82 @@ const BookingApprovals = () => {
     setProofPreview({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "" });
   };
 
+  const surfaceSx = {
+    borderRadius: "8px",
+    border: "1px solid",
+    borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.18)" : "rgba(148,163,184,0.22)",
+    backgroundColor: theme.palette.background.paper,
+    boxShadow: theme.palette.mode === "dark" ? "0 14px 30px rgba(2,6,23,0.28)" : "0 14px 36px rgba(15,23,42,0.06)",
+  };
+
+  const metricCardSx = (tint) => ({
+    p: 1.2,
+    borderRadius: "8px",
+    bgcolor: theme.palette.mode === "dark" ? "rgba(15,23,42,0.76)" : tint,
+    border: "1px solid",
+    borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.12)",
+  });
+
   return (
-    <Box sx={{ p: { xs: 1, md: 2 } }}>
-      <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+    <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 }, width: "100%", maxWidth: 1560, mx: "auto" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <ApprovalOutlinedIcon sx={{ color: "#ff3b1f" }} />
+      <Typography variant="h5" sx={{ fontWeight: 800 }}>
         Booking Approvals
       </Typography>
+      </Box>
 
       <Stack spacing={2}>
         {approvals.length === 0 && <Alert severity="info">No booking approval requests found.</Alert>}
         {approvals.map((approval) => (
-          <Paper key={approval._id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+          <Paper
+            key={approval._id}
+            variant="outlined"
+            sx={{
+              ...surfaceSx,
+              p: { xs: 1.4, sm: 1.75, md: 2 },
+              background: theme.palette.mode === "dark"
+                ? "linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.94) 100%)"
+                : "linear-gradient(180deg, rgba(255,250,246,0.95) 0%, #ffffff 100%)",
+            }}
+          >
             <Grid container spacing={2}>
               <Grid item xs={12} md={8}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Typography sx={{ fontWeight: 800 }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap" }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: { xs: "1rem", sm: "1.2rem" } }}>
                     {approval.payload?.company_name || approval.payload?.contact_person || "BOOKING"}
                   </Typography>
-                  <Chip size="small" label={approval.status.replace("_", " ").toUpperCase()} />
+                  <Chip size="small" label={approval.status.replace("_", " ").toUpperCase()} sx={{ borderRadius: "999px", fontWeight: 700 }} />
                   {approval.payload?.is_refundable && (
-                    <Chip size="small" color="warning" label={`Refundable: ${approval.payload?.refundable_percentage}%`} />
+                    <Chip size="small" color="warning" label={`Refundable: ${approval.payload?.refundable_percentage}%`} sx={{ borderRadius: "999px", fontWeight: 700 }} />
                   )}
                 </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  BDM: {approval.payload?.bdm || approval.submitted_by_name} | Amount: Rs {Number(approval.payload?.total_amount || 0).toLocaleString()} | Received: Rs {Number(approval.payload?.term_1 || 0).toLocaleString()}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Services: {(approval.payload?.services || []).join(", ") || "N/A"}
-                </Typography>
+                <Grid container spacing={1.2} sx={{ mb: 1.2 }}>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={metricCardSx("rgba(59,130,246,0.07)")}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>BDM</Typography>
+                      <Typography sx={{ mt: 0.35, fontWeight: 700 }}>{approval.payload?.bdm || approval.submitted_by_name || "N/A"}</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={metricCardSx("rgba(249,115,22,0.08)")}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>Amount</Typography>
+                      <Typography sx={{ mt: 0.35, fontWeight: 800, color: "#f97316" }}>₹{Number(approval.payload?.total_amount || 0).toLocaleString()}</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={metricCardSx("rgba(16,185,129,0.08)")}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>Received</Typography>
+                      <Typography sx={{ mt: 0.35, fontWeight: 800, color: "#059669" }}>₹{Number(approval.payload?.term_1 || approval.payload?.term_2 || approval.payload?.term_3 || 0).toLocaleString()}</Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={metricCardSx("rgba(139,92,246,0.08)")}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>Services</Typography>
+                      <Typography sx={{ mt: 0.35, fontWeight: 700 }} noWrap>{(approval.payload?.services || []).join(", ") || "N/A"}</Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
                 {approval.admin_comment && (
                   <Alert severity={approval.status === "rejected" ? "error" : "warning"} sx={{ mt: 1 }}>
                     {approval.admin_comment}
@@ -225,16 +284,28 @@ const BookingApprovals = () => {
                     <Typography variant="caption" color="text.secondary">
                       Payment proof(s): {getApprovalProofs(approval).length}
                     </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {getApprovalProofs(approval).map((proof, proofIndex) => (
-                        <Button
-                          key={`${approval._id}-proof-${proofIndex}`}
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleViewProof(proof)}
-                        >
-                          View Proof {proofIndex + 1}
-                        </Button>
+                        <Stack key={`${approval._id}-proof-${proofIndex}`} direction="row" spacing={1}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<VisibilityOutlinedIcon fontSize="small" />}
+                            onClick={() => handleViewProof(proof)}
+                            sx={{ borderRadius: "8px" }}
+                          >
+                            View Proof {proofIndex + 1}
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<DownloadOutlinedIcon fontSize="small" />}
+                            onClick={() => handleDownloadProof(proof)}
+                            sx={{ borderRadius: "8px" }}
+                          >
+                            Download
+                          </Button>
+                        </Stack>
                       ))}
                     </Stack>
                   </Stack>
@@ -244,20 +315,22 @@ const BookingApprovals = () => {
                 <TextField
                   fullWidth
                   size="small"
-                  label="Comment"
+                  label="Review Comment"
                   value={commentById[approval._id] || ""}
                   onChange={(e) => setCommentById((prev) => ({ ...prev, [approval._id]: e.target.value }))}
+                  multiline
+                  minRows={isMobile ? 3 : 4}
                   sx={{ mb: 1 }}
                 />
                 {isAdmin && approval.status === "pending" && (
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <Button disabled={loading} variant="contained" onClick={() => actOnApproval(approval._id, "approve")}>Approve</Button>
-                    <Button disabled={loading} variant="outlined" color="warning" onClick={() => actOnApproval(approval._id, "send-back")}>Send Back</Button>
-                    <Button disabled={loading} variant="outlined" color="error" onClick={() => actOnApproval(approval._id, "reject")}>Reject</Button>
+                  <Stack direction={{ xs: "column", sm: "row", md: "column" }} spacing={1} flexWrap="wrap">
+                    <Button disabled={loading} variant="contained" startIcon={<CheckOutlinedIcon fontSize="small" />} onClick={() => actOnApproval(approval._id, "approve")} sx={{ borderRadius: "8px", bgcolor: "#10b981", "&:hover": { bgcolor: "#059669" } }}>Approve</Button>
+                    <Button disabled={loading} variant="contained" startIcon={<SendOutlinedIcon fontSize="small" />} onClick={() => actOnApproval(approval._id, "send-back")} sx={{ borderRadius: "8px", bgcolor: "#f59e0b", "&:hover": { bgcolor: "#d97706" } }}>Send Back</Button>
+                    <Button disabled={loading} variant="contained" startIcon={<CloseOutlinedIcon fontSize="small" />} onClick={() => actOnApproval(approval._id, "reject")} sx={{ borderRadius: "8px", bgcolor: "#f43f5e", "&:hover": { bgcolor: "#e11d48" } }}>Reject</Button>
                   </Stack>
                 )}
                 {!isAdmin && approval.status === "sent_back" && (
-                  <Button disabled={loading} variant="contained" onClick={() => resubmit(approval)}>
+                  <Button disabled={loading} variant="contained" onClick={() => resubmit(approval)} sx={{ borderRadius: "8px" }}>
                     Resubmit
                   </Button>
                 )}
@@ -268,7 +341,7 @@ const BookingApprovals = () => {
       </Stack>
 
       {isAdmin && (
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mt: 3 }}>
+        <Paper variant="outlined" sx={{ ...surfaceSx, p: { xs: 1.4, sm: 1.8, md: 2 }, mt: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
             Refund Adjustment
           </Typography>
@@ -280,7 +353,7 @@ const BookingApprovals = () => {
                 onChange={(_, value) => setSelectedBooking(value)}
                 getOptionLabel={(booking) => `${booking.company_name || booking.contact_person || "BOOKING"} - ${booking.bdm || ""}`}
                 isOptionEqualToValue={(option, value) => option?._id === value?._id}
-                renderInput={(params) => <TextField {...params} label="Select Booking" />}
+                renderInput={(params) => <TextField {...params} label={isMobile ? "Booking" : "Select Booking"} />}
               />
             </Grid>
             <Grid item xs={12} md={2}>
@@ -293,7 +366,7 @@ const BookingApprovals = () => {
               <TextField fullWidth label="Note" value={refund.note} onChange={(e) => setRefund((prev) => ({ ...prev, note: e.target.value }))} />
             </Grid>
             <Grid item xs={12}>
-              <Button disabled={loading} variant="contained" onClick={submitRefund}>Add Refund Adjustment</Button>
+              <Button disabled={loading} variant="contained" onClick={submitRefund} sx={{ borderRadius: "8px" }}>Add Refund Adjustment</Button>
             </Grid>
             {selectedBooking?.refund_adjustments?.length > 0 && (
               <Grid item xs={12} sx={{ mt: 2 }}>

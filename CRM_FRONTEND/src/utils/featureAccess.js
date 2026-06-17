@@ -1,5 +1,6 @@
 export const FEATURE_KEYS = [
   'dashboard_overview',
+  'scorecard',
   'new_booking',
   'booking_approvals',
   'projection_leads',
@@ -24,6 +25,7 @@ export const FEATURE_KEYS = [
 
 export const FEATURE_LABELS = {
   dashboard_overview: 'Dashboard',
+  scorecard: 'Scorecard',
   new_booking: 'New Booking',
   booking_approvals: 'Booking Approvals',
   projection_leads: 'Projection Lead',
@@ -32,7 +34,7 @@ export const FEATURE_LABELS = {
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
   generated_documents: 'Generated Documents',
-  client_documents: 'Client Documents',
+  client_documents: 'File Activity',
   manage_users: 'Manage User',
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
@@ -64,6 +66,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   'super admin': FEATURE_KEYS,
   admin: [
     'dashboard_overview',
+    'scorecard',
     'new_booking',
     'booking_approvals',
     'projection_leads',
@@ -86,6 +89,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   ],
   'senior admin': [
     'dashboard_overview',
+    'scorecard',
     'new_booking',
     'booking_approvals',
     'projection_leads',
@@ -109,6 +113,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
   hr: ['timecard', 'timecard_edit', 'communication', 'employee_profile'],
   bdm: [
     'dashboard_overview',
+    'scorecard',
     'new_booking',
     'booking_approvals',
     'projection_leads',
@@ -126,7 +131,7 @@ export const getDefaultFeaturePermissionsForRole = (role) => {
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
   if (defaults?.length) return defaults;
 
-  return ['dashboard_overview', 'timecard', 'communication', 'employee_profile'];
+  return ['dashboard_overview', 'scorecard', 'timecard', 'communication', 'employee_profile'];
 };
 
 export const applyRoleTemplate = (roleKey) => ({
@@ -158,6 +163,7 @@ export const resolveFeaturePermissions = (userSession = {}) => {
 
   // Force essential tabs for everyone regardless of role or explicit setting
   if (!final.includes('dashboard_overview')) final.push('dashboard_overview');
+  if (!final.includes('scorecard')) final.push('scorecard');
   if (!final.includes('employee_profile')) final.push('employee_profile');
   if (!final.includes('booking_approvals') && ['bdm', 'employee', 'sales'].includes(normalizeRole(userSession?.user_role))) final.push('booking_approvals');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) final.push('security');

@@ -8,6 +8,7 @@ import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from "./LoginSignup";
 
 const BookingAgreementGenerator = () => {
+    const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
     const [bookings, setBookings] = useState([]);
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [agreementHtml, setAgreementHtml] = useState('');
@@ -199,7 +200,7 @@ const BookingAgreementGenerator = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
@@ -221,8 +222,8 @@ const BookingAgreementGenerator = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Booking List */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                            <div className="p-6 border-b border-gray-200">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="p-4 sm:p-6 border-b border-gray-200">
                                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Bookings</h2>
 
                                 {/* Search */}
@@ -291,13 +292,20 @@ const BookingAgreementGenerator = () => {
                     {/* Agreement Preview and Details */}
                     <div className="lg:col-span-2">
                         {!selectedBooking ? (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-96 flex items-center justify-center">
-                                <div className="text-center">
-                                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Booking</h3>
-                                    <p className="text-gray-600">Choose a booking from the list to generate an agreement preview</p>
+                            isMobile ? (
+                                <div className="mb-2">
+                                    <h3 className="text-lg font-semibold text-gray-900">Select a Booking</h3>
+                                    <p className="text-sm text-gray-600">Choose a booking from the list to generate an agreement preview.</p>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-96 flex items-center justify-center">
+                                    <div className="text-center">
+                                        <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Booking</h3>
+                                        <p className="text-gray-600">Choose a booking from the list to generate an agreement preview</p>
+                                    </div>
+                                </div>
+                            )
                         ) : (
                             <div className="space-y-6">
                                 {/* Booking Details */}

@@ -75,9 +75,55 @@ const AddBooking = ({ onClose }) => {
   const [bookingId, setBookingId] = useState(null); // Store booking ID
   const [loading, setLoading] = useState(false); // State to manage the loading spinner
   const [companyBranches, setCompanyBranches] = useState([]);
+  const normalizePercentInput = (rawValue, finalize = false) => {
+    if (rawValue === null || rawValue === undefined) return "";
+
+    let value = String(rawValue).replace(/%/g, "").replace(/\s+/g, "");
+    if (!value) return "";
+
+    value = value.replace(/[^0-9.]/g, "");
+
+    const firstDotIndex = value.indexOf(".");
+    if (firstDotIndex !== -1) {
+      value =
+        value.slice(0, firstDotIndex + 1) +
+        value.slice(firstDotIndex + 1).replace(/\./g, "");
+    }
+
+    if (value.startsWith(".")) {
+      value = `0${value}`;
+    }
+
+    if (finalize && value.endsWith(".")) {
+      value = value.slice(0, -1);
+    }
+
+    return value;
+  };
+
+  const setNormalizedFormPercent = (name, value, finalize = false) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: normalizePercentInput(value, finalize),
+    }));
+  };
+
+  const setNormalizedSharedPercent = (index, value, finalize = false) => {
+    const normalizedValue = normalizePercentInput(value, finalize);
+    setSharedPersons((prev) =>
+      prev.map((person, personIndex) =>
+        personIndex === index ? { ...person, percentage: normalizedValue } : person
+      )
+    );
+  };
+
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (["refundablePercentage", "funddisbursement"].includes(name)) {
+      setNormalizedFormPercent(name, value);
+      return;
+    }
     const upperFields = ["companyName", "contactPerson", "pan", "gst"];
     const nextValue = name === "email"
       ? value.toLowerCase()
@@ -1057,9 +1103,10 @@ const AddBooking = ({ onClose }) => {
                   size="small"
                   label="Deduction %"
                   name="refundablePercentage"
-                  type="number"
+                  type="text"
                   value={formData.refundablePercentage}
                   onChange={handleChange}
+                  onBlur={(e) => setNormalizedFormPercent("refundablePercentage", e.target.value, true)}
                   disabled={!formData.isRefundable}
                   error={Boolean(errors.refundablePercentage)}
                   helperText={errors.refundablePercentage}
@@ -1122,13 +1169,11 @@ const AddBooking = ({ onClose }) => {
                 <TextField
                   fullWidth
                   label="Percentage Share"
-                  type="number"
+                  type="text"
                   value={person.percentage}
-                  onChange={(e) => {
-                    const updated = [...sharedPersons];
-                    updated[index].percentage = e.target.value;
-                    setSharedPersons(updated);
-                  }}
+                  onChange={(e) => setNormalizedSharedPercent(index, e.target.value)}
+                  onBlur={(e) => setNormalizedSharedPercent(index, e.target.value, true)}
+                  placeholder="0.5"
                   InputProps={{
                     endAdornment: <Typography sx={{ mr: 1, color: 'text.secondary' }}>%</Typography>
                   }}
@@ -1233,6 +1278,7 @@ const AddBooking = ({ onClose }) => {
               name="funddisbursement"
               value={formData.funddisbursement}
               onChange={handleChange}
+              onBlur={(e) => setNormalizedFormPercent("funddisbursement", e.target.value, true)}
               placeholder="Enter percentage"
               variant="outlined"
               error={Boolean(errors.funddisbursement)}

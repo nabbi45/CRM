@@ -180,6 +180,32 @@ const History = () => {
     </div>
   );
 
+  const cardTones = [
+    { bg: "#f5fbff", border: "rgba(96, 165, 250, 0.30)", term2: "#f0f7ff", term3: "#edf5ff" },
+    { bg: "#fff7fb", border: "rgba(232, 121, 249, 0.26)", term2: "#fff2fb", term3: "#fff0fb" },
+    { bg: "#f7fcf8", border: "rgba(52, 211, 153, 0.28)", term2: "#f1faf4", term3: "#eef9f3" },
+    { bg: "#fffaf3", border: "rgba(251, 146, 60, 0.26)", term2: "#fff7ef", term3: "#fff5ec" },
+  ];
+
+  const getBookingTone = (index, variant = "primary") => {
+    const tone = cardTones[Math.floor(index / 2) % cardTones.length];
+    if (mode === "dark") {
+      if (variant === "term_2") {
+        return { backgroundColor: "#0f172a", borderColor: "rgba(96, 165, 250, 0.45)", color: "#e5e7eb" };
+      }
+      if (variant === "term_3") {
+        return { backgroundColor: "#0f172a", borderColor: "rgba(52, 211, 153, 0.42)", color: "#e5e7eb" };
+      }
+      return { backgroundColor: "#0f172a", borderColor: "rgba(96, 165, 250, 0.32)", color: "#e5e7eb" };
+    }
+
+    return {
+      backgroundColor: variant === "term_2" ? tone.term2 : variant === "term_3" ? tone.term3 : tone.bg,
+      borderColor: tone.border,
+      color: "#1f2937",
+    };
+  };
+
   useEffect(() => {
     // Retroactively map user IDs to names for older bookings
     if (userSession && userSession.token) {
@@ -931,20 +957,21 @@ const History = () => {
               }
               return true;
             })
-            .map((booking) => {
+            .map((booking, bookingIndex) => {
               const receivedAmount = getReceivedAmount(booking);
               const term2Visible = Number(booking.term_2 || 0) > 0;
               const term3Visible = Number(booking.term_3 || 0) > 0;
               const term1ShareInfo = getTermShareInfo(booking, "term_1");
               const term2ShareInfo = getTermShareInfo(booking, "term_2");
               const term3ShareInfo = getTermShareInfo(booking, "term_3");
+              const primaryTone = getBookingTone(bookingIndex, "primary");
+              const term2Tone = getBookingTone(bookingIndex, "term_2");
+              const term3Tone = getBookingTone(bookingIndex, "term_3");
 
               return (
-              <div className="booking-stack" key={booking._id}>
+              <div className="booking-stack" key={booking._id} data-tone-group={Math.floor(bookingIndex / 2) % cardTones.length}>
               <div className="booking-item booking-item-primary" style={{
-                backgroundColor: mode === 'light' ? '#ffffff' : '#0f172a',
-                borderColor: mode === 'light' ? 'rgba(148, 163, 184, 0.35)' : 'rgba(30, 64, 175, 0.7)',
-                color: mode === 'light' ? '#333' : '#e5e7eb',
+                ...primaryTone,
                 position: 'relative'
               }}>
                 {(Number(booking.term_2 || 0) > 0 || Number(booking.term_3 || 0) > 0) && (
@@ -1367,11 +1394,7 @@ const History = () => {
               {term2Visible && isTermExpanded(booking._id, "term_2") && (
                 <div
                   className="booking-item booking-item-term"
-                  style={{
-                    backgroundColor: mode === "light" ? "#f8fafc" : "#111827",
-                    borderColor: mode === "light" ? "rgba(129, 140, 248, 0.28)" : "rgba(129, 140, 248, 0.55)",
-                    color: mode === "light" ? "#1f2937" : "#e5e7eb",
-                  }}
+                  style={term2Tone}
                 >
                   <div className="booking-section-header">
                     <h4>Continuation Card</h4>
@@ -1390,11 +1413,7 @@ const History = () => {
               {term3Visible && isTermExpanded(booking._id, "term_3") && (
                 <div
                   className="booking-item booking-item-term"
-                  style={{
-                    backgroundColor: mode === "light" ? "#f8fafc" : "#111827",
-                    borderColor: mode === "light" ? "rgba(16, 185, 129, 0.28)" : "rgba(16, 185, 129, 0.55)",
-                    color: mode === "light" ? "#1f2937" : "#e5e7eb",
-                  }}
+                  style={term3Tone}
                 >
                   <div className="booking-section-header">
                     <h4>Continuation Card</h4>

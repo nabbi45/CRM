@@ -5,6 +5,7 @@ import {
     Chip, Dialog, DialogTitle, DialogContent, DialogActions, Grid, Card, CardContent,
     Tab, Tabs, Avatar, IconButton, Tooltip, Stack, CircularProgress, useTheme
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
@@ -48,6 +49,7 @@ const isWeekendDate = (value) => {
 
 const Timecard = () => {
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isDark = theme.palette.mode === 'dark';
     const ACCENT = isDark ? '#fff' : '#111827';
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
@@ -440,14 +442,34 @@ const Timecard = () => {
     // Create an accessible array of tabs
     const validTabs = tabsToRender.filter(t => t.show);
     const activeTabLabel = validTabs[tab]?.label || '';
+    const surfaceSx = {
+        borderRadius: '8px',
+        border: '1px solid',
+        borderColor: 'divider',
+        boxShadow: isDark ? '0 14px 30px rgba(2,6,23,0.28)' : '0 14px 36px rgba(15,23,42,0.06)',
+        background: isDark ? 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.94) 100%)' : '#fff',
+    };
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><Loader /></Box>;
 
     return (
-        <Box sx={{ p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 }, maxWidth: 1560, mx: 'auto' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <EventNoteOutlinedIcon sx={{ color: ACCENT }} />
                 <Typography variant="h5" sx={{ fontWeight: 700 }}>Timecard & Leave</Typography>
+              </Box>
+              {activeTabLabel === 'My Timecard' && (
+                <TextField 
+                    label="Month" 
+                    type="month" 
+                    size="small" 
+                    value={selectedMonth} 
+                    onChange={(e) => setSelectedMonth(e.target.value)} 
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ width: { xs: '100%', sm: 190 } }}
+                />
+              )}
             </Box>
 
             <Tabs
@@ -455,7 +477,13 @@ const Timecard = () => {
                 onChange={(_, v) => setTab(v)}
                 variant="scrollable"
                 scrollButtons="auto"
-                sx={{ mb: 3, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 } }}
+                sx={{
+                    mb: 3,
+                    p: 0.5,
+                    borderRadius: '8px',
+                    bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+                    '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 42, borderRadius: '8px' }
+                }}
             >
                 {validTabs.map((t, i) => <Tab key={i} label={t.label} />)}
             </Tabs>
@@ -463,17 +491,7 @@ const Timecard = () => {
             {/* TAB: MY TIMECARD */}
             {activeTabLabel === 'My Timecard' && (
                 <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>Attendance Summary</Typography>
-                        <TextField 
-                            label="Month" 
-                            type="month" 
-                            size="small" 
-                            value={selectedMonth} 
-                            onChange={(e) => setSelectedMonth(e.target.value)} 
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Attendance Summary</Typography>
                     
                     <Grid container spacing={2} sx={{ mb: 4 }}>
                         { [
@@ -488,6 +506,7 @@ const Timecard = () => {
                         ].map((s, i) => (
                             <Grid item xs={6} sm={3} key={i}>
                                 <Card sx={{ 
+                                    ...surfaceSx,
                                     bgcolor: s.main ? (isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6') : (isDark ? 'background.paper' : 'white'), 
                                     border: s.main ? `2px solid ${isDark ? '#fff' : '#111827'}` : '1px solid',
                                     borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#e5e7eb'
@@ -502,7 +521,7 @@ const Timecard = () => {
                     </Grid>
 
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Daily Records</Typography>
-                    <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ ...surfaceSx, bgcolor: isDark ? 'background.paper' : 'inherit', overflowX: 'auto' }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                                 <TableRow>
@@ -535,7 +554,7 @@ const Timecard = () => {
 
             {/* TAB: APPLY FOR LEAVE */}
             {activeTabLabel === 'Apply for Leave' && (
-                <Card sx={{ bgcolor: isDark ? 'background.paper' : 'white' }}>
+                <Card sx={{ ...surfaceSx, bgcolor: isDark ? 'background.paper' : 'white' }}>
                     <CardContent>
                         <form onSubmit={handleSubmitLeave}>
                             <Grid container spacing={2}>
@@ -559,7 +578,7 @@ const Timecard = () => {
                                     <TextField label="Reason" fullWidth required multiline rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <Button component="label" variant="outlined" startIcon={<UploadFileIcon />}>
+                                    <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} sx={{ borderRadius: '8px', justifyContent: 'flex-start', width: { xs: '100%', sm: 'auto' } }}>
                                         {supportingDocument ? supportingDocument.name : 'Upload Supporting Document (Optional)'}
                                         <input
                                             type="file"
@@ -570,7 +589,7 @@ const Timecard = () => {
                                     </Button>
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <Button type="submit" variant="contained" disabled={submitting} sx={{ px: 4 }}>
+                                    <Button type="submit" variant="contained" disabled={submitting} sx={{ px: 4, borderRadius: '8px', width: { xs: '100%', sm: 'auto' } }}>
                                         {submitting ? 'Submitting...' : 'Submit Leave Request'}
                                     </Button>
                                 </Grid>
@@ -582,7 +601,32 @@ const Timecard = () => {
 
             {/* TAB: MY LEAVES HISTORY */}
             {activeTabLabel === 'My Leave History' && (
-                <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
+                isMobile ? (
+                  <Stack spacing={1.25}>
+                    {myLeaves.length === 0 && <Paper sx={{ ...surfaceSx, p: 2 }}><Typography>No request history</Typography></Paper>}
+                    {myLeaves.map((l) => (
+                      <Paper key={l._id} sx={{ ...surfaceSx, p: 1.4 }}>
+                        <Stack spacing={0.9}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Chip size="small" label={l.leave_type} sx={{ textTransform: 'capitalize', borderRadius: '8px' }} />
+                            <Chip size="small" icon={statusIcons[l.status]} label={l.status} sx={{ bgcolor: `${statusColors[l.status]}18`, color: statusColors[l.status], fontWeight: 600, textTransform: 'capitalize', borderRadius: '8px' }} />
+                          </Stack>
+                          <Typography variant="body2"><strong>From:</strong> {formatDate(l.start_date)}</Typography>
+                          <Typography variant="body2"><strong>To:</strong> {formatDate(l.end_date)}</Typography>
+                          <Typography variant="body2"><strong>Days:</strong> {dayCount(l.start_date, l.end_date)}</Typography>
+                          <Typography variant="body2"><strong>Notes:</strong> {l.notes || '-'}</Typography>
+                          {l.supporting_document_url ? (
+                            <Stack direction="row" spacing={1}>
+                              <Button size="small" variant="outlined" onClick={() => window.open(l.supporting_document_url, '_blank', 'noopener,noreferrer')}>View</Button>
+                              <Button size="small" onClick={() => handleDownloadSupportDoc(l)}>Download</Button>
+                            </Stack>
+                          ) : null}
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                ) : (
+                <TableContainer component={Paper} variant="outlined" sx={{ ...surfaceSx, bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                     <Table size="small">
                         <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
                             <TableRow>
@@ -613,6 +657,7 @@ const Timecard = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                )
             )}
 
             {/* TAB: HOLIDAYS */}

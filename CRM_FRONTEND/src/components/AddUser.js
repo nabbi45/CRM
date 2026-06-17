@@ -111,16 +111,26 @@ const AddUser = () => {
     <form
       onSubmit={handleSubmit}
       style={{
-        margin: "16px auto",
-        padding: "16px",
+        margin: "0 auto",
+        padding: "18px",
         border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.35)"}`,
-        borderRadius: "14px",
+        borderRadius: "8px",
         background: isDark
           ? "linear-gradient(145deg, rgba(15,23,42,1) 0%, rgba(30,41,59,1) 100%)"
-          : "linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%)",
+          : "linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(255,249,244,1) 100%)",
         maxWidth: "100%",
+        boxShadow: isDark ? "0 14px 34px rgba(0,0,0,0.28)" : "0 16px 36px rgba(15,23,42,0.06)",
       }}
     >
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <div style={{ width: 38, height: 38, borderRadius: 8, display: "grid", placeItems: "center", background: isDark ? "rgba(255,59,31,0.18)" : "rgba(255,59,31,0.12)", color: "#ff3b1f", fontWeight: 800 }}>
+          +
+        </div>
+        <div>
+          <div style={{ fontSize: "1.15rem", fontWeight: 800, color: isDark ? "#f8fafc" : "#0f172a" }}>Add New User</div>
+          <div style={{ fontSize: "0.84rem", color: isDark ? "#94a3b8" : "#64748b" }}>Create user, assign role, and control tab access in one place.</div>
+        </div>
+      </div>
       <div
         style={{
           display: "grid",
@@ -142,7 +152,7 @@ const AddUser = () => {
               padding: "10px 12px",
               border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
               borderRadius: "8px",
-              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fbfdff",
               color: isDark ? "#f8fafc" : "#0f172a",
             }}
             required
@@ -163,7 +173,7 @@ const AddUser = () => {
               padding: "10px 12px",
               border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
               borderRadius: "8px",
-              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#f7fbff",
               color: isDark ? "#f8fafc" : "#0f172a",
             }}
             required
@@ -185,7 +195,7 @@ const AddUser = () => {
               padding: "10px 12px",
               border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
               borderRadius: "8px",
-              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fffaf4",
               color: isDark ? "#f8fafc" : "#0f172a",
             }}
             required
@@ -206,7 +216,7 @@ const AddUser = () => {
               padding: "10px 12px",
               border: `1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(148,163,184,0.35)"}`,
               borderRadius: "8px",
-              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff",
+              backgroundColor: isDark ? "rgba(15,23,42,0.85)" : "#fff7fb",
               color: isDark ? "#f8fafc" : "#0f172a",
             }}
             required
@@ -261,34 +271,35 @@ const AddUser = () => {
         <button
           type="submit"
           style={{
-            padding: "10px 18px",
+            padding: "11px 18px",
             backgroundColor: "#ff3b1f",
             color: "white",
             border: "none",
             borderRadius: "8px",
             cursor: "pointer",
             whiteSpace: "nowrap",
-            fontWeight: 600,
+            fontWeight: 700,
+            boxShadow: "0 12px 24px rgba(255,59,31,0.22)",
           }}
         >
-          Add User
+          Save User
         </button>
       </div>
 
       <div
         style={{
           width: "100%",
-          marginTop: "8px",
+          marginTop: "14px",
           border: `1px solid ${isDark ? "rgba(255,255,255,0.16)" : "rgba(148,163,184,0.35)"}`,
-          borderRadius: "10px",
-          padding: "10px",
-          backgroundColor: isDark ? "rgba(15,23,42,0.5)" : "rgba(15,23,42,0.03)",
+          borderRadius: "8px",
+          padding: "14px",
+          backgroundColor: isDark ? "rgba(15,23,42,0.5)" : "rgba(248,250,252,0.9)",
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: "8px", color: isDark ? "#f8fafc" : "#0f172a" }}>Role tab permissions</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "6px 10px" }}>
+        <div style={{ fontWeight: 700, marginBottom: "10px", color: isDark ? "#f8fafc" : "#0f172a", fontSize: "0.95rem" }}>Role tab permissions</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "8px 12px" }}>
           {FEATURE_KEYS.map((featureKey) => (
-            <label key={featureKey} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: isDark ? "#e2e8f0" : "#0f172a" }}>
+            <label key={featureKey} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", color: isDark ? "#e2e8f0" : "#0f172a", padding: "6px 8px", borderRadius: 8, background: isDark ? "rgba(255,255,255,0.03)" : "#ffffff" }}>
               <input
                 type="checkbox"
                 checked={formData.feature_permissions.includes(featureKey)}

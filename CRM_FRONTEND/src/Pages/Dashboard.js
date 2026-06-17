@@ -214,7 +214,7 @@ const Dashboard = () => {
           <Route path="history" element={<FeatureGuard userSession={userSession} feature="all_bookings"><History /></FeatureGuard>} />
           <Route path="adduser" element={<FeatureGuard userSession={userSession} feature="manage_users"><AddUser /></FeatureGuard>} />
           <Route path="removeuser" element={<FeatureGuard userSession={userSession} feature="manage_users"><RemoveUser /></FeatureGuard>} />
-          <Route path="scorecard" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><Scorecard /></FeatureGuard>} />
+          <Route path="scorecard" element={<FeatureGuard userSession={userSession} feature="scorecard"><Scorecard /></FeatureGuard>} />
           <Route path="addservices" element={<FeatureGuard userSession={userSession} feature="manage_services"><ServicesComponent /></FeatureGuard>} />
           <Route path="trash" element={<FeatureGuard userSession={userSession} feature="trash"><Trash /></FeatureGuard>} />
           <Route path="Proformainvoice" element={<FeatureGuard userSession={userSession} feature="proforma_invoice"><Proformainvoice /></FeatureGuard>} />

@@ -19,6 +19,7 @@ import {
   Box,
   Grid,
   IconButton,
+  Chip,
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 import { enqueueSnackbar } from "notistack";
@@ -174,27 +175,91 @@ const RemoveUser = () => {
   };
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 2 }, width: "100%", overflowX: "hidden" }}>
-      <Typography variant="h4" align="center" gutterBottom sx={{ fontSize: { xs: "1.55rem", sm: "2rem" } }}>
-        Add User
-      </Typography>
-      <AddUser />
-      <Typography variant="h4" align="center" gutterBottom sx={{ mt: 1.5, fontSize: { xs: "1.55rem", sm: "2rem" } }}>
-        Users List
-      </Typography>
-      {/* Search Input */}
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          label="Search Users"
-          variant="outlined"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          fullWidth
-        />
+    <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 }, width: "100%", maxWidth: 1560, mx: "auto", overflowX: "hidden" }}>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h4" gutterBottom sx={{ fontSize: { xs: "1.6rem", sm: "2rem" }, fontWeight: 800 }}>
+          User Management
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Add users, assign tab permissions, and manage existing team access from one workspace.
+        </Typography>
       </Box>
 
-      {/* Table Container */}
-      <TableContainer component={Paper} sx={{ overflowX: "auto", borderRadius: 2 }}>
+      <AddUser />
+      <Paper
+        elevation={0}
+        sx={{
+          mt: 2.2,
+          p: { xs: 1.2, sm: 1.5, md: 1.8 },
+          borderRadius: "8px",
+          border: "1px solid",
+          borderColor: "divider",
+          boxShadow: theme.palette.mode === "dark" ? "0 12px 28px rgba(2,6,23,0.28)" : "0 14px 34px rgba(15,23,42,0.05)",
+          background: theme.palette.mode === "dark"
+            ? "linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.94) 100%)"
+            : "linear-gradient(180deg, rgba(247,251,255,0.95) 0%, #ffffff 100%)",
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1.5, mb: 2, flexWrap: "wrap" }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>Users List</Typography>
+            <Typography variant="body2" color="text.secondary">Search and manage every CRM user from here.</Typography>
+          </Box>
+          <TextField
+            label="Search Users"
+            variant="outlined"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ width: { xs: "100%", sm: 320 } }}
+            size="small"
+          />
+        </Box>
+
+      {isMobileOrTablet ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
+          {filteredUsers.length > 0 ? filteredUsers.map((user, index) => (
+            <Paper key={user._id} sx={{ p: 1.4, borderRadius: "8px", border: "1px solid", borderColor: "divider", boxShadow: "none" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start" }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>#{index + 1}</Typography>
+                  <Typography sx={{ fontWeight: 800, mt: 0.3 }}>{user.name?.toUpperCase()}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, wordBreak: "break-word" }}>{user.email?.toLowerCase()}</Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={user.user_role}
+                  sx={{
+                    borderRadius: "8px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.10)",
+                    color: theme.palette.mode === "dark" ? "#e2e8f0" : "#2563eb",
+                  }}
+                />
+              </Box>
+              <Box display="flex" alignItems="center" gap={1} flexWrap="wrap" sx={{ mt: 1.25 }}>
+                <IconButton
+                  sx={{
+                    backgroundColor: "#111827",
+                    color: "#fff",
+                    '&:hover': { backgroundColor: "#000000" },
+                  }}
+                  onClick={() => handleEditClick(user)}
+                  size="small"
+                >
+                  <Edit />
+                </IconButton>
+                <IconButton color="error" onClick={() => handleDeleteClick(user)} size="small">
+                  <Delete />
+                </IconButton>
+              </Box>
+            </Paper>
+          )) : (
+            <Paper sx={{ p: 2, borderRadius: "8px", textAlign: "center" }}>No users found.</Paper>
+          )}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: "auto", borderRadius: "8px", border: "1px solid", borderColor: "divider", boxShadow: "none" }}>
         <Table sx={{ minWidth: 580 }}>
           <TableHead>
             <TableRow>
@@ -212,7 +277,19 @@ const RemoveUser = () => {
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{user.name?.toUpperCase()}</TableCell>
                   {!isMobileOrTablet && <TableCell>{user.email?.toLowerCase()}</TableCell>}
-                  <TableCell>{user.user_role}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={user.user_role}
+                      sx={{
+                        borderRadius: "8px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.10)",
+                        color: theme.palette.mode === "dark" ? "#e2e8f0" : "#2563eb",
+                      }}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                       {isMobileOrTablet ? (
@@ -274,6 +351,8 @@ const RemoveUser = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
+      </Paper>
 
       <Dialog open={isEditing} onClose={() => setIsEditing(false)} fullWidth>
         <DialogTitle>Edit User</DialogTitle>

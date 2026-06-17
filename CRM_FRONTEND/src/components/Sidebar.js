@@ -20,6 +20,7 @@ import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
@@ -162,6 +163,9 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'dashboard_overview')) {
       items.push({ text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard', color: '#3b82f6' });
     }
+    if (canAccessFeature(userSession, 'scorecard')) {
+      items.push({ text: 'Scorecard', icon: <InsightsOutlinedIcon />, path: '/dashboard/scorecard', color: '#14b8a6' });
+    }
     if (canAccessFeature(userSession, 'new_booking')) {
       items.push({ text: 'New Booking', icon: <AddCircleOutlineIcon />, path: '/dashboard/new-booking', color: '#10b981' });
     }
@@ -184,7 +188,7 @@ const Sidebar = () => {
       items.push({ text: 'Generated Documents', icon: <FolderOpenOutlinedIcon />, path: '/dashboard/generated-documents', color: '#06b6d4' });
     }
     if (canAccessFeature(userSession, 'client_documents')) {
-      items.push({ text: 'Client Documents', icon: <FolderCopyOutlinedIcon />, path: '/dashboard/process-documents', color: '#8b5cf6' });
+      items.push({ text: 'File Activity', icon: <FolderCopyOutlinedIcon />, path: '/dashboard/process-documents', color: '#8b5cf6' });
     }
     if (canAccessFeature(userSession, 'manage_users')) {
       items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser', color: '#f97316' });

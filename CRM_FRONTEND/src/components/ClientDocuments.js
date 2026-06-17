@@ -28,8 +28,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Tabs,
-  Tab,
   Collapse,
   Pagination,
 } from '@mui/material';
@@ -72,7 +70,6 @@ const ClientDocuments = () => {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [userSession, setUserSession] = useState(null);
-  const [currentTab, setCurrentTab] = useState(0);
   const [expandedBookingId, setExpandedBookingId] = useState(null);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
@@ -451,29 +448,18 @@ const ClientDocuments = () => {
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1600, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 }, maxWidth: 1600, mx: 'auto' }}>
       <Box sx={{ mb: 4, borderBottom: 1, borderColor: 'divider' }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Client Documents
+          File Activity
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {pagination.totalCount || stats.totalBookings} bookings found
         </Typography>
-        
-        <Tabs 
-          value={currentTab} 
-          onChange={(e, newValue) => setCurrentTab(newValue)}
-          sx={{
-            '& .MuiTab-root': { fontWeight: 600, fontSize: '0.95rem', textTransform: 'none' }
-          }}
-        >
-          <Tab label="Document Vault" />
-          <Tab label="File Activity" />
-        </Tabs>
       </Box>
 
       {/* Tab 0: Document Vault */}
-      {currentTab === 0 && (
+      {false && (
         <>
           {/* Stats Cards */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -755,14 +741,14 @@ const ClientDocuments = () => {
       )}
 
       {/* Tab 1: File Activity */}
-      {currentTab === 1 && (
+      {true && (
         <>
           <Paper
             elevation={0}
             sx={{
-              p: 2,
+              p: { xs: 1.4, sm: 2 },
               mb: 2,
-              borderRadius: 3,
+              borderRadius: '8px',
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
               gap: 1.5,
@@ -804,60 +790,73 @@ const ClientDocuments = () => {
             ))}
           </Paper>
 
-          <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 3, border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ background: (theme) => theme.palette.mode === 'dark' ? 'rgba(30,41,59,0.8)' : '#f8fafc' }}>
-                  <TableCell width="40" />
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Company</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Services</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' }}>Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredFileActivityBookings.map((booking) => (
-                  <React.Fragment key={booking._id}>
-                    <TableRow 
-                      sx={{ cursor: 'pointer', '&:hover': { background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' } }}
-                      onClick={() => setExpandedBookingId(expandedBookingId === booking._id ? null : booking._id)}
-                    >
-                      <TableCell>
-                        <IconButton size="small">
-                          {expandedBookingId === booking._id ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                        </IconButton>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>{booking.company_name}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {(booking.services || []).map((service, i) => (
-                            <Chip key={i} label={service} size="small" sx={{ fontSize: '0.7rem', height: 20 }} />
-                          ))}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {booking.date ? new Date(booking.date).toLocaleDateString('en-GB') : '-'}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
-                        <Collapse in={expandedBookingId === booking._id} timeout="auto" unmountOnExit>
-                          <Box sx={{ p: 2, background: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#fcfcfc' }}>
-                            <FileActivityTable 
-                              booking={booking} 
-                              userSession={userSession} 
-                              isAdmin={canManageDocuments()} 
-                            />
-                          </Box>
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Box sx={{ display: 'grid', gap: 1.5 }}>
+            {filteredFileActivityBookings.map((booking) => (
+              <Paper
+                key={booking._id}
+                elevation={0}
+                sx={{
+                  borderRadius: '8px',
+                  border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                  overflow: 'hidden',
+                }}
+              >
+                <Box
+                  sx={{
+                    p: { xs: 1.25, sm: 1.5 },
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '56px minmax(0,1.2fr) minmax(0,1fr) 130px' },
+                    gap: 1.5,
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    '&:hover': { background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' },
+                  }}
+                  onClick={() => setExpandedBookingId(expandedBookingId === booking._id ? null : booking._id)}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconButton size="small">
+                      {expandedBookingId === booking._id ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                    </IconButton>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                      Company
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 800 }}>
+                      {booking.company_name}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                      Services
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {(booking.services || []).map((service, i) => (
+                        <Chip key={i} label={service} size="small" sx={{ fontSize: '0.7rem', height: 22, borderRadius: '8px' }} />
+                      ))}
+                    </Box>
+                  </Box>
+                  <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                      Date
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {booking.date ? new Date(booking.date).toLocaleDateString('en-GB') : '-'}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Collapse in={expandedBookingId === booking._id} timeout="auto" unmountOnExit>
+                  <Box sx={{ p: { xs: 1.1, sm: 1.5 }, background: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#fcfcfc' }}>
+                    <FileActivityTable 
+                      booking={booking} 
+                      userSession={userSession} 
+                      isAdmin={canManageDocuments()} 
+                    />
+                  </Box>
+                </Collapse>
+              </Paper>
+            ))}
+          </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mt: 2, flexWrap: 'wrap' }}>
             <Typography variant="body2" color="text.secondary">

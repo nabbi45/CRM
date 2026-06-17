@@ -564,13 +564,18 @@ const TeamInbox = () => {
     return (
         <Box
             sx={{
+                width: '100%',
+                maxWidth: 1560,
+                mx: 'auto',
                 display: 'flex',
                 flexDirection: isTabletOrBelow ? 'column' : 'row',
                 height: { xs: 'calc(100vh - 132px)', md: 'calc(100vh - 100px)' },
                 bgcolor: 'background.paper',
-                borderRadius: 2,
+                borderRadius: '8px',
                 overflow: 'hidden',
-                boxShadow: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                boxShadow: isDark ? '0 16px 34px rgba(2,6,23,0.35)' : '0 16px 36px rgba(15,23,42,0.06)',
                 animation: 'fadeSlideIn 320ms ease',
             }}
         >
@@ -588,13 +593,13 @@ const TeamInbox = () => {
                     borderRight: { xs: 'none', md: '1px solid' },
                     borderBottom: { xs: '1px solid', md: 'none' },
                     borderColor: 'divider',
-                    bgcolor: isDark ? 'rgba(15,23,42,0.6)' : '#f8fafc',
+                    bgcolor: isDark ? 'rgba(15,23,42,0.72)' : '#f8fafc',
                     display: isTabletOrBelow && mobilePane === 'chat' ? 'none' : 'flex',
                     flexDirection: 'column',
                     height: { xs: '100%', md: 'auto' },
                 }}
             >
-                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ p: { xs: 1.4, sm: 2 }, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 700 }}>Team Inbox</Typography>
                         {canCreateGroup && (
@@ -611,7 +616,7 @@ const TeamInbox = () => {
                         onChange={(e) => setSearch(e.target.value)}
                         InputProps={{
                             startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
-                            sx: { borderRadius: 8, bgcolor: 'action.hover' }
+                            sx: { borderRadius: '8px', bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#ffffff' }
                         }}
                     />
                 </Box>
@@ -624,7 +629,7 @@ const TeamInbox = () => {
                             setActiveChat({ id: 'global', name: 'All Company', isGlobal: true });
                             if (isTabletOrBelow) setMobilePane('chat');
                         }}
-                        sx={{ bgcolor: activeChat.isGlobal ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: activeChat.isGlobal ? `4px solid ${ACCENT}` : '4px solid transparent' }}
+                        sx={{ bgcolor: activeChat.isGlobal ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: activeChat.isGlobal ? `4px solid ${ACCENT}` : '4px solid transparent', mx: 1, my: 0.5, borderRadius: '8px' }}
                     >
                         <ListItemAvatar>
                             <Avatar sx={{ bgcolor: ACCENT, color: '#fff' }}>AC</Avatar>
@@ -646,7 +651,7 @@ const TeamInbox = () => {
                                             setActiveChat({ id: group._id, name: group.name, isGroup: true, members: group.members || [], created_by: group.created_by });
                                             if (isTabletOrBelow) setMobilePane('chat');
                                         }}
-                                        sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
+                                        sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent', mx: 1, my: 0.5, borderRadius: '8px' }}
                                     >
                                         <ListItemAvatar>
                                             <Avatar onClick={(e) => { e.stopPropagation(); setActiveChat({ id: group._id, name: group.name, isGroup: true, members: group.members || [], created_by: group.created_by }); setManageGroupName(group.name); setEditingGroupMembers((group.members || []).map((m) => m.user_id)); setManageGroupDialogOpen(true); }} sx={{ bgcolor: '#6366f1', color: '#fff', cursor: 'pointer' }}>{group.name.charAt(0)}</Avatar>
@@ -683,7 +688,7 @@ const TeamInbox = () => {
                                     setActiveChat({ id: u._id, name: u.name, isGlobal: false });
                                     if (isTabletOrBelow) setMobilePane('chat');
                                 }}
-                                sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent' }}
+                                sx={{ bgcolor: isActive ? 'rgba(232,124,42,0.08)' : 'inherit', borderLeft: isActive ? `4px solid ${ACCENT}` : '4px solid transparent', mx: 1, my: 0.5, borderRadius: '8px' }}
                             >
                                 <ListItemAvatar>
                                     <Badge
@@ -727,7 +732,7 @@ const TeamInbox = () => {
                 }}
             >
                 {/* Chat Header */}
-                <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ p: { xs: 1.2, sm: 2 }, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         {isTabletOrBelow && (
                             <IconButton size="small" onClick={() => setMobilePane('list')}>
@@ -769,7 +774,7 @@ const TeamInbox = () => {
                     p: { xs: 1.5, sm: 2.5, md: 3 }, 
                     overflowY: 'auto', 
                     bgcolor: isDark ? '#0b1220' : '#efeae2',
-                    backgroundImage: `url(${bgChat})`,
+                    backgroundImage: isTabletOrBelow ? 'none' : `url(${bgChat})`,
                     backgroundRepeat: 'repeat',
                     backgroundBlendMode: isDark ? 'overlay' : 'normal',
                     opacity: isDark ? 0.9 : 1,
@@ -817,7 +822,7 @@ const TeamInbox = () => {
                                             sx={{
                                                 p: 1.5,
                                                 px: 2,
-                                                maxWidth: { xs: 260, sm: 360, md: 420 },
+                                                maxWidth: { xs: '82vw', sm: 360, md: 420 },
                                                 background: isMe ? 'linear-gradient(135deg, #ff512f 0%, #dd2476 100%)' : (isDark ? '#1e293b' : '#ffffff'),
                                                 color: isMe ? '#fff' : (isDark ? '#f8fafc' : '#111827'),
                                                 borderRadius: 3,
@@ -961,7 +966,7 @@ const TeamInbox = () => {
                     )}
 
                     <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Paper elevation={0} sx={{ flex: 1, display: 'flex', alignItems: 'center', px: 1, py: 0.5, bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'action.hover', borderRadius: 8 }}>
+                        <Paper elevation={0} sx={{ flex: 1, display: 'flex', alignItems: 'center', px: 1, py: 0.5, bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'action.hover', borderRadius: '8px' }}>
                             <IconButton size="small" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
                                 <SentimentSatisfiedAltIcon />
                             </IconButton>
@@ -1008,7 +1013,7 @@ const TeamInbox = () => {
                             sx={{
                                 bgcolor: isDark ? '#111827' : ACCENT,
                                 color: isDark ? '#ffffff' : '#fff',
-                                borderRadius: '12px',
+                                borderRadius: '8px',
                                 border: isDark ? '1px solid rgba(248,250,252,0.35)' : 'none',
                                 boxShadow: isDark ? '0 6px 18px rgba(0,0,0,0.45)' : 'none',
                                 transition: 'all 0.2s ease',

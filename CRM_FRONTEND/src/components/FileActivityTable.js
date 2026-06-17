@@ -13,7 +13,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Chip
+  Chip,
+  useTheme,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -81,6 +82,7 @@ const isPreviewableDocument = (doc = {}) => {
 };
 
 const FileActivityTable = ({ booking, userSession, isAdmin }) => {
+  const theme = useTheme();
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
@@ -375,9 +377,9 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
         variant="outlined"
         sx={{
           p: 2,
-          borderRadius: 2,
-          bgcolor: '#ffffff',
-          borderColor: '#e5e7eb',
+          borderRadius: '8px',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : '#ffffff',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : '#e5e7eb',
           minHeight: 172,
           display: 'flex',
           flexDirection: 'column',
@@ -438,7 +440,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
               const hasDocs = documents.some(d => d.documentType === docType && d.notes?.includes(svc.serviceName));
               const config = { label: title, docType, serviceName: svc.serviceName };
               return (
-                <Box key={`${svc.serviceName}-${idx}`} sx={{ p: 1.25, bgcolor: '#f9fafb', border: '1px solid #eef2f7', borderRadius: 1.5 }}>
+                <Box key={`${svc.serviceName}-${idx}`} sx={{ p: 1.25, bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : '#f9fafb', border: '1px solid', borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.15)' : '#eef2f7', borderRadius: '8px' }}>
                   <Typography variant="caption" sx={{ fontWeight: 800, color: '#111827', display: 'block', mb: 0.75 }}>
                     {svc.serviceName}
                   </Typography>
@@ -540,7 +542,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
         </Paper>
 
         {isAdmin && (
-          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff', borderColor: '#e5e7eb' }}>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : '#ffffff', borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : '#e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Notes (Client ID & Password)</Typography>
             <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
               Hidden from BDMs
