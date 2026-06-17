@@ -1,25 +1,25 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "./LoginSignup";
 import {
+  Avatar,
   Box,
-  Grid,
+  Button,
   Card,
   CardContent,
-  Typography,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  Avatar,
-  Chip,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -31,6 +31,7 @@ import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
+import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
 import PaymentReminders from "./PaymentReminders";
@@ -47,18 +48,70 @@ import {
 const ACCENT = "#ff3b1f";
 const ACCENT_DARK = "#e03118";
 const ACCENT_LIGHT = "rgba(255,59,31,0.14)";
-const ACCENT_SOFT = "rgba(255,59,31,0.08)";
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+
+const parseDateValue = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getDateKey = (value) => {
+  const date = parseDateValue(value);
+  return date ? date.toISOString().split("T")[0] : "";
+};
+
+const getInitials = (name = "") =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "?";
+
+const roleLabel = (role = "") =>
+  role
+    .toString()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+
+const statCardThemes = [
+  { bg: "linear-gradient(180deg, #fff9f5 0%, #ffffff 100%)", iconBg: "rgba(255,59,31,0.12)", iconColor: ACCENT },
+  { bg: "linear-gradient(180deg, #f7fbff 0%, #ffffff 100%)", iconBg: "rgba(59,130,246,0.14)", iconColor: "#2563eb" },
+  { bg: "linear-gradient(180deg, #faf7ff 0%, #ffffff 100%)", iconBg: "rgba(124,58,237,0.14)", iconColor: "#7c3aed" },
+  { bg: "linear-gradient(180deg, #fffaf2 0%, #ffffff 100%)", iconBg: "rgba(245,158,11,0.16)", iconColor: "#d97706" },
+  { bg: "linear-gradient(180deg, #f5fbf8 0%, #ffffff 100%)", iconBg: "rgba(16,185,129,0.14)", iconColor: "#059669" },
+  { bg: "linear-gradient(180deg, #fff7fb 0%, #ffffff 100%)", iconBg: "rgba(236,72,153,0.14)", iconColor: "#db2777" },
+  { bg: "linear-gradient(180deg, #f6fbff 0%, #ffffff 100%)", iconBg: "rgba(6,182,212,0.14)", iconColor: "#0891b2" },
+  { bg: "linear-gradient(180deg, #fff8f1 0%, #ffffff 100%)", iconBg: "rgba(234,88,12,0.14)", iconColor: "#ea580c" },
+];
 
 const DashboardContent = () => {
   const userSession = JSON.parse(localStorage.getItem("userSession"));
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [totalBookings, setTotalBookings] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [bookingsThisMonth, setBookingsThisMonth] = useState(0);
+  const [bookingsToday, setBookingsToday] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [recentBookings, setRecentBookings] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardDialogOpen, setLeaderboardDialogOpen] = useState(false);
+  const [deductionDialogOpen, setDeductionDialogOpen] = useState(false);
   const [monthlyRevData, setMonthlyRevData] = useState({ labels: [], values: [] });
   const [serviceSoldData, setServiceSoldData] = useState({ labels: [], values: [] });
   const [serviceRevenueData, setServiceRevenueData] = useState({ labels: [], values: [] });
@@ -72,8 +125,6 @@ const DashboardContent = () => {
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [companyBranches, setCompanyBranches] = useState([]);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
@@ -87,7 +138,6 @@ const DashboardContent = () => {
   const isAdmin = ["admin", "super admin", "director", "dev", "senior admin", "srdev", "sr dev"].includes(
     (userSession?.user_role || "").toLowerCase()
   );
-  const topLeaderboardEntries = leaderboard.slice(0, 3);
 
   const getTodayDate = () => new Date().toISOString().split("T")[0];
 
@@ -95,47 +145,47 @@ const DashboardContent = () => {
     if (userSession?.user_id) {
       fetchDashboardData(userSession);
     } else {
-      console.error("User session not found.");
       setLoading(false);
     }
 
-    // Fetch company branches
     fetch(`${apiUrl}/company/public`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.branches) {
-          const branchesArray = data.branches.split(',').map(b => b.trim()).filter(Boolean);
-          setCompanyBranches(branchesArray);
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.branches) {
+          setCompanyBranches(
+            data.branches
+              .split(",")
+              .map((branch) => branch.trim())
+              .filter(Boolean)
+          );
         }
       })
-      .catch(err => console.error("Error fetching branches:", err));
+      .catch((err) => console.error("Error fetching branches:", err));
 
-    // Ping activity for realistic "Last Online"
     if (userSession?.token) {
       const pingActivity = () => {
         fetch(`${apiUrl}/user/ping`, {
-          method: 'POST',
-          headers: { 'Authorization': userSession.token }
-        }).catch(() => { });
+          method: "POST",
+          headers: { Authorization: userSession.token },
+        }).catch(() => {});
       };
-      pingActivity(); // initial ping
-      const interval = setInterval(pingActivity, 5 * 60 * 1000); // 5 mins
+
+      pingActivity();
+      const interval = setInterval(pingActivity, 5 * 60 * 1000);
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Draw chart after data arrives
   useEffect(() => {
     if (monthlyRevData.labels.length === 0 || !chartRef.current) return;
+
     const ctx = chartRef.current.getContext("2d");
     if (chartInstance.current) chartInstance.current.destroy();
 
     const isDark = theme.palette.mode === "dark";
     const tickColor = isDark ? "#cbd5e1" : "#475569";
-    const gridColor = isDark
-      ? "rgba(255,255,255,0.14)"
-      : "rgba(148,163,184,0.22)";
+    const gridColor = isDark ? "rgba(255,255,255,0.14)" : "rgba(148,163,184,0.22)";
 
     chartInstance.current = new Chart(ctx, {
       type: "bar",
@@ -143,7 +193,7 @@ const DashboardContent = () => {
         labels: monthlyRevData.labels,
         datasets: [
           {
-            label: "Bookings",
+            label: "Revenue",
             data: monthlyRevData.values,
             backgroundColor: monthlyRevData.values.map((_, idx, arr) =>
               idx === arr.length - 1 ? ACCENT : "rgba(255,90,31,0.78)"
@@ -168,7 +218,7 @@ const DashboardContent = () => {
             bodyColor: isDark ? "#e2e8f0" : "#0f172a",
             displayColors: false,
             callbacks: {
-              label: (ctx) => `Ã¢â€šÂ¹${ctx.raw.toLocaleString()}`,
+              label: (ctx) => formatCurrency(ctx.raw),
             },
           },
         },
@@ -180,7 +230,7 @@ const DashboardContent = () => {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: (v) => `Ã¢â€šÂ¹${(v / 1000).toFixed(0)}k`,
+              callback: (v) => formatCurrency(v),
               font: { size: 11 },
               color: tickColor,
             },
@@ -193,11 +243,11 @@ const DashboardContent = () => {
     return () => {
       if (chartInstance.current) chartInstance.current.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthlyRevData, theme.palette.mode]);
 
   useEffect(() => {
     if (serviceSoldData.labels.length === 0 || !soldChartRef.current) return;
+
     const ctx = soldChartRef.current.getContext("2d");
     if (soldChartInstance.current) soldChartInstance.current.destroy();
 
@@ -219,7 +269,7 @@ const DashboardContent = () => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: "62%",
+        cutout: "64%",
         plugins: {
           legend: {
             position: "bottom",
@@ -245,6 +295,7 @@ const DashboardContent = () => {
 
   useEffect(() => {
     if (serviceRevenueData.labels.length === 0 || !revenueChartRef.current) return;
+
     const ctx = revenueChartRef.current.getContext("2d");
     if (revenueChartInstance.current) revenueChartInstance.current.destroy();
 
@@ -300,6 +351,7 @@ const DashboardContent = () => {
 
   useEffect(() => {
     if (serviceRevenueData.labels.length === 0 || !revenuePieChartRef.current) return;
+
     const ctx = revenuePieChartRef.current.getContext("2d");
     if (revenuePieChartInstance.current) revenuePieChartInstance.current.destroy();
 
@@ -334,7 +386,7 @@ const DashboardContent = () => {
             callbacks: {
               label: (ctx) => {
                 const value = Number(ctx.raw || 0);
-                const total = (ctx.dataset.data || []).reduce((sum, v) => sum + Number(v || 0), 0);
+                const total = (ctx.dataset.data || []).reduce((sum, item) => sum + Number(item || 0), 0);
                 const percent = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0";
                 return `${ctx.label}: ${value.toLocaleString()} bookings (${percent}%)`;
               },
@@ -351,9 +403,7 @@ const DashboardContent = () => {
 
   const fetchDashboardData = async (session) => {
     try {
-      const bookingUrl = isAdmin
-        ? `${apiUrl}/booking/all`
-        : `${apiUrl}/user/bookings/${session.user_id}`;
+      const bookingUrl = isAdmin ? `${apiUrl}/booking/all` : `${apiUrl}/user/bookings/${session.user_id}`;
 
       const fetches = [
         fetch(bookingUrl, {
@@ -394,6 +444,12 @@ const DashboardContent = () => {
               "Content-Type": "application/json",
               authorization: session.token,
             },
+          }),
+          fetch(`${apiUrl}/booking-approvals?status=pending`, {
+            headers: {
+              "Content-Type": "application/json",
+              authorization: session.token,
+            },
           })
         );
       }
@@ -405,11 +461,13 @@ const DashboardContent = () => {
       let resultIndex = 3;
       const companyBookingsRes = !isAdmin ? results[resultIndex++] : null;
       const allUsersRes = isAdmin ? results[resultIndex++] : null;
+      const approvalsRes = isAdmin ? results[resultIndex++] : null;
 
       if (!bookingsRes.ok) throw new Error("Failed API call");
 
       const bookingsData = await bookingsRes.json();
       const bookings = bookingsData.Allbookings || bookingsData;
+
       let serviceDeductionMap = {};
       let serviceDeductionCatalogRows = [];
       if (servicesRes?.ok) {
@@ -426,40 +484,59 @@ const DashboardContent = () => {
           .sort((a, b) => b.deduction - a.deduction || a.service.localeCompare(b.service));
       }
 
-      // Extract options users map to patch up older "Coworker" bug fields
-      let activeUsersMap = {};
+      const activeUsersMap = {};
+      const userDirectoryByName = {};
       if (usersOptionsRes.ok) {
         const usersOptData = await usersOptionsRes.json();
-        if (usersOptData && usersOptData.users) {
-          usersOptData.users.forEach(u => activeUsersMap[u._id] = u.name);
+        if (usersOptData?.users) {
+          usersOptData.users.forEach((user) => {
+            activeUsersMap[user._id] = user.name;
+            userDirectoryByName[(user.name || "").trim().toUpperCase()] = {
+              name: user.name,
+              role: user.user_role,
+              profilePicture: user.profilePicture || "",
+            };
+          });
         }
       }
-
       const allCompanyBookings = !isAdmin && companyBookingsRes?.ok
         ? ((await companyBookingsRes.json()).Allbookings || [])
         : bookings;
 
-      if (isAdmin && allUsersRes) {
+      if (isAdmin && allUsersRes?.ok) {
         const usersData = await allUsersRes.json();
         setTotalUsers(usersData.Users?.length || 0);
+      } else if (!isAdmin) {
+        setTotalUsers(0);
+      }
+
+      if (isAdmin && approvalsRes?.ok) {
+        const approvals = await approvalsRes.json();
+        setPendingApprovals(Array.isArray(approvals) ? approvals.length : 0);
+      } else {
+        setPendingApprovals(0);
       }
 
       const today = getTodayDate();
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
       threeMonthsAgo.setHours(0, 0, 0, 0);
 
       let bookingCount = 0;
+      let bookingCountThisMonth = 0;
+      let bookingCountToday = 0;
       let currentMonthRevenue = 0;
       let todayRevenueAmt = 0;
       const sortedBookings = [];
-      const bdmRevMap = {}; // { bdmName: {revenue, count} }
-      const monthlyMap = {}; // { "YYYY-MM": revenue }
-      const serviceSoldMap = {}; // { serviceName: soldCount }
-      const serviceRevenueMap = {}; // { serviceName: revenueShare }
+      const bdmRevMap = {};
+      const monthlyMap = {};
+      const serviceSoldMap = {};
+      const serviceRevenueMap = {};
       const currentMonthDeductions = [];
+
       const isCurrentMonthTerm = (termShare) => {
         const termDate = new Date(termShare?.payment_date || "");
         return !Number.isNaN(termDate.getTime()) &&
@@ -469,21 +546,31 @@ const DashboardContent = () => {
 
       for (const booking of bookings) {
         if (isAdmin || String(booking.user_id) === String(session.user_id)) {
-          bookingCount++;
+          bookingCount += 1;
         }
-        const rev = getBookingRevenueForUser(booking, session.user_id, isAdmin, () => true, serviceDeductionMap);
+
+        const createdDate = parseDateValue(booking.createdAt || booking.date || booking.payment_date);
+        const createdDateKey = getDateKey(booking.createdAt || booking.date || booking.payment_date);
+        if (createdDate) {
+          if (createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
+            bookingCountThisMonth += 1;
+          }
+          if (createdDateKey === today) {
+            bookingCountToday += 1;
+          }
+        }
+
+        const revenueForAccess = getBookingRevenueForUser(booking, session.user_id, isAdmin, () => true, serviceDeductionMap);
         const currentMonthRev = isAdmin
           ? getBookingRevenueForUser(booking, session.user_id, true, isCurrentMonthTerm, serviceDeductionMap)
           : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm, serviceDeductionMap);
 
-        const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
         currentMonthRevenue += currentMonthRev;
 
-        if (booking.createdAt?.split("T")[0] === today) {
-          todayRevenueAmt += rev;
+        if (createdDateKey === today) {
+          todayRevenueAmt += revenueForAccess;
         }
 
-        // Leaderboard aggregation (current month)
         addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm, serviceDeductionMap);
 
         currentMonthDeductions.push(
@@ -497,9 +584,10 @@ const DashboardContent = () => {
           )
         );
 
+        const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
         if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= threeMonthsAgo) {
           const services = Array.isArray(booking.services)
-            ? booking.services.filter((s) => typeof s === "string" && s.trim())
+            ? booking.services.filter((service) => typeof service === "string" && service.trim())
             : [];
 
           if (services.length > 0) {
@@ -507,20 +595,18 @@ const DashboardContent = () => {
               0,
               isAdmin
                 ? getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap)
-                : rev
+                : revenueForAccess
             );
             const splitRevenue = splitBaseRevenue / services.length;
 
             services.forEach((serviceNameRaw) => {
               const serviceName = serviceNameRaw.trim();
               serviceSoldMap[serviceName] = (serviceSoldMap[serviceName] || 0) + 1;
-              serviceRevenueMap[serviceName] =
-                (serviceRevenueMap[serviceName] || 0) + splitRevenue;
+              serviceRevenueMap[serviceName] = (serviceRevenueMap[serviceName] || 0) + splitRevenue;
             });
           }
         }
 
-        // Monthly revenue (last 6 months)
         ["term_1", "term_2", "term_3"].forEach((termKey) => {
           const termAmount = getBookingRevenueForUser(
             booking,
@@ -530,21 +616,23 @@ const DashboardContent = () => {
             serviceDeductionMap
           );
           if (!termAmount) return;
-          const termDate = new Date(booking.term_shares?.[termKey]?.payment_date || booking.payment_date || booking.date || booking.createdAt);
+
+          const termDate = new Date(
+            booking.term_shares?.[termKey]?.payment_date || booking.payment_date || booking.date || booking.createdAt
+          );
           if (Number.isNaN(termDate.getTime())) return;
-          const key = `${termDate.getFullYear()}-${String(
-            termDate.getMonth() + 1
-          ).padStart(2, "0")}`;
-          if (!monthlyMap[key]) monthlyMap[key] = 0;
-          monthlyMap[key] += termAmount;
+
+          const monthKey = `${termDate.getFullYear()}-${String(termDate.getMonth() + 1).padStart(2, "0")}`;
+          if (!monthlyMap[monthKey]) monthlyMap[monthKey] = 0;
+          monthlyMap[monthKey] += termAmount;
         });
 
         (booking.refund_adjustments || []).forEach((refund) => {
           const refundDate = new Date(refund.refund_date || refund.created_at);
           if (Number.isNaN(refundDate.getTime())) return;
-          const key = `${refundDate.getFullYear()}-${String(refundDate.getMonth() + 1).padStart(2, "0")}`;
-          if (!monthlyMap[key]) monthlyMap[key] = 0;
-          monthlyMap[key] += getBookingRevenueForUser(
+          const monthKey = `${refundDate.getFullYear()}-${String(refundDate.getMonth() + 1).padStart(2, "0")}`;
+          if (!monthlyMap[monthKey]) monthlyMap[monthKey] = 0;
+          monthlyMap[monthKey] += getBookingRevenueForUser(
             booking,
             session.user_id,
             isAdmin,
@@ -556,43 +644,52 @@ const DashboardContent = () => {
         sortedBookings.push(booking);
       }
 
-      // Build leaderboard sorted by revenue desc
       const board = Object.entries(bdmRevMap)
-        .map(([name, data]) => ({ name, ...data }))
+        .map(([name, data]) => {
+          const profile = userDirectoryByName[(name || "").trim().toUpperCase()] || {};
+          return {
+            name,
+            ...data,
+            profilePicture: profile.profilePicture || "",
+            role: profile.role || "",
+          };
+        })
         .sort((a, b) => b.revenue - a.revenue);
       setLeaderboard(board);
 
-      // Build last 6 months chart data
-      const months = [];
-      const now = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-          2,
-          "0"
-        )}`;
-        months.push({
-          label: d.toLocaleString("default", { month: "short" }),
-          value: monthlyMap[key] || 0,
+      const monthBuckets = [];
+      for (let i = 5; i >= 0; i -= 1) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        monthBuckets.push({
+          label: date.toLocaleString("default", { month: "short" }),
+          value: monthlyMap[monthKey] || 0,
         });
       }
       setMonthlyRevData({
-        labels: months.map((m) => m.label),
-        values: months.map((m) => m.value),
+        labels: monthBuckets.map((month) => month.label),
+        values: monthBuckets.map((month) => month.value),
       });
 
       if (!isAdmin) {
         const companySoldMap = {};
         const companyRevenueMap = {};
+
         for (const booking of allCompanyBookings) {
           const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
           if (Number.isNaN(paymentDate.getTime()) || paymentDate < threeMonthsAgo) continue;
+
           const services = Array.isArray(booking.services)
-            ? booking.services.filter((s) => typeof s === "string" && s.trim())
+            ? booking.services.filter((service) => typeof service === "string" && service.trim())
             : [];
           if (!services.length) continue;
-          const revenue = Math.max(0, getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap));
+
+          const revenue = Math.max(
+            0,
+            getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap)
+          );
           const splitRevenue = revenue / services.length;
+
           services.forEach((serviceNameRaw) => {
             const serviceName = serviceNameRaw.trim();
             companySoldMap[serviceName] = (companySoldMap[serviceName] || 0) + 1;
@@ -617,13 +714,13 @@ const DashboardContent = () => {
       }
 
       const soldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
-      const revenueEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
+      const activityEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
 
       const soldTop = soldEntries[0] || ["-", 0];
-      const revenueTop = revenueEntries[0] || ["-", 0];
+      const activityTop = activityEntries[0] || ["-", 0];
 
       setMostSoldService({ name: soldTop[0], count: soldTop[1] });
-      setMostRevenueService({ name: revenueTop[0], revenue: Number(revenueTop[1] || 0) });
+      setMostRevenueService({ name: activityTop[0], revenue: Number(activityTop[1] || 0) });
 
       setServiceSoldData({
         labels: soldEntries.slice(0, 6).map(([service]) => service),
@@ -631,21 +728,24 @@ const DashboardContent = () => {
       });
 
       setServiceRevenueData({
-        labels: revenueEntries.slice(0, 6).map(([service]) => service),
-        values: revenueEntries.slice(0, 6).map(([, revenue]) => Math.round(revenue)),
+        labels: activityEntries.slice(0, 6).map(([service]) => service),
+        values: activityEntries.slice(0, 6).map(([, count]) => Math.round(count)),
       });
+
       setServiceDeductionCatalog(serviceDeductionCatalogRows);
       setTotalServiceDeductions(
         currentMonthDeductions.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
       );
 
       const recent = sortedBookings
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 7);
+        .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
+        .slice(0, 6);
 
       setTotalBookings(bookingCount);
       setTotalRevenue(currentMonthRevenue);
       setTodayRevenue(todayRevenueAmt);
+      setBookingsThisMonth(bookingCountThisMonth);
+      setBookingsToday(bookingCountToday);
       setRecentBookings(recent);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -654,45 +754,31 @@ const DashboardContent = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        <Loader />
-      </div>
-    );
-  }
-
-  const medals = ["Ã°Å¸Â¥â€¡", "Ã°Å¸Â¥Ë†", "Ã°Å¸Â¥â€°"];
-
   const handleOpenBooking = async (bookingId) => {
     try {
-      // Fetch full booking details
       const res = await fetch(`${apiUrl}/booking/all`, {
-        headers: { authorization: userSession?.token }
+        headers: { authorization: userSession?.token },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const bookings = data.Allbookings || data.bookings || [];
-        const booking = bookings.find(b => b._id === bookingId);
-
-        if (booking) {
-          setSelectedBooking(booking);
-          setIsBookingPopupOpen(true);
-        } else {
-          enqueueSnackbar('Booking not found', { variant: 'error' });
-        }
+      if (!res.ok) {
+        enqueueSnackbar("Error opening booking details", { variant: "error" });
+        return;
       }
+
+      const data = await res.json();
+      const bookings = data.Allbookings || data.bookings || [];
+      const booking = bookings.find((item) => item._id === bookingId);
+
+      if (!booking) {
+        enqueueSnackbar("Booking not found", { variant: "error" });
+        return;
+      }
+
+      setSelectedBooking(booking);
+      setIsBookingPopupOpen(true);
     } catch (error) {
-      console.error('Error fetching booking details:', error);
-      enqueueSnackbar('Error opening booking details', { variant: 'error' });
+      console.error("Error fetching booking details:", error);
+      enqueueSnackbar("Error opening booking details", { variant: "error" });
     }
   };
 
@@ -701,543 +787,746 @@ const DashboardContent = () => {
     setSelectedBooking(null);
   };
 
-  return (
-    <Box sx={{ p: { xs: 1, sm: 2 }, animation: "fadeSlideIn 320ms ease" }}>
+  const deductionRows = useMemo(
+    () => serviceDeductionCatalog.filter((row) => Number(row.deduction || 0) > 0),
+    [serviceDeductionCatalog]
+  );
+
+  const statCards = useMemo(() => {
+    const adminCards = [
+      {
+        label: "Bookings",
+        value: totalBookings.toLocaleString(),
+        sub: "All accessible bookings",
+        icon: <BookOnlineOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Revenue This Month",
+        value: formatCurrency(totalRevenue),
+        sub: "After deductions",
+        icon: <CurrencyRupeeOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Service Deductions",
+        value: formatCurrency(Math.round(totalServiceDeductions)),
+        sub: "Vendor costs this month",
+        icon: <PaidOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Today's Revenue",
+        value: formatCurrency(todayRevenue),
+        sub: "Live today after deductions",
+        icon: <TodayOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Total Users",
+        value: totalUsers.toLocaleString(),
+        sub: "Active CRM users",
+        icon: <PeopleAltOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Bookings This Month",
+        value: bookingsThisMonth.toLocaleString(),
+        sub: "Created this month",
+        icon: <LocalOfferOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Bookings Today",
+        value: bookingsToday.toLocaleString(),
+        sub: "Created today",
+        icon: <BookOnlineOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Pending Approvals",
+        value: pendingApprovals.toLocaleString(),
+        sub: "Awaiting review",
+        icon: <PendingActionsOutlinedIcon fontSize="small" />,
+      },
+    ];
+
+    const userCards = [
+      {
+        label: "Bookings",
+        value: totalBookings.toLocaleString(),
+        sub: "Your live bookings",
+        icon: <BookOnlineOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Revenue This Month",
+        value: formatCurrency(totalRevenue),
+        sub: "After deductions",
+        icon: <CurrencyRupeeOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Service Deductions",
+        value: formatCurrency(Math.round(totalServiceDeductions)),
+        sub: "This month",
+        icon: <PaidOutlinedIcon fontSize="small" />,
+      },
+      {
+        label: "Today's Revenue",
+        value: formatCurrency(todayRevenue),
+        sub: "From today's bookings",
+        icon: <TodayOutlinedIcon fontSize="small" />,
+      },
+    ];
+
+    return isAdmin ? adminCards : userCards;
+  }, [
+    bookingsThisMonth,
+    bookingsToday,
+    isAdmin,
+    pendingApprovals,
+    todayRevenue,
+    totalBookings,
+    totalRevenue,
+    totalServiceDeductions,
+    totalUsers,
+  ]);
+
+  const featuredLeaderboardEntry = leaderboard[0] || null;
+  const compactLeaderboardEntries = leaderboard.slice(1, 5);
+  const previewDeductionRows = deductionRows.slice(0, isMobile ? 4 : 6);
+  const medals = ["1", "2", "3"];
+
+  if (loading) {
+    return (
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
-          mb: companyBranches.length > 0 ? 1 : 2,
+          justifyContent: "center",
           alignItems: "center",
+          height: "100vh",
         }}
       >
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          Dashboard
-        </Typography>
+        <Loader />
       </Box>
+    );
+  }
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Branches Display Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      {companyBranches.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mr: 1, fontWeight: 600 }}>
-            Current Branch:
+  return (
+    <Box sx={{ px: { xs: 1, sm: 1.5, md: 2 }, py: { xs: 1, sm: 1.5 }, width: "100%" }}>
+      <Box sx={{ width: "100%", maxWidth: { xl: 1680 }, mx: { xl: "auto" } }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: companyBranches.length > 0 ? 1 : 2,
+            gap: 1,
+            flexWrap: "wrap",
+          }}
+        >
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            Dashboard
           </Typography>
-          {companyBranches.map((branch, idx) => (
-            <Chip
-              key={idx}
-              label={branch}
-              size="small"
-              sx={{
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-                color: theme.palette.mode === 'dark' ? '#cbd5e1' : '#475569',
-                fontWeight: 600,
-                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
-              }}
-            />
-          ))}
         </Box>
-      )}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Payment Reminders Banner Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      <PaymentReminders onOpenBooking={handleOpenBooking} />
-
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Stat Cards Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      <Grid container spacing={2.5}>
-        {[
-          {
-            label: "Bookings",
-            value: totalBookings,
-            sub: isAdmin ? "Total Bookings" : "Your Bookings",
-            icon: <BookOnlineOutlinedIcon />,
-            color: ACCENT,
-          },
-          ...(isAdmin
-            ? [
-              {
-                label: "Total Users",
-                value: totalUsers,
-                sub: "CRM users",
-                icon: <PeopleAltOutlinedIcon />,
-                color: "#ff5a1f",
-              },
-            ]
-            : []),
-          {
-            label: `Revenue ${new Date().toLocaleString("default", {
-              month: "short",
-            })}`,
-            value: `Ã¢â€šÂ¹${totalRevenue.toLocaleString()}`,
-            sub: "This month after deductions",
-            icon: <CurrencyRupeeOutlinedIcon />,
-            color: ACCENT,
-          },
-          {
-            label: "Service Deductions",
-            value: `Ã¢â€šÂ¹${Math.round(totalServiceDeductions).toLocaleString()}`,
-            sub: "Vendor costs this month",
-            icon: <PaidOutlinedIcon />,
-            color: "#7c3aed",
-          },
-          {
-            label: "Today's Revenue",
-            value: `Ã¢â€šÂ¹${todayRevenue.toLocaleString()}`,
-            sub: "From today's bookings after deductions",
-            icon: <TodayOutlinedIcon />,
-            color: "#ff7a1f",
-          },
-        ].map((c, i) => (
-          <Grid item xs={12} sm={6} md={isAdmin ? 3 : 4} key={i}>
-            <Card
-              sx={{
-                position: "relative",
-                overflow: "visible",
-                border: "1px solid",
-                borderColor: "divider",
-                background:
-                  theme.palette.mode === "light"
-                    ? "linear-gradient(160deg, rgba(255,255,255,1) 0%, rgba(255,248,246,1) 100%)"
-                    : "linear-gradient(160deg, rgba(18,23,34,1) 0%, rgba(31,17,14,1) 100%)",
-                "&::before": {
-                  content: '""',
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: "100%",
-                  height: 3,
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  background: `linear-gradient(90deg, ${c.color} 0%, ${ACCENT_DARK} 100%)`,
-                },
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow:
-                    theme.palette.mode === "light"
-                      ? "0 12px 24px rgba(255,59,31,0.14)"
-                      : "0 12px 24px rgba(255,59,31,0.2)",
-                },
-              }}
+        {companyBranches.length > 0 && (
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ display: "flex", alignItems: "center", mr: 0.5, fontWeight: 600 }}
             >
-              <CardContent sx={{ pb: '16px !important' }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <Box>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ fontSize: "0.78rem", mb: 0.5 }}
-                    >
-                      {c.label}
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      {c.value}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                    >
-                      {c.sub}
-                    </Typography>
-                  </Box>
-                  <Avatar
-                    sx={{
-                      bgcolor: `${c.color}18`,
-                      color: c.color,
-                      width: 42,
-                      height: 42,
-                    }}
-                  >
-                    {c.icon}
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Charts + Leaderboard Row Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      <Grid container spacing={2.5} sx={{ mt: 1 }}>
-        {/* Monthly Revenue Chart */}
-        <Grid item xs={12} md={isAdmin ? 7 : 12}>
-          <Card>
-            <CardContent>
-              <Box
+              Current Branch:
+            </Typography>
+            {companyBranches.map((branch, index) => (
+              <Chip
+                key={index}
+                label={branch}
+                size="small"
                 sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
+                  bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.04)",
+                  color: theme.palette.mode === "dark" ? "#cbd5e1" : "#475569",
+                  fontWeight: 600,
+                  borderRadius: "8px",
+                  border: `1px solid ${theme.palette.mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(15,23,42,0.08)"}`,
                 }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <TrendingUpOutlinedIcon
-                    sx={{ color: ACCENT, fontSize: 20 }}
-                  />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Monthly Revenue
-                  </Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Last 6 months
-                </Typography>
-              </Box>
-              <Box sx={{ height: 260 }}>
-                <canvas ref={chartRef} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+              />
+            ))}
+          </Box>
+        )}
 
-        {/* Leaderboard Ã¢â‚¬â€ only for admin */}
-        {isAdmin && (
-          <Grid item xs={12} md={5}>
-            <Card sx={{ height: "100%" }}>
-              <CardContent>
-                <Box
+        <PaymentReminders onOpenBooking={handleOpenBooking} />
+
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.25 }}>
+          {statCards.map((card, index) => {
+            const palette = statCardThemes[index % statCardThemes.length];
+            return (
+              <Grid item xs={6} md={3} key={card.label}>
+                <Card
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    mb: 2,
+                    height: "100%",
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    background: palette.bg,
+                    boxShadow: theme.palette.mode === "light" ? "0 10px 24px rgba(15,23,42,0.05)" : "none",
                   }}
                 >
-                  <EmojiEventsOutlinedIcon
-                    sx={{ color: ACCENT, fontSize: 20 }}
-                  />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Revenue Leaderboard
-                  </Typography>
-                  <Chip
-                    size="small"
-                    label={new Date().toLocaleString("default", {
-                      month: "short",
-                    })}
-                    sx={{
-                      ml: "auto",
-                      bgcolor: ACCENT_LIGHT,
-                      color: ACCENT_DARK,
-                      border: "1px solid rgba(255,59,31,0.35)",
-                      fontWeight: 600,
-                      fontSize: "0.7rem",
-                    }}
-                  />
-                </Box>
-                <TableContainer sx={{ overflowX: "auto" }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>#</TableCell>
-                        <TableCell>Employee</TableCell>
-                        <TableCell align="right">Bookings</TableCell>
-                        <TableCell align="right">Deduction</TableCell>
-                        <TableCell align="right">Revenue</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {leaderboard.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center">
-                            <Typography variant="body2" color="text.secondary">
-                              No data this month
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {topLeaderboardEntries.map((entry, idx) => (
-                        <TableRow
-                          key={entry.name}
+                  <CardContent sx={{ p: { xs: 1.25, sm: 1.5 }, "&:last-child": { pb: { xs: 1.25, sm: 1.5 } } }}>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
                           sx={{
-                            bgcolor:
-                              idx === 0 ? ACCENT_SOFT : "inherit",
+                            color: "text.secondary",
+                            fontSize: { xs: "0.68rem", sm: "0.72rem" },
+                            fontWeight: 700,
+                            display: "block",
+                            mb: 0.5,
+                            textTransform: "uppercase",
+                            letterSpacing: 0,
                           }}
                         >
-                          <TableCell sx={{ fontWeight: 700 }}>
-                            {idx < 3 ? medals[idx] : idx + 1}
-                          </TableCell>
-                          <TableCell>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: idx < 3 ? 600 : 400,
-                              }}
-                            >
-                              {entry.name}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">{entry.count}</TableCell>
-                          <TableCell align="right">
-                            Ã¢â€šÂ¹{Math.round(entry.deduction || 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600 }}>
-                            <Box component="span" sx={{ color: ACCENT_DARK }}>
-                              Ã¢â€šÂ¹{entry.revenue.toLocaleString()}
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                {leaderboard.length > 3 && (
-                  <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.5 }}>
-                    <Button size="small" onClick={() => setLeaderboardDialogOpen(true)}>
-                      See All
-                    </Button>
+                          {card.label}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontWeight: 800,
+                            fontSize: { xs: "0.98rem", sm: "1.2rem", md: "1.28rem" },
+                            lineHeight: 1.15,
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {card.value}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            fontSize: { xs: "0.66rem", sm: "0.72rem" },
+                            display: "block",
+                            mt: 0.5,
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {card.sub}
+                        </Typography>
+                      </Box>
+                      <Avatar
+                        sx={{
+                          width: { xs: 30, sm: 34 },
+                          height: { xs: 30, sm: 34 },
+                          bgcolor: palette.iconBg,
+                          color: palette.iconColor,
+                          borderRadius: "8px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {card.icon}
+                      </Avatar>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} lg={8}>
+            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <TrendingUpOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Monthly Revenue
+                    </Typography>
                   </Box>
-                )}
+                  <Typography variant="caption" color="text.secondary">
+                    Last 6 months
+                  </Typography>
+                </Box>
+                <Box sx={{ height: { xs: 220, md: 240 } }}>
+                  <canvas ref={chartRef} />
+                </Box>
               </CardContent>
             </Card>
           </Grid>
-        )}
-      </Grid>
 
-      <Grid container spacing={2.5} sx={{ mt: 1 }}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <LocalOfferOutlinedIcon sx={{ color: "#3b82f6" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Most Sold Service (Last 3 Months)
-                  </Typography>
-                </Box>
-                <Chip
-                  size="small"
-                  label={`${mostSoldService.name} Ã¢â‚¬Â¢ ${mostSoldService.count}`}
-                  sx={{ bgcolor: "rgba(59,130,246,0.14)", color: "#1d4ed8", fontWeight: 700 }}
-                />
-              </Box>
-              {!isAdmin && (
-                <Chip
-                  size="small"
-                  label={`Mine: ${personalMostSoldService.name} - ${personalMostSoldService.count}`}
-                  sx={{ mb: 1.5, bgcolor: "rgba(16,185,129,0.14)", color: "#047857", fontWeight: 700 }}
-                />
-              )}
-              <Box sx={{ height: 250 }}>
-                {serviceSoldData.labels.length > 0 ? (
-                  <canvas ref={soldChartRef} />
-                ) : (
-                  <Typography variant="body2" color="text.secondary">No service sales in the last 3 months.</Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <PaidOutlinedIcon sx={{ color: ACCENT }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Service Activity Range (Last 3 Months)
-                  </Typography>
-                </Box>
-                <Chip
-                  size="small"
-                  label={`${mostRevenueService.name} Ã¢â‚¬Â¢ Ã¢â€šÂ¹${mostRevenueService.revenue.toLocaleString()}`}
-                  sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, fontWeight: 700 }}
-                />
-              </Box>
-              {!isAdmin && (
-                <Chip
-                  size="small"
-                  label={`Mine: ${personalMostRevenueService.name} - ${personalMostRevenueService.revenue.toLocaleString()} bookings`}
-                  sx={{ mb: 1.5, bgcolor: "rgba(16,185,129,0.14)", color: "#047857", fontWeight: 700 }}
-                />
-              )}
-              <Box sx={{ height: 250 }}>
-                {serviceRevenueData.labels.length > 0 ? (
-                  <canvas ref={revenueChartRef} />
-                ) : (
-                  <Typography variant="body2" color="text.secondary">No service activity in the last 3 months.</Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Grid container spacing={2.5} sx={{ mt: 1 }}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <PaidOutlinedIcon sx={{ color: "#6366f1" }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    Company Service Distribution (Last 3 Months)
-                  </Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  Booking volume + percentage per service
-                </Typography>
-              </Box>
-              <Box sx={{ height: 320 }}>
-                {serviceRevenueData.labels.length > 0 ? (
-                  <canvas ref={revenuePieChartRef} />
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No service activity in the last 3 months.
-                  </Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Service Deductions Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
-          Service Deduction Master
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Check service-wise deductions here before logging a booking.
-        </Typography>
-        <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
-          <Table size={isMobile ? "small" : "medium"}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Service</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Deduction</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {serviceDeductionCatalog.filter((row) => Number(row.deduction || 0) > 0).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} align="center">
-                    <Typography variant="body2" color="text.secondary">
-                      No service deductions configured yet.
+          {isAdmin && (
+            <Grid item xs={12} lg={4}>
+              <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+                <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 }, height: "100%" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                    <EmojiEventsOutlinedIcon sx={{ color: ACCENT, fontSize: 20 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Top Performers
                     </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {serviceDeductionCatalog
-                .filter((row) => Number(row.deduction || 0) > 0)
-                .map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {row.service}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
                     <Chip
                       size="small"
-                      label={row.status ? "Active" : "Inactive"}
+                      label={new Date().toLocaleString("default", { month: "short" })}
                       sx={{
-                        bgcolor: row.status ? "rgba(16,185,129,0.12)" : "rgba(148,163,184,0.16)",
-                        color: row.status ? "#047857" : "#475569",
+                        ml: "auto",
+                        bgcolor: ACCENT_LIGHT,
+                        color: ACCENT_DARK,
+                        borderRadius: "8px",
                         fontWeight: 700,
                       }}
                     />
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, color: "#7c3aed" }}>
-                    Ã¢â€šÂ¹{Math.round(row.deduction).toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+                  </Box>
 
-      <Dialog open={leaderboardDialogOpen} onClose={() => setLeaderboardDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Revenue Leaderboard</DialogTitle>
-        <DialogContent dividers>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>#</TableCell>
-                  <TableCell>Employee</TableCell>
-                  <TableCell align="right">Bookings</TableCell>
-                  <TableCell align="right">Deduction</TableCell>
-                  <TableCell align="right">Revenue</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {leaderboard.map((entry, idx) => (
-                  <TableRow key={`full-${entry.name}`}>
-                    <TableCell sx={{ fontWeight: 700 }}>{idx < 3 ? medals[idx] : idx + 1}</TableCell>
-                    <TableCell>{entry.name}</TableCell>
-                    <TableCell align="right">{entry.count}</TableCell>
-                    <TableCell align="right">Ã¢â€šÂ¹{Math.round(entry.deduction || 0).toLocaleString()}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>Ã¢â€šÂ¹{entry.revenue.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLeaderboardDialogOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+                  {featuredLeaderboardEntry ? (
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: "8px",
+                        border: "1px solid rgba(255,59,31,0.18)",
+                        background: theme.palette.mode === "dark"
+                          ? "linear-gradient(180deg, rgba(255,59,31,0.10) 0%, rgba(255,255,255,0.02) 100%)"
+                          : "linear-gradient(180deg, rgba(255,59,31,0.08) 0%, rgba(255,255,255,1) 100%)",
+                        mb: 1.25,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                        <Avatar
+                          src={featuredLeaderboardEntry.profilePicture || ""}
+                          sx={{
+                            width: 52,
+                            height: 52,
+                            bgcolor: "rgba(255,59,31,0.16)",
+                            color: ACCENT_DARK,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {getInitials(featuredLeaderboardEntry.name)}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 700 }} noWrap>
+                            {featuredLeaderboardEntry.name}
+                          </Typography>
+                          {featuredLeaderboardEntry.role ? (
+                            <Typography variant="caption" color="text.secondary">
+                              {roleLabel(featuredLeaderboardEntry.role)}
+                            </Typography>
+                          ) : null}
+                        </Box>
+                        <Chip
+                          size="small"
+                          label="#1"
+                          sx={{ bgcolor: ACCENT, color: "#fff", borderRadius: "8px", fontWeight: 700 }}
+                        />
+                      </Box>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Recent Bookings Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
-          Recent Bookings
-        </Typography>
-        <TableContainer component={Paper} sx={{ overflowX: "auto" }}>
-          <Table size={isMobile ? "small" : "medium"}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Company Name</TableCell>
-                <TableCell>BDM Name</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell align="right">Amount</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {recentBookings.map((booking) => (
-                <TableRow key={booking._id}>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {booking.company_name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{booking.bdm}</TableCell>
-                  <TableCell>
-                    {new Date(booking.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>
-                    <Box component="span" sx={{ color: ACCENT_DARK }}>
-                      Ã¢â€šÂ¹
-                      {(
-                        (booking.term_1 || 0) +
-                        (booking.term_2 || 0) +
-                        (booking.term_3 || 0)
-                      ).toLocaleString()}
+                      <Grid container spacing={1} sx={{ mt: 1 }}>
+                        <Grid item xs={4}>
+                          <Typography variant="caption" color="text.secondary">
+                            Bookings
+                          </Typography>
+                          <Typography sx={{ fontWeight: 700, mt: 0.25 }}>
+                            {featuredLeaderboardEntry.count}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Typography variant="caption" color="text.secondary">
+                            Deduction
+                          </Typography>
+                          <Typography sx={{ fontWeight: 700, mt: 0.25 }}>
+                            {formatCurrency(Math.round(featuredLeaderboardEntry.deduction || 0))}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Typography variant="caption" color="text.secondary">
+                            Revenue
+                          </Typography>
+                          <Typography sx={{ fontWeight: 700, mt: 0.25, color: ACCENT_DARK }}>
+                            {formatCurrency(featuredLeaderboardEntry.revenue)}
+                          </Typography>
+                        </Grid>
+                      </Grid>
                     </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                      No leaderboard data this month.
+                    </Typography>
+                  )}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Booking Edit Popup Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      {isBookingPopupOpen && (
-        <Popup isOpen={isBookingPopupOpen} onClose={handleCloseBookingPopup}>
-          <EditBooking
-            initialData={selectedBooking}
-            onClose={handleCloseBookingPopup}
-          />
-        </Popup>
-      )}
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {compactLeaderboardEntries.map((entry, index) => (
+                      <Box
+                        key={entry.name}
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "auto minmax(0,1fr) auto",
+                          gap: 1,
+                          alignItems: "center",
+                          p: 1,
+                          borderRadius: "8px",
+                          backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(15,23,42,0.025)",
+                        }}
+                      >
+                        <Avatar
+                          src={entry.profilePicture || ""}
+                          sx={{
+                            width: 34,
+                            height: 34,
+                            fontSize: "0.8rem",
+                            bgcolor: "rgba(59,130,246,0.14)",
+                            color: "#2563eb",
+                          }}
+                        >
+                          {getInitials(entry.name)}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                            {entry.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {entry.count} bookings · {formatCurrency(entry.revenue)}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={`#${index + 2}`}
+                          sx={{ borderRadius: "8px", fontWeight: 700 }}
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+
+                  {leaderboard.length > 4 && (
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1.25 }}>
+                      <Button size="small" onClick={() => setLeaderboardDialogOpen(true)}>
+                        View All
+                      </Button>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+        </Grid>
+
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} lg={7}>
+            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <LocalOfferOutlinedIcon sx={{ color: "#3b82f6" }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Most Sold Services
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label={`${mostSoldService.name} · ${mostSoldService.count}`}
+                    sx={{ bgcolor: "rgba(59,130,246,0.12)", color: "#1d4ed8", borderRadius: "8px", fontWeight: 700 }}
+                  />
+                </Box>
+                {!isAdmin && (
+                  <Chip
+                    size="small"
+                    label={`Mine: ${personalMostSoldService.name} · ${personalMostSoldService.count}`}
+                    sx={{ mb: 1.25, bgcolor: "rgba(16,185,129,0.12)", color: "#047857", borderRadius: "8px", fontWeight: 700 }}
+                  />
+                )}
+                <Box sx={{ height: { xs: 220, md: 230 } }}>
+                  {serviceSoldData.labels.length > 0 ? (
+                    <canvas ref={soldChartRef} />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No service sales in the last 3 months.
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} lg={5}>
+            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <PaidOutlinedIcon sx={{ color: ACCENT }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                      Service Activity Range
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label={`${mostRevenueService.name} · ${mostRevenueService.revenue.toLocaleString()} bookings`}
+                    sx={{ bgcolor: ACCENT_LIGHT, color: ACCENT_DARK, borderRadius: "8px", fontWeight: 700 }}
+                  />
+                </Box>
+                {!isAdmin && (
+                  <Chip
+                    size="small"
+                    label={`Mine: ${personalMostRevenueService.name} · ${personalMostRevenueService.revenue.toLocaleString()} bookings`}
+                    sx={{ mb: 1.25, bgcolor: "rgba(16,185,129,0.12)", color: "#047857", borderRadius: "8px", fontWeight: 700 }}
+                  />
+                )}
+                <Box sx={{ height: { xs: 220, md: 230 } }}>
+                  {serviceRevenueData.labels.length > 0 ? (
+                    <canvas ref={revenueChartRef} />
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No service activity in the last 3 months.
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mt: 0.5 }}>
+          <Grid item xs={12} xl={7}>
+            <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider", height: "100%" }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                    Recent Bookings
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Latest live bookings
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {recentBookings.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No recent bookings found.
+                    </Typography>
+                  )}
+                  {recentBookings.map((booking) => (
+                    <Paper
+                      key={booking._id}
+                      variant="outlined"
+                      sx={{
+                        p: 1.25,
+                        borderRadius: "8px",
+                        borderColor: "divider",
+                        backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.02)" : "#fff",
+                      }}
+                    >
+                      <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                            {booking.company_name || "Untitled Company"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                            {booking.bdm || "Unknown BDM"} · {new Date(booking.createdAt || booking.date || Date.now()).toLocaleDateString()}
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mt: 0.9 }}>
+                            {(booking.services || []).slice(0, 3).map((service) => (
+                              <Chip
+                                key={`${booking._id}-${service}`}
+                                label={service}
+                                size="small"
+                                sx={{
+                                  borderRadius: "8px",
+                                  bgcolor: "rgba(15,23,42,0.05)",
+                                  fontWeight: 600,
+                                  maxWidth: "100%",
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: { xs: "flex-start", sm: "flex-end" }, gap: 0.6 }}>
+                          <Typography sx={{ fontWeight: 800, color: ACCENT_DARK }}>
+                            {formatCurrency((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0))}
+                          </Typography>
+                          <Button size="small" onClick={() => handleOpenBooking(booking._id)}>
+                            Open
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={12} xl={5}>
+            <Grid container spacing={{ xs: 1.25, sm: 1.5 }}>
+              <Grid item xs={12}>
+                <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider" }}>
+                  <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          Service Deduction Master
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Only services with active deductions
+                        </Typography>
+                      </Box>
+                      {deductionRows.length > previewDeductionRows.length && (
+                        <Button size="small" onClick={() => setDeductionDialogOpen(true)}>
+                          View All
+                        </Button>
+                      )}
+                    </Box>
+
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.9 }}>
+                      {previewDeductionRows.length === 0 && (
+                        <Typography variant="body2" color="text.secondary">
+                          No service deductions configured yet.
+                        </Typography>
+                      )}
+                      {previewDeductionRows.map((row) => (
+                        <Box
+                          key={row.id}
+                          sx={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0,1fr) auto",
+                            gap: 1,
+                            alignItems: "center",
+                            p: 1,
+                            borderRadius: "8px",
+                            backgroundColor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(124,58,237,0.05)",
+                          }}
+                        >
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                              {row.service}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {row.status ? "Active" : "Inactive"}
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ fontWeight: 800, color: "#7c3aed" }}>
+                            {formatCurrency(Math.round(row.deduction))}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card sx={{ borderRadius: "8px", border: "1px solid", borderColor: "divider" }}>
+                  <CardContent sx={{ p: { xs: 1.25, sm: 1.5, md: 1.75 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.25, gap: 1, flexWrap: "wrap" }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        Service Distribution
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Last 3 months
+                      </Typography>
+                    </Box>
+                    <Box sx={{ height: { xs: 240, md: 260 } }}>
+                      {serviceRevenueData.labels.length > 0 ? (
+                        <canvas ref={revenuePieChartRef} />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No service activity in the last 3 months.
+                        </Typography>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Grid>
+        </Grid>
+
+        <Dialog open={leaderboardDialogOpen} onClose={() => setLeaderboardDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Revenue Leaderboard</DialogTitle>
+          <DialogContent dividers>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>#</TableCell>
+                    <TableCell>Employee</TableCell>
+                    <TableCell align="right">Bookings</TableCell>
+                    <TableCell align="right">Deduction</TableCell>
+                    <TableCell align="right">Revenue</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {leaderboard.map((entry, index) => (
+                    <TableRow key={`full-${entry.name}`}>
+                      <TableCell sx={{ fontWeight: 700 }}>{index < 3 ? medals[index] : index + 1}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Avatar src={entry.profilePicture || ""} sx={{ width: 28, height: 28, fontSize: "0.78rem" }}>
+                            {getInitials(entry.name)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {entry.name}
+                            </Typography>
+                            {entry.role ? (
+                              <Typography variant="caption" color="text.secondary">
+                                {roleLabel(entry.role)}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">{entry.count}</TableCell>
+                      <TableCell align="right">{formatCurrency(Math.round(entry.deduction || 0))}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                        {formatCurrency(entry.revenue)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setLeaderboardDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={deductionDialogOpen} onClose={() => setDeductionDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Service Deduction Master</DialogTitle>
+          <DialogContent dividers>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Service</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Deduction</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {deductionRows.map((row) => (
+                    <TableRow key={`deduction-${row.id}`}>
+                      <TableCell>{row.service}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={row.status ? "Active" : "Inactive"}
+                          sx={{
+                            borderRadius: "8px",
+                            bgcolor: row.status ? "rgba(16,185,129,0.12)" : "rgba(148,163,184,0.16)",
+                            color: row.status ? "#047857" : "#475569",
+                            fontWeight: 700,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: "#7c3aed" }}>
+                        {formatCurrency(Math.round(row.deduction))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeductionDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {isBookingPopupOpen && (
+          <Popup isOpen={isBookingPopupOpen} onClose={handleCloseBookingPopup}>
+            <EditBooking initialData={selectedBooking} onClose={handleCloseBookingPopup} />
+          </Popup>
+        )}
+      </Box>
     </Box>
   );
 };
