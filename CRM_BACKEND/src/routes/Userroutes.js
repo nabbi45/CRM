@@ -13,6 +13,7 @@ import { authenticateUser, authorizeDevRole, authorizeFeature } from '../middlew
 import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
 import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
 import { EmployeeModel } from '../models/EmployeeProfile.js';
+import { prepareUploadFile, toDataUri } from '../utils/uploadCompression.js';
 dotenv.config()
 const saltRounds = 5;
 const memoryUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -287,8 +288,8 @@ UserRoutes.post('/profile-picture', authenticateUser, memoryUpload.single('profi
       return res.status(400).send({ message: 'Profile picture file is required' });
     }
 
-    const b64 = Buffer.from(req.file.buffer).toString('base64');
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+    const uploadFile = await prepareUploadFile(req.file);
+    const dataURI = toDataUri(uploadFile);
     const result = await cloudinary.uploader.upload(dataURI, {
       resource_type: 'image',
       folder: 'user_profile_pictures',

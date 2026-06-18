@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { BookingDocumentModel } from "../models/BookingDocumentModel.js";
 import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser, authorizeFeature } from "../middlewares/authMiddleware.js";
+import { getCloudinaryPublicExtension, prepareUploadFile, toDataUri } from "../utils/uploadCompression.js";
 
 const BookingDocumentRoutes = express.Router();
 
@@ -80,24 +81,24 @@ BookingDocumentRoutes.post("/upload", authenticateUser, upload.single("file"), a
             return res.status(403).send({ message: "You do not have access to this booking." });
         }
 
-        // Upload to Cloudinary
-        const b64 = Buffer.from(req.file.buffer).toString("base64");
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        const uploadFile = await prepareUploadFile(req.file);
+        const dataURI = toDataUri(uploadFile);
+        const extension = getCloudinaryPublicExtension(uploadFile);
 
         const result = await cloudinary.uploader.upload(dataURI, {
-            resource_type: "raw",
+            resource_type: uploadFile.resourceType === "image" ? "image" : "raw",
             folder: "booking_documents",
-            public_id: `booking_${bookingId}_${documentType}_${Date.now()}`
+            public_id: `booking_${bookingId}_${documentType}_${Date.now()}${uploadFile.resourceType !== "image" && extension ? `.${extension}` : ""}`
         });
 
         // Save document record
         const document = await BookingDocumentModel.create({
             bookingId,
             documentType,
-            fileName: req.file.originalname,
+            fileName: uploadFile.originalname,
             fileUrl: result.secure_url,
-            fileSize: req.file.size,
-            mimeType: req.file.mimetype,
+            fileSize: uploadFile.size,
+            mimeType: uploadFile.mimetype,
             uploadedBy: req.user.userId,
             uploadedByName: req.user.name || "Unknown",
             notes: notes || ""

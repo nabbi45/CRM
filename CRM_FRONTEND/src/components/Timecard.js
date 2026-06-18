@@ -450,11 +450,27 @@ const Timecard = () => {
         background: isDark ? 'linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.94) 100%)' : '#fff',
     };
 
+    const mobileTabButtonSx = (active) => ({
+        px: 1.35,
+        py: 0.9,
+        minHeight: 0,
+        borderRadius: '999px',
+        textTransform: 'none',
+        fontWeight: 700,
+        fontSize: '0.78rem',
+        whiteSpace: 'nowrap',
+        border: '1px solid',
+        borderColor: active ? 'transparent' : (isDark ? 'rgba(148,163,184,0.2)' : 'rgba(148,163,184,0.2)'),
+        bgcolor: active ? '#ff5a36' : (isDark ? 'rgba(255,255,255,0.04)' : '#ffffff'),
+        color: active ? '#fff' : 'text.primary',
+        boxShadow: active ? '0 10px 22px rgba(255,90,54,0.24)' : 'none',
+    });
+
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><Loader /></Box>;
 
     return (
-        <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 }, maxWidth: 1560, mx: 'auto' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <Box sx={{ p: { xs: 0.5, sm: 1.5, md: 2 }, maxWidth: 1560, mx: 'auto', overflowX: 'hidden' }}>
+            <Box sx={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <EventNoteOutlinedIcon sx={{ color: ACCENT }} />
                 <Typography variant="h5" sx={{ fontWeight: 700 }}>Timecard & Leave</Typography>
@@ -472,28 +488,38 @@ const Timecard = () => {
               )}
             </Box>
 
-            <Tabs
-                value={tab}
-                onChange={(_, v) => setTab(v)}
-                variant="scrollable"
-                scrollButtons="auto"
-                sx={{
-                    mb: 3,
-                    p: 0.5,
-                    borderRadius: '8px',
-                    bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
-                    '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 42, borderRadius: '8px' }
-                }}
-            >
-                {validTabs.map((t, i) => <Tab key={i} label={t.label} />)}
-            </Tabs>
+            {isMobile ? (
+                <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 0.5, mb: 2, pr: 0.25, '&::-webkit-scrollbar': { display: 'none' } }}>
+                    {validTabs.map((t, i) => (
+                        <Button key={t.label} onClick={() => setTab(i)} sx={mobileTabButtonSx(tab === i)}>
+                            {t.label}
+                        </Button>
+                    ))}
+                </Box>
+            ) : (
+                <Tabs
+                    value={tab}
+                    onChange={(_, v) => setTab(v)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    sx={{
+                        mb: 3,
+                        p: 0.5,
+                        borderRadius: '8px',
+                        bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+                        '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 42, borderRadius: '8px' }
+                    }}
+                >
+                    {validTabs.map((t, i) => <Tab key={i} label={t.label} />)}
+                </Tabs>
+            )}
 
             {/* TAB: MY TIMECARD */}
             {activeTabLabel === 'My Timecard' && (
                 <Box>
                     <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Attendance Summary</Typography>
                     
-                    <Grid container spacing={2} sx={{ mb: 4 }}>
+                    <Grid container spacing={1.25} sx={{ mb: 3 }}>
                         { [
                             { label: 'Present Days', val: stats.present, color: '#10b981' },
                             { label: 'Week Off', val: stats.weekOff, color: '#6366f1' },
@@ -509,11 +535,13 @@ const Timecard = () => {
                                     ...surfaceSx,
                                     bgcolor: s.main ? (isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6') : (isDark ? 'background.paper' : 'white'), 
                                     border: s.main ? `2px solid ${isDark ? '#fff' : '#111827'}` : '1px solid',
-                                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#e5e7eb'
+                                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#e5e7eb',
+                                    minHeight: isMobile ? 88 : 'auto',
+                                    borderRadius: isMobile ? '18px' : '8px',
                                 }}>
-                                    <CardContent sx={{ textAlign: 'center', py: 2, '&:last-child': { pb: 2 } }}>
-                                        <Typography variant="h4" sx={{ fontWeight: 800, color: s.color }}>{s.val}</Typography>
-                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>{s.label}</Typography>
+                                    <CardContent sx={{ textAlign: 'center', py: isMobile ? 1.2 : 2, '&:last-child': { pb: isMobile ? 1.2 : 2 } }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 800, color: s.color, fontSize: isMobile ? '1.35rem' : undefined }}>{s.val}</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', fontSize: isMobile ? '0.62rem' : undefined }}>{s.label}</Typography>
                                     </CardContent>
                                 </Card>
                             </Grid>
@@ -521,6 +549,23 @@ const Timecard = () => {
                     </Grid>
 
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>Daily Records</Typography>
+                    {isMobile ? (
+                        <Stack spacing={1.1}>
+                            {myAttendance.length === 0 ? (
+                                <Paper variant="outlined" sx={{ ...surfaceSx, p: 2 }}><Typography>No records for this month</Typography></Paper>
+                            ) : (
+                                myAttendance.map((m) => (
+                                    <Paper key={m._id} variant="outlined" sx={{ ...surfaceSx, p: 1.3 }}>
+                                        <Stack spacing={0.8}>
+                                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatDate(m.date)}</Typography>
+                                            <Chip size="small" label={m.status} color={m.status === 'Present' ? 'success' : m.status.includes('Leave') ? 'error' : 'default'} sx={{ alignSelf: 'flex-start', borderRadius: '999px' }} />
+                                            <Typography variant="body2" color="text.secondary">{m.notes || '-'}</Typography>
+                                        </Stack>
+                                    </Paper>
+                                ))
+                            )}
+                        </Stack>
+                    ) : (
                     <TableContainer component={Paper} variant="outlined" sx={{ ...surfaceSx, bgcolor: isDark ? 'background.paper' : 'inherit', overflowX: 'auto' }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
@@ -549,6 +594,7 @@ const Timecard = () => {
                             </TableBody>
                         </Table>
                     </TableContainer>
+                    )}
                 </Box>
             )}
 
@@ -683,6 +729,27 @@ const Timecard = () => {
                             </CardContent>
                         </Card>
                     )}
+                    {isMobile ? (
+                        <Stack spacing={1.1}>
+                            {holidays.length === 0 ? (
+                                <Paper sx={{ ...surfaceSx, p: 2 }}><Typography>No holidays added yet</Typography></Paper>
+                            ) : (
+                                holidays.map((h) => (
+                                    <Paper key={h._id} sx={{ ...surfaceSx, p: 1.35 }}>
+                                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                                            <Box>
+                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{h.name}</Typography>
+                                                <Typography variant="caption" color="text.secondary">{formatDate(h.date)}</Typography>
+                                            </Box>
+                                            {isApprover && (
+                                                <IconButton size="small" color="error" onClick={() => handleDeleteHoliday(h._id)}><DeleteIcon fontSize="small" /></IconButton>
+                                            )}
+                                        </Stack>
+                                    </Paper>
+                                ))
+                            )}
+                        </Stack>
+                    ) : (
                     <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
@@ -711,11 +778,45 @@ const Timecard = () => {
                             </TableBody>
                         </Table>
                     </TableContainer>
+                    )}
                 </Box>
             )}
 
             {/* TAB: MANAGE LEAVES */}
             {activeTabLabel === 'Manage Leaves' && isApprover && (
+                isMobile ? (
+                <Stack spacing={1.1}>
+                    {allLeaves.length === 0 && <Paper sx={{ ...surfaceSx, p: 2 }}><Typography>No requests</Typography></Paper>}
+                    {allLeaves.map((l) => (
+                        <Paper key={l._id} sx={{ ...surfaceSx, p: 1.35 }}>
+                            <Stack spacing={0.85}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                                    <Box>
+                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{l.user_name}</Typography>
+                                        <Typography variant="caption" color="text.secondary">{l.leave_type}</Typography>
+                                    </Box>
+                                    <Chip size="small" icon={statusIcons[l.status]} label={l.status} sx={{ bgcolor: `${statusColors[l.status]}18`, color: statusColors[l.status], fontWeight: 600, textTransform: 'capitalize', borderRadius: '999px' }} />
+                                </Stack>
+                                <Typography variant="body2"><strong>From:</strong> {formatDate(l.start_date)}</Typography>
+                                <Typography variant="body2"><strong>To:</strong> {formatDate(l.end_date)}</Typography>
+                                <Typography variant="body2"><strong>Reason:</strong> {l.reason}</Typography>
+                                {l.supporting_document_url ? (
+                                    <Stack direction="row" spacing={1}>
+                                        <Button size="small" variant="outlined" onClick={() => window.open(l.supporting_document_url, '_blank', 'noopener,noreferrer')}>View</Button>
+                                        <Button size="small" onClick={() => handleDownloadSupportDoc(l)}>Download</Button>
+                                    </Stack>
+                                ) : null}
+                                {l.status === 'pending' ? (
+                                    <Stack direction="row" spacing={1}>
+                                        <Button fullWidth size="small" variant="contained" color="success" onClick={() => setActionDialog({ open: true, leave: l, action: 'approved' })}>Approve</Button>
+                                        <Button fullWidth size="small" variant="outlined" color="error" onClick={() => setActionDialog({ open: true, leave: l, action: 'rejected' })}>Reject</Button>
+                                    </Stack>
+                                ) : null}
+                            </Stack>
+                        </Paper>
+                    ))}
+                </Stack>
+                ) : (
                 <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                     <Table size="small">
                         <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
@@ -756,6 +857,7 @@ const Timecard = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                )
             )}
 
             {/* TAB: DAILY ATTENDANCE */}
@@ -801,6 +903,32 @@ const Timecard = () => {
                         ))}
                     </Grid>
 
+                    {isMobile ? (
+                        <Stack spacing={1.1}>
+                            {employees.length === 0 ? (
+                                <Paper sx={{ ...surfaceSx, p: 2 }}><Typography>No employees found</Typography></Paper>
+                            ) : (
+                                employees.map((emp) => {
+                                    const record = dailyAttendanceByUser.get(emp._id?.toString());
+                                    const status = record?.status || getImplicitStatusForDate(attendanceDate);
+                                    const statusColor = ATTENDANCE_COLORS[status];
+                                    return (
+                                        <Paper key={`daily-${emp._id}`} sx={{ ...surfaceSx, p: 1.35 }}>
+                                            <Stack spacing={0.8}>
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">{emp.email}</Typography>
+                                                </Box>
+                                                <Typography variant="caption" sx={{ textTransform: 'capitalize' }}>{emp.user_role || '-'}</Typography>
+                                                <Chip size="small" label={status} sx={{ alignSelf: 'flex-start', fontWeight: 700, bgcolor: statusColor?.bg || 'rgba(107, 114, 128, 0.12)', color: statusColor?.color || '#6b7280', border: `1px solid ${statusColor?.border || 'rgba(107, 114, 128, 0.25)'}`, borderRadius: '999px' }} />
+                                                <Typography variant="body2" color="text.secondary">{record?.notes || '-'}</Typography>
+                                            </Stack>
+                                        </Paper>
+                                    );
+                                })
+                            )}
+                        </Stack>
+                    ) : (
                     <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
@@ -843,9 +971,10 @@ const Timecard = () => {
                                         );
                                     })
                                 )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                    )}
                 </Box>
             )}
 
@@ -864,6 +993,35 @@ const Timecard = () => {
                         <Typography variant="body2" color="text.secondary">Select a date to view and mark attendance records.</Typography>
                     </Box>
 
+                    {isMobile ? (
+                        <Stack spacing={1.1}>
+                            {employees.map(emp => {
+                                const currRecord = dailyAttendance.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
+                                return (
+                                    <Paper key={emp._id} sx={{ ...surfaceSx, p: 1.35 }}>
+                                        <Stack spacing={0.9}>
+                                            <Box>
+                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                            </Box>
+                                            <Select
+                                                size="small"
+                                                displayEmpty
+                                                fullWidth
+                                                value={currRecord.status || ''}
+                                                onChange={(e) => handleMarkAttendance(emp._id, e.target.value)}
+                                            >
+                                                <MenuItem value="" disabled sx={{ color: isDark ? 'text.secondary' : 'text.secondary' }}>— Not Marked —</MenuItem>
+                                                {ATTENDANCE_STATUSES.map(s => (
+                                                    <MenuItem key={s} value={s}>{s}</MenuItem>
+                                                ))}
+                                            </Select>
+                                        </Stack>
+                                    </Paper>
+                                );
+                            })}
+                        </Stack>
+                    ) : (
                     <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
@@ -930,9 +1088,10 @@ const Timecard = () => {
                                         </TableRow>
                                     );
                                 })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                    )}
                 </Box>
             )}
 
@@ -951,6 +1110,28 @@ const Timecard = () => {
                         <Typography variant="body2" color="text.secondary">Select a date to view employee login/logout activities and durations.</Typography>
                     </Box>
 
+                    {isMobile ? (
+                        <Stack spacing={1.1}>
+                            {employees.map(emp => {
+                                const actRecord = dailyActivities.find(a => (a.userId?._id || a.userId)?.toString() === emp._id?.toString()) || {};
+                                const online = actRecord.lastOnline ? isUserOnline(actRecord.lastOnline) : false;
+                                return (
+                                    <Paper key={`act-${emp._id}`} sx={{ ...surfaceSx, p: 1.35 }}>
+                                        <Stack spacing={0.8}>
+                                            <Box>
+                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                            </Box>
+                                            <Chip size="small" label={online ? "Online Now" : (actRecord.firstOnline ? "Offline" : "No Activity")} sx={{ alignSelf: 'flex-start', bgcolor: online ? 'rgba(16, 185, 129, 0.15)' : (actRecord.firstOnline ? 'rgba(107, 114, 128, 0.15)' : 'transparent'), color: online ? '#10b981' : '#6b7280', fontWeight: 600, borderRadius: '999px', ...( !actRecord.firstOnline ? { border: '1px dashed' } : {} ) }} />
+                                            <Typography variant="body2"><strong>First Login:</strong> {actRecord.firstOnline ? formatTime(actRecord.firstOnline) : '—'}</Typography>
+                                            <Typography variant="body2"><strong>Last Activity:</strong> {actRecord.lastOnline ? formatTime(actRecord.lastOnline) : '—'}</Typography>
+                                            <Typography variant="body2" color="primary"><strong>Duration:</strong> {actRecord.firstOnline ? getOnlineDuration(actRecord.firstOnline, actRecord.lastOnline) : '—'}</Typography>
+                                        </Stack>
+                                    </Paper>
+                                );
+                            })}
+                        </Stack>
+                    ) : (
                     <TableContainer component={Paper} variant="outlined" sx={{ bgcolor: isDark ? 'background.paper' : 'inherit' }}>
                         <Table size="small">
                             <TableHead sx={{ bgcolor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
@@ -1008,9 +1189,10 @@ const Timecard = () => {
                                         </TableRow>
                                     );
                                 })}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                    )}
                 </Box>
             )}
 

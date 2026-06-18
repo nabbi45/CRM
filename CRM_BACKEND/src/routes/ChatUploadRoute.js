@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { prepareUploadFile, toDataUri } from "../utils/uploadCompression.js";
 
 const ChatUploadRoutes = express.Router();
 
@@ -18,16 +19,11 @@ ChatUploadRoutes.post("/", authenticateUser, upload.single("file"), async (req, 
             return res.status(400).send({ message: "No file provided" });
         }
 
-        const b64 = Buffer.from(req.file.buffer).toString("base64");
-        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+        const uploadFile = await prepareUploadFile(req.file);
+        const dataURI = toDataUri(uploadFile);
 
         // Determine Cloudinary resource type
-        let resourceType = "raw"; // default for docs/pdfs
-        if (req.file.mimetype.startsWith("image/")) {
-            resourceType = "image";
-        } else if (req.file.mimetype.startsWith("video/")) {
-            resourceType = "video";
-        }
+        const resourceType = uploadFile.resourceType || "raw";
 
         const result = await cloudinary.uploader.upload(dataURI, {
             resource_type: resourceType,

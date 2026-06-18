@@ -118,7 +118,7 @@ const BookingApprovals = () => {
   });
 
   const actionButtonSx = (bg, hover) => ({
-    minHeight: { xs: 42, sm: 44 },
+    minHeight: { xs: 40, sm: 44 },
     borderRadius: "8px",
     px: { xs: 1.2, sm: 1.5 },
     fontWeight: 800,
@@ -126,6 +126,7 @@ const BookingApprovals = () => {
     bgcolor: bg,
     color: "#fff",
     boxShadow: "none",
+    width: "100%",
     "&:hover": { bgcolor: hover, boxShadow: "none" },
   });
 
@@ -281,8 +282,8 @@ const BookingApprovals = () => {
   };
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 1.5, md: 2 }, width: "100%", maxWidth: 1560, mx: "auto" }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+    <Box sx={{ p: { xs: 0.5, sm: 1.5, md: 2 }, width: "100%", maxWidth: 1560, mx: "auto", overflowX: "hidden" }}>
+      <Box sx={{ display: isMobile ? "none" : "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <ApprovalOutlinedIcon sx={{ color: "#ff5a36" }} />
         <Typography variant="h5" sx={{ fontWeight: 800 }}>
           Booking Approvals
@@ -301,13 +302,13 @@ const BookingApprovals = () => {
               variant="outlined"
               sx={{
                 ...surfaceSx,
-                p: { xs: 1.2, sm: 1.6, md: 1.9 },
+                p: { xs: 1, sm: 1.6, md: 1.9 },
                 background: theme.palette.mode === "dark"
                   ? "linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(15,23,42,0.94) 100%)"
                   : "linear-gradient(180deg, rgba(255,250,246,0.98) 0%, #ffffff 100%)",
               }}
             >
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1.25, sm: 2 }}>
                 <Grid item xs={12} lg={8}>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.2, flexWrap: "wrap" }}>
                     <Typography sx={{ fontWeight: 800, fontSize: { xs: "1rem", sm: "1.2rem" } }}>
@@ -323,7 +324,7 @@ const BookingApprovals = () => {
                     )}
                   </Stack>
 
-                  <Grid container spacing={1.2} sx={{ mb: 1.25 }}>
+                  <Grid container spacing={1} sx={{ mb: 1.25 }}>
                     <Grid item xs={6} sm={3}>
                       <Box sx={metricCardSx("rgba(59,130,246,0.08)", theme.palette.text.primary)}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: "uppercase" }}>BDM</Typography>
@@ -345,7 +346,7 @@ const BookingApprovals = () => {
                     <Grid item xs={6} sm={3}>
                       <Box sx={metricCardSx("rgba(139,92,246,0.08)", theme.palette.text.primary)}>
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: "uppercase" }}>Services</Typography>
-                        <Typography sx={{ mt: 0.35, fontWeight: 800 }} noWrap>{(approval.payload?.services || []).join(", ") || "N/A"}</Typography>
+                        <Typography sx={{ mt: 0.35, fontWeight: 800, whiteSpace: "normal", wordBreak: "break-word" }}>{(approval.payload?.services || []).join(", ") || "N/A"}</Typography>
                       </Box>
                     </Grid>
                   </Grid>
@@ -430,14 +431,15 @@ const BookingApprovals = () => {
                     />
                     {isAdmin && approval.status === "pending" && (
                       <Stack
-                        direction="row"
+                        direction={isMobile ? "column" : "row"}
                         spacing={1}
                         flexWrap="wrap"
                         useFlexGap
                         sx={{
                           mt: 1.1,
                           "& > *": {
-                            flex: { xs: "1 1 calc(50% - 4px)", sm: "1 1 calc(33.333% - 6px)", lg: "1 1 100%" },
+                            flex: isMobile ? "1 1 100%" : { sm: "1 1 calc(33.333% - 6px)", lg: "1 1 100%" },
+                            width: isMobile ? "100%" : "auto",
                           },
                         }}
                       >
@@ -475,6 +477,7 @@ const BookingApprovals = () => {
                         disabled={loading}
                         variant="contained"
                         onClick={() => resubmit(approval)}
+                        fullWidth={isMobile}
                         sx={{ mt: 1.1, borderRadius: "8px" }}
                       >
                         Resubmit

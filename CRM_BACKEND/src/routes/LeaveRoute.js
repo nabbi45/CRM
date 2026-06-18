@@ -5,6 +5,7 @@ import { LeaveModel } from "../models/LeaveModel.js";
 import { NotificationModel } from "../models/NotificationModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
+import { getCloudinaryPublicExtension, prepareUploadFile, toDataUri } from "../utils/uploadCompression.js";
 
 const LeaveRoutes = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
@@ -20,20 +21,20 @@ const getUserName = async (userId) => {
 
 const uploadSupportingDocument = async (file, leaveId) => {
     if (!file) return {};
-    const b64 = Buffer.from(file.buffer).toString("base64");
-    const dataURI = `data:${file.mimetype};base64,${b64}`;
-    const extension = file.originalname.split(".").pop();
-    const isImage = file.mimetype.startsWith("image/");
+    const uploadFile = await prepareUploadFile(file);
+    const dataURI = toDataUri(uploadFile);
+    const extension = getCloudinaryPublicExtension(uploadFile);
+    const isImage = uploadFile.resourceType === "image";
     const result = await cloudinary.uploader.upload(dataURI, {
         resource_type: isImage ? "image" : "raw",
         folder: "leave_supporting_documents",
-        public_id: `leave_${leaveId}_${Date.now()}${isImage ? "" : `.${extension}`}`,
+        public_id: `leave_${leaveId}_${Date.now()}${!isImage && extension ? `.${extension}` : ""}`,
     });
 
     return {
         supporting_document_url: result.secure_url,
-        supporting_document_file_name: file.originalname,
-        supporting_document_mime_type: file.mimetype,
+        supporting_document_file_name: uploadFile.originalname,
+        supporting_document_mime_type: uploadFile.mimetype,
     };
 };
 

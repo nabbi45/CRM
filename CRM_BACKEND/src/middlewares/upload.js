@@ -21,6 +21,15 @@ const storage = new CloudinaryStorage({
       public_id: filename,
       resource_type: 'auto',
       allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf', 'doc', 'docx'],
+      ...(String(file.mimetype || '').startsWith('image/')
+        ? {
+            transformation: [
+              {
+                quality: 'auto:good',
+              },
+            ],
+          }
+        : {}),
     };
   },
 });

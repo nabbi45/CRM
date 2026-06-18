@@ -873,23 +873,25 @@ const DashboardContent = () => {
   return (
     <Box sx={{ px: { xs: 0, sm: 1.5, md: 2 }, py: { xs: 0.75, sm: 1.5 }, width: "100%", overflowX: "hidden" }}>
       <Box sx={pageShellSx}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: companyBranches.length > 0 ? 1 : 2,
-            gap: 1,
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Dashboard
-          </Typography>
-        </Box>
+        {!isMobile && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: companyBranches.length > 0 ? 1 : 2,
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              Dashboard
+            </Typography>
+          </Box>
+        )}
 
         {companyBranches.length > 0 && (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: isMobile ? 1.25 : 2, mt: isMobile ? 0.25 : 0 }}>
             <Typography variant="body2" color="text.secondary" sx={{ display: "flex", alignItems: "center", mr: 0.5, fontWeight: 600 }}>
               Current Branch:
             </Typography>
@@ -929,8 +931,8 @@ const DashboardContent = () => {
                     ...cardSurfaceSx,
                     height: "100%",
                     width: "100%",
-                    minHeight: { xs: 102, sm: 138, md: 132 },
-                    aspectRatio: { xs: "1.12 / 1", sm: "1.18 / 1", md: "auto" },
+                    minHeight: { xs: 74, sm: 138, md: 132 },
+                    aspectRatio: { xs: "1.55 / 1", sm: "1.18 / 1", md: "auto" },
                     background: theme.palette.mode === "dark"
                       ? "linear-gradient(180deg, rgba(30,41,59,0.96) 0%, rgba(15,23,42,0.98) 100%)"
                       : palette.bg,
@@ -964,12 +966,12 @@ const DashboardContent = () => {
                 >
                   <CardContent
                     sx={{
-                      p: { xs: 1.1, sm: 1.25 },
+                      p: { xs: 0.9, sm: 1.25 },
                       height: "100%",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
-                      "&:last-child": { pb: { xs: 1.1, sm: 1.25 } },
+                      "&:last-child": { pb: { xs: 0.9, sm: 1.25 } },
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
@@ -978,10 +980,10 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: tileTitleColor,
-                            fontSize: { xs: "0.58rem", sm: "0.72rem" },
+                            fontSize: { xs: "0.5rem", sm: "0.72rem" },
                             fontWeight: 700,
                             display: "block",
-                            mb: 0.35,
+                            mb: 0.18,
                             textTransform: "uppercase",
                             lineHeight: 1.15,
                           }}
@@ -992,10 +994,10 @@ const DashboardContent = () => {
                           sx={{
                             color: tileValueColor,
                             fontWeight: 800,
-                            fontSize: { xs: "0.92rem", sm: "1.18rem", md: "1.2rem" },
+                            fontSize: { xs: "0.82rem", sm: "1.18rem", md: "1.2rem" },
                             lineHeight: 1.1,
                             wordBreak: "break-word",
-                            mt: 0.3,
+                            mt: 0.15,
                           }}
                         >
                           {card.value}
@@ -1004,11 +1006,11 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: tileSubColor,
-                            fontSize: { xs: "0.54rem", sm: "0.68rem" },
-                            mt: 0.3,
+                            fontSize: { xs: "0.45rem", sm: "0.68rem" },
+                            mt: 0.12,
                             lineHeight: 1.12,
                             display: "-webkit-box",
-                            WebkitLineClamp: { xs: 1, sm: "unset" },
+                            WebkitLineClamp: { xs: 2, sm: "unset" },
                             WebkitBoxOrient: "vertical",
                             overflow: "hidden",
                           }}
@@ -1019,8 +1021,8 @@ const DashboardContent = () => {
 
                       <Avatar
                         sx={{
-                          width: { xs: 28, sm: 34 },
-                          height: { xs: 28, sm: 34 },
+                          width: { xs: 24, sm: 34 },
+                          height: { xs: 24, sm: 34 },
                           bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : palette.iconBg,
                           color: palette.iconColor,
                           borderRadius: "8px",

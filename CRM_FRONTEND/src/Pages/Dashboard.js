@@ -7,7 +7,7 @@ import {
   Box,
   Typography,
 } from '@mui/material';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import DashboardContent from '../components/DashboardContent';
 import AddBooking from '../components/NewBooking';
@@ -134,6 +134,8 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const theme = useTheme();
   const isTabletOrBelow = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const location = useLocation();
   const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 
   const [showInitialLoader, setShowInitialLoader] = useState(() => {
@@ -163,6 +165,30 @@ const Dashboard = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const mobilePageTitleMap = {
+    '/dashboard': 'Dashboard',
+    '/dashboard/new-booking': 'New Booking',
+    '/dashboard/booking-approvals': 'Booking Approvals',
+    '/dashboard/projection-leads': 'Projection Leads',
+    '/dashboard/history': 'All Bookings',
+    '/dashboard/adduser': 'Manage Users',
+    '/dashboard/removeuser': 'Manage Users',
+    '/dashboard/scorecard': 'Scorecard',
+    '/dashboard/addservices': 'Manage Services',
+    '/dashboard/trash': 'Trash',
+    '/dashboard/Proformainvoice': 'Proforma Invoice',
+    '/dashboard/Agreementsgenerator': 'Agreements Generator',
+    '/dashboard/employee-profile': 'Employee Profile',
+    '/dashboard/company-profile': 'Company Profile',
+    '/dashboard/security': 'Security',
+    '/dashboard/generated-documents': 'Generated Documents',
+    '/dashboard/process-documents': 'File Activity',
+    '/dashboard/timecard': 'Timecard & Leave',
+    '/dashboard/communication': 'Communication',
+  };
+
+  const mobilePageTitle = mobilePageTitleMap[location.pathname] || 'Dashboard';
+
   return (
     <Box
       sx={{
@@ -176,6 +202,30 @@ const Dashboard = () => {
       <DynamicHead />
 
       <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
+
+      {isMobile && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1200,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            pl: 6,
+            pr: 7,
+            backgroundColor: theme.palette.mode === 'dark' ? 'rgba(2,6,23,0.88)' : 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(14px)',
+            borderBottom: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.12)' : 'rgba(15,23,42,0.06)'}`,
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1 }}>
+            {mobilePageTitle}
+          </Typography>
+        </Box>
+      )}
 
       {/* Notification Bell — fixed top-right */}
       <Box
@@ -201,10 +251,11 @@ const Dashboard = () => {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
-          p: { xs: 1.5, sm: 2, md: 2.5, lg: 3 },
+          p: { xs: 1.2, sm: 2, md: 2.5, lg: 3 },
+          pt: { xs: 8, sm: 2, md: 2.5, lg: 3 },
         }}
       >
-        {isTabletOrBelow && <Toolbar />}
+        {isTabletOrBelow && !isMobile && <Toolbar />}
 
         <Routes>
           <Route path="/" element={<FeatureGuard userSession={userSession} feature="dashboard_overview"><DashboardContent /></FeatureGuard>} />

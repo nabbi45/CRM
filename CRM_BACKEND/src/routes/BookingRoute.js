@@ -6,6 +6,7 @@ import { UserModel } from "../models/UserModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { NotificationModel } from "../models/NotificationModel.js";
 import { normalizeBookingPayload } from "../utils/textNormalize.js";
+import { getCloudinaryPublicExtension, prepareUploadFiles, toDataUri } from "../utils/uploadCompression.js";
 import {
   amountExcludingGst,
   buildGstMetadata,
@@ -21,16 +22,16 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 
 const uploadPaymentProofs = async (files = [], bookingId) => {
   if (!Array.isArray(files) || files.length === 0) return {};
 
+  const preparedFiles = await prepareUploadFiles(files);
   const uploadedProofs = [];
-  for (const file of files) {
-    const b64 = Buffer.from(file.buffer).toString("base64");
-    const dataURI = `data:${file.mimetype};base64,${b64}`;
-    const isImage = file.mimetype.startsWith("image/");
-    const extension = file.originalname.split(".").pop();
+  for (const file of preparedFiles) {
+    const dataURI = toDataUri(file);
+    const isImage = file.resourceType === "image";
+    const extension = getCloudinaryPublicExtension(file);
     const result = await cloudinary.uploader.upload(dataURI, {
       resource_type: isImage ? "image" : "raw",
       folder: "booking_payment_proofs",
-      public_id: `booking_${bookingId}_${Date.now()}_${uploadedProofs.length}${isImage ? "" : `.${extension}`}`,
+      public_id: `booking_${bookingId}_${Date.now()}_${uploadedProofs.length}${!isImage && extension ? `.${extension}` : ""}`,
     });
     uploadedProofs.push({
       url: result.secure_url,

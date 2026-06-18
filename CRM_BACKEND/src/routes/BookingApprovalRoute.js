@@ -8,6 +8,7 @@ import { ProjectionLeadModel } from "../models/ProjectionLeadModel.js";
 import { UserModel } from "../models/UserModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { normalizeBookingPayload } from "../utils/textNormalize.js";
+import { getCloudinaryPublicExtension, prepareUploadFiles, toDataUri } from "../utils/uploadCompression.js";
 import { collectAffectedUserIds, isAdminRole, prepareBookingFinancials } from "../utils/revenueRules.js";
 
 const BookingApprovalRoutes = express.Router();
@@ -89,17 +90,17 @@ const buildContinuationHistoryEntry = async (approval, oldBooking, nextBooking) 
 
 const uploadProofs = async (files = [], approvalId) => {
   if (!Array.isArray(files) || files.length === 0) return {};
+  const preparedFiles = await prepareUploadFiles(files);
   const uploadedProofs = [];
 
-  for (const file of files) {
-    const b64 = Buffer.from(file.buffer).toString("base64");
-    const dataURI = `data:${file.mimetype};base64,${b64}`;
-    const isImage = file.mimetype.startsWith("image/");
-    const extension = file.originalname.split(".").pop();
+  for (const file of preparedFiles) {
+    const dataURI = toDataUri(file);
+    const isImage = file.resourceType === "image";
+    const extension = getCloudinaryPublicExtension(file);
     const result = await cloudinary.uploader.upload(dataURI, {
       resource_type: isImage ? "image" : "raw",
       folder: "booking_approval_proofs",
-      public_id: `approval_${approvalId}_${Date.now()}_${uploadedProofs.length}${isImage ? "" : `.${extension}`}`,
+      public_id: `approval_${approvalId}_${Date.now()}_${uploadedProofs.length}${!isImage && extension ? `.${extension}` : ""}`,
     });
     uploadedProofs.push({
       url: result.secure_url,
