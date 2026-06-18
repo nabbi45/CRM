@@ -31,7 +31,6 @@ import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined
 import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
-import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
@@ -108,8 +107,6 @@ const DashboardContent = () => {
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [bookingsThisMonth, setBookingsThisMonth] = useState(0);
-  const [bookingsToday, setBookingsToday] = useState(0);
-  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [recentBookings, setRecentBookings] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardDialogOpen, setLeaderboardDialogOpen] = useState(false);
@@ -465,12 +462,6 @@ const DashboardContent = () => {
               "Content-Type": "application/json",
               authorization: session.token,
             },
-          }),
-          fetch(`${apiUrl}/booking-approvals?status=pending`, {
-            headers: {
-              "Content-Type": "application/json",
-              authorization: session.token,
-            },
           })
         );
       }
@@ -482,7 +473,6 @@ const DashboardContent = () => {
       let resultIndex = 3;
       const companyBookingsRes = !isAdmin ? results[resultIndex++] : null;
       const allUsersRes = isAdmin ? results[resultIndex++] : null;
-      const approvalsRes = isAdmin ? results[resultIndex++] : null;
 
       if (!bookingsRes.ok) throw new Error("Failed API call");
 
@@ -531,14 +521,6 @@ const DashboardContent = () => {
       } else {
         setTotalUsers(0);
       }
-
-      if (isAdmin && approvalsRes?.ok) {
-        const approvals = await approvalsRes.json();
-        setPendingApprovals(Array.isArray(approvals) ? approvals.length : 0);
-      } else {
-        setPendingApprovals(0);
-      }
-
       const today = getTodayDate();
       const now = new Date();
       const currentMonth = now.getMonth();
@@ -549,7 +531,6 @@ const DashboardContent = () => {
 
       let bookingCount = 0;
       let bookingCountThisMonth = 0;
-      let bookingCountToday = 0;
       let currentMonthRevenue = 0;
       let todayRevenueAmt = 0;
       const sortedBookings = [];
@@ -576,9 +557,6 @@ const DashboardContent = () => {
         if (createdDate) {
           if (createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
             bookingCountThisMonth += 1;
-          }
-          if (createdDateKey === today) {
-            bookingCountToday += 1;
           }
         }
 
@@ -785,7 +763,6 @@ const DashboardContent = () => {
       setTotalRevenue(currentMonthRevenue);
       setTodayRevenue(todayRevenueAmt);
       setBookingsThisMonth(bookingCountThisMonth);
-      setBookingsToday(bookingCountToday);
       setRecentBookings(recent);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -842,8 +819,6 @@ const DashboardContent = () => {
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "Live today after deductions", icon: <TodayOutlinedIcon fontSize="small" /> },
       { label: "Total Users", value: totalUsers.toLocaleString(), sub: "Active CRM users", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
       { label: "Bookings This Month", value: bookingsThisMonth.toLocaleString(), sub: "Created this month", icon: <LocalOfferOutlinedIcon fontSize="small" /> },
-      { label: "Bookings Today", value: bookingsToday.toLocaleString(), sub: "Created today", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
-      { label: "Pending Approvals", value: pendingApprovals.toLocaleString(), sub: "Awaiting review", icon: <PendingActionsOutlinedIcon fontSize="small" /> },
     ];
 
     const userCards = [
@@ -858,9 +833,7 @@ const DashboardContent = () => {
     return isAdmin ? adminCards : userCards;
   }, [
     bookingsThisMonth,
-    bookingsToday,
     isAdmin,
-    pendingApprovals,
     todayRevenue,
     totalBookings,
     totalRevenue,
@@ -886,7 +859,7 @@ const DashboardContent = () => {
     border: "1px solid",
     borderColor: "divider",
     backgroundColor: theme.palette.background.paper,
-    boxShadow: theme.palette.mode === "light" ? "0 12px 28px rgba(15,23,42,0.06)" : "none",
+    boxShadow: theme.palette.mode === "light" ? "0 14px 34px rgba(15,23,42,0.07)" : "0 10px 24px rgba(2,6,23,0.26)",
   };
 
   if (loading) {
@@ -942,9 +915,13 @@ const DashboardContent = () => {
         <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
           {statCards.map((card, index) => {
             const palette = statCardThemes[index % statCardThemes.length];
-            const tileTitleColor = theme.palette.mode === "dark" ? "#475569" : "#64748b";
-            const tileValueColor = "#0f172a";
-            const tileSubColor = theme.palette.mode === "dark" ? "#64748b" : "#94a3b8";
+            const tileTitleColor = theme.palette.mode === "dark" ? "#cbd5e1" : "#64748b";
+            const tileValueColor = theme.palette.mode === "dark" ? "#f8fafc" : "#0f172a";
+            const tileSubColor = "#94a3b8";
+            const tileBorderColor = theme.palette.mode === "dark" ? "rgba(148,163,184,0.18)" : `${palette.iconColor}26`;
+            const tileShadow = theme.palette.mode === "dark"
+              ? "0 16px 32px rgba(2,6,23,0.28)"
+              : `0 16px 30px ${palette.iconColor}12`;
             return (
               <Grid item xs={6} md={3} key={card.label} sx={{ minWidth: 0 }}>
                 <Card
@@ -952,19 +929,32 @@ const DashboardContent = () => {
                     ...cardSurfaceSx,
                     height: "100%",
                     width: "100%",
-                    minHeight: { xs: 112, sm: 170, md: 160 },
-                    aspectRatio: { xs: "1.18 / 1", sm: "1 / 1", md: "auto" },
-                    background: palette.bg,
+                    minHeight: { xs: 102, sm: 138, md: 132 },
+                    aspectRatio: { xs: "1.12 / 1", sm: "1.18 / 1", md: "auto" },
+                    background: theme.palette.mode === "dark"
+                      ? "linear-gradient(180deg, rgba(30,41,59,0.96) 0%, rgba(15,23,42,0.98) 100%)"
+                      : palette.bg,
                     overflow: "hidden",
                     position: "relative",
+                    borderColor: tileBorderColor,
+                    boxShadow: tileShadow,
                     "&::after": {
                       content: '""',
                       position: "absolute",
                       inset: 0,
-                      background: "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 38%)",
+                      background: theme.palette.mode === "dark"
+                        ? "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 42%)"
+                        : "linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 38%)",
                       pointerEvents: "none",
                     },
                     cursor: card.detailType ? "pointer" : "default",
+                    transition: "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: theme.palette.mode === "dark"
+                        ? "0 18px 34px rgba(2,6,23,0.34)"
+                        : `0 18px 34px ${palette.iconColor}18`,
+                    },
                   }}
                   onClick={() => {
                     if (card.detailType) {
@@ -974,12 +964,12 @@ const DashboardContent = () => {
                 >
                   <CardContent
                     sx={{
-                      p: { xs: 1.25, sm: 1.5 },
+                      p: { xs: 1.1, sm: 1.25 },
                       height: "100%",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
-                      "&:last-child": { pb: { xs: 1.25, sm: 1.5 } },
+                      "&:last-child": { pb: { xs: 1.1, sm: 1.25 } },
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
@@ -1002,10 +992,10 @@ const DashboardContent = () => {
                           sx={{
                             color: tileValueColor,
                             fontWeight: 800,
-                            fontSize: { xs: "0.82rem", sm: "1.2rem", md: "1.3rem" },
-                            lineHeight: 1.15,
+                            fontSize: { xs: "0.92rem", sm: "1.18rem", md: "1.2rem" },
+                            lineHeight: 1.1,
                             wordBreak: "break-word",
-                            mt: 0.4,
+                            mt: 0.3,
                           }}
                         >
                           {card.value}
@@ -1014,9 +1004,9 @@ const DashboardContent = () => {
                           variant="caption"
                           sx={{
                             color: tileSubColor,
-                            fontSize: { xs: "0.54rem", sm: "0.72rem" },
-                            mt: 0.4,
-                            lineHeight: 1.14,
+                            fontSize: { xs: "0.54rem", sm: "0.68rem" },
+                            mt: 0.3,
+                            lineHeight: 1.12,
                             display: "-webkit-box",
                             WebkitLineClamp: { xs: 1, sm: "unset" },
                             WebkitBoxOrient: "vertical",
@@ -1029,13 +1019,15 @@ const DashboardContent = () => {
 
                       <Avatar
                         sx={{
-                          width: { xs: 26, sm: 38 },
-                          height: { xs: 26, sm: 38 },
-                          bgcolor: palette.iconBg,
+                          width: { xs: 28, sm: 34 },
+                          height: { xs: 28, sm: 34 },
+                          bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : palette.iconBg,
                           color: palette.iconColor,
                           borderRadius: "8px",
                           flexShrink: 0,
-                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.24)",
+                          boxShadow: theme.palette.mode === "dark"
+                            ? "inset 0 0 0 1px rgba(148,163,184,0.18)"
+                            : "inset 0 0 0 1px rgba(255,255,255,0.24)",
                         }}
                       >
                         {card.icon}

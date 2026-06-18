@@ -329,6 +329,31 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
     return <Box sx={{ p: 3, textAlign: 'center' }}><CircularProgress /></Box>;
   }
 
+  const notesFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      alignItems: 'flex-start',
+      bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.78)' : '#ffffff',
+      color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827',
+      borderRadius: '8px',
+      '& fieldset': {
+        borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.22)' : '#dbe3ef',
+      },
+      '&:hover fieldset': {
+        borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.36)' : '#c4d2e3',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: theme.palette.mode === 'dark' ? '#60a5fa' : '#60a5fa',
+      },
+      '& textarea': {
+        color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827',
+      },
+      '& textarea::placeholder': {
+        color: theme.palette.mode === 'dark' ? '#94a3b8' : '#94a3b8',
+        opacity: 1,
+      },
+    },
+  };
+
   const statusChip = (status = 'Pending') => {
     const style = STATUS_STYLES[status] || STATUS_STYLES.Pending;
     return (
@@ -518,7 +543,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
     <Box sx={{ display: 'grid', gap: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#111827' }}>File Activity</Typography>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827' }}>File Activity</Typography>
           <Typography variant="body2" color="text.secondary">Track agreement, DPR, pitch deck, applications, and acknowledgement work.</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -567,8 +592,16 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
           gap: 1.5,
         }}
       >
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#ffffff', borderColor: '#e5e7eb' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Any Updates</Typography>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : '#ffffff',
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : '#e5e7eb',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827' }}>Any Updates</Typography>
           <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
             Visible to BDMs
           </Typography>
@@ -581,12 +614,13 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
             onBlur={(e) => handleTextUpdate('anyUpdates', e.target.value)}
             disabled={!isAdmin}
             InputProps={{ style: { fontSize: '0.9rem' } }}
+            sx={notesFieldSx}
           />
         </Paper>
 
         {isAdmin && (
           <Paper variant="outlined" sx={{ p: 2, borderRadius: '8px', bgcolor: theme.palette.mode === 'dark' ? 'rgba(15,23,42,0.9)' : '#ffffff', borderColor: theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.18)' : '#e5e7eb' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Notes (Client ID & Password)</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#f8fafc' : '#111827' }}>Notes (Client ID & Password)</Typography>
             <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
               Hidden from BDMs
             </Typography>
@@ -598,6 +632,7 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
               onChange={(e) => setActivity({ ...activity, adminNotes: e.target.value })}
               onBlur={(e) => handleTextUpdate('adminNotes', e.target.value)}
               InputProps={{ style: { fontSize: '0.9rem' } }}
+              sx={notesFieldSx}
             />
           </Paper>
         )}

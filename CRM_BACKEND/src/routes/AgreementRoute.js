@@ -248,6 +248,13 @@ const isFooterMarkerLine = (line = "") => {
   return normalized === "service provider service receiver";
 };
 
+const normalizeAgreementPlainText = (value = "") =>
+  cleanMarkdownLine(value)
+    .replace(/\*/g, "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const splitMarkdownIntoPages = (markdown) => {
   const pages = [];
   let currentLines = [];
@@ -307,21 +314,23 @@ const markdownToHtml = (markdown) => {
     table = [];
   };
 
-  lines.forEach((rawLine) => {
+  for (let index = 0; index < lines.length; index += 1) {
+    const rawLine = lines[index];
     const line = rawLine.trim();
+    const normalizedPlain = normalizeAgreementPlainText(line).toLowerCase();
 
     if (!line) {
       flushParagraph();
       flushList();
       flushTable();
-      return;
+      continue;
     }
 
     if (line.startsWith("|")) {
       flushParagraph();
       flushList();
       table.push(line);
-      return;
+      continue;
     }
 
     flushTable();
@@ -330,24 +339,47 @@ const markdownToHtml = (markdown) => {
       flushParagraph();
       flushList();
       const headingText = line.replace(/^#{2,6}\s+/, "").trim();
-      if (!headingText) return;
+      if (!headingText) continue;
       const level = Math.min((line.match(/^#+/)?.[0].length || 2) + 1, 4);
       html.push(`<h${level}>${renderInlineMarkdown(headingText)}</h${level}>`);
-      return;
+      continue;
     }
 
     if (/^#{2,6}\s*$/.test(line)) {
-      return;
+      continue;
     }
 
     if (/^[-*]\s+/.test(line)) {
       flushParagraph();
       list.push(line.replace(/^[-*]\s+/, ""));
-      return;
+      continue;
+    }
+
+    if (normalizedPlain.includes("for and on behalf of")) {
+      flushParagraph();
+      flushList();
+
+      const signatureLines = [line];
+      const nextRaw = lines[index + 1] || "";
+      const nextLine = nextRaw.trim();
+      const nextNormalized = normalizeAgreementPlainText(nextLine).toLowerCase();
+
+      if (nextLine && nextNormalized.includes("signature")) {
+        signatureLines.push(nextLine);
+        index += 1;
+      }
+
+      html.push(`
+        <div class="undertaking-signature-block">
+          <div class="undertaking-signature-company">${renderInlineMarkdown(signatureLines[0])}</div>
+          ${signatureLines[1] ? `<div class="undertaking-signature-label">${renderInlineMarkdown(signatureLines[1])}</div>` : ""}
+        </div>
+      `);
+      continue;
     }
 
     paragraph.push(line);
-  });
+  }
 
   flushParagraph();
   flushList();
@@ -467,6 +499,22 @@ const buildAgreementHtml = (markdown, meta) => {
         }
         .agreement-document strong {
           font-weight: 700;
+        }
+        .undertaking-signature-block {
+          width: 48%;
+          margin: 18px 0 0 auto;
+          text-align: right;
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        .undertaking-signature-company {
+          font-weight: 700;
+          line-height: 1.5;
+        }
+        .undertaking-signature-label {
+          margin-top: 6px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
         }
         .agreement-document .page-break {
           page-break-before: always;
