@@ -234,6 +234,15 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
         payment_proof_mime_type: approval.payment_proof_mime_type,
         payment_proofs: Array.isArray(approval.payment_proofs) ? approval.payment_proofs : [],
       };
+      if (!mergedBooking.term_shares?.[termKey]?.payment_mode) {
+        mergedBooking.term_shares = {
+          ...(mergedBooking.term_shares || {}),
+          [termKey]: {
+            ...(mergedBooking.term_shares?.[termKey] || {}),
+            payment_mode: payload.term_shares?.[termKey]?.payment_mode || payload.bank || existingBooking.bank || "",
+          },
+        };
+      }
       delete mergedBooking.updatedhistory;
 
       const historyEntry = await buildContinuationHistoryEntry(approval, existingBooking.toObject(), mergedBooking);
@@ -291,6 +300,9 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
       approval_id: approval._id.toString(),
       ...(await prepareBookingFinancials(payload)),
     };
+    if (bookingPayload.term_shares?.term_1 && !bookingPayload.term_shares.term_1.payment_mode) {
+      bookingPayload.term_shares.term_1.payment_mode = payload.bank || "";
+    }
     delete bookingPayload.funddisbursement;
     delete bookingPayload.projectionLeadId;
 

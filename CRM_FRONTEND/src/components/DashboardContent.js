@@ -32,6 +32,7 @@ import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import PendingActionsOutlinedIcon from "@mui/icons-material/PendingActionsOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { Chart } from "chart.js/auto";
 import Loader from "./Loader";
 import PaymentReminders from "./PaymentReminders";
@@ -121,6 +122,10 @@ const DashboardContent = () => {
   const [personalMostRevenueService, setPersonalMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [serviceDeductionCatalog, setServiceDeductionCatalog] = useState([]);
   const [totalServiceDeductions, setTotalServiceDeductions] = useState(0);
+  const [totalRefundableCuts, setTotalRefundableCuts] = useState(0);
+  const [deductionTransactions, setDeductionTransactions] = useState([]);
+  const [refundableTransactions, setRefundableTransactions] = useState([]);
+  const [deductionBreakdownDialog, setDeductionBreakdownDialog] = useState({ open: false, type: "service" });
   const [loading, setLoading] = useState(true);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -231,7 +236,7 @@ const DashboardContent = () => {
             bodyColor: isDark ? "#e2e8f0" : "#0f172a",
             displayColors: false,
             callbacks: {
-              label: (tooltipItem) => formatCurrency(tooltipItem.raw),
+              label: () => "Monthly revenue trend",
             },
           },
         },
@@ -243,7 +248,7 @@ const DashboardContent = () => {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: (value) => formatCurrency(value),
+              callback: () => "",
               font: { size: 11 },
               color: tickColor,
             },
@@ -747,8 +752,15 @@ const DashboardContent = () => {
       });
 
       setServiceDeductionCatalog(serviceDeductionCatalogRows);
+      const serviceDeductionRows = currentMonthDeductions.filter((row) => row.type === "Service Deduction");
+      const refundableDeductionRows = currentMonthDeductions.filter((row) => row.type === "Refundable Deduction");
+      setDeductionTransactions(serviceDeductionRows);
+      setRefundableTransactions(refundableDeductionRows);
       setTotalServiceDeductions(
-        currentMonthDeductions.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
+        serviceDeductionRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
+      );
+      setTotalRefundableCuts(
+        refundableDeductionRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
       );
 
       const recent = sortedBookings
@@ -810,7 +822,8 @@ const DashboardContent = () => {
     const adminCards = [
       { label: "Bookings", value: totalBookings.toLocaleString(), sub: "All accessible bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
       { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
-      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" /> },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "service" },
+      { label: "Refundable Cuts", value: formatCurrency(Math.round(totalRefundableCuts)), sub: "Refundable clause this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "refundable" },
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "Live today after deductions", icon: <TodayOutlinedIcon fontSize="small" /> },
       { label: "Total Users", value: totalUsers.toLocaleString(), sub: "Active CRM users", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
       { label: "Bookings This Month", value: bookingsThisMonth.toLocaleString(), sub: "Created this month", icon: <LocalOfferOutlinedIcon fontSize="small" /> },
@@ -821,7 +834,8 @@ const DashboardContent = () => {
     const userCards = [
       { label: "Bookings", value: totalBookings.toLocaleString(), sub: "Your live bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
       { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
-      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "This month", icon: <PaidOutlinedIcon fontSize="small" /> },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "This month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "service" },
+      { label: "Refundable Cuts", value: formatCurrency(Math.round(totalRefundableCuts)), sub: "This month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "refundable" },
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "From today's bookings", icon: <TodayOutlinedIcon fontSize="small" /> },
     ];
 
@@ -835,6 +849,7 @@ const DashboardContent = () => {
     totalBookings,
     totalRevenue,
     totalServiceDeductions,
+    totalRefundableCuts,
     totalUsers,
   ]);
 
@@ -932,6 +947,12 @@ const DashboardContent = () => {
                       background: "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 38%)",
                       pointerEvents: "none",
                     },
+                    cursor: card.detailType ? "pointer" : "default",
+                  }}
+                  onClick={() => {
+                    if (card.detailType) {
+                      setDeductionBreakdownDialog({ open: true, type: card.detailType });
+                    }
                   }}
                 >
                   <CardContent
@@ -1523,6 +1544,57 @@ const DashboardContent = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDeductionDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={deductionBreakdownDialog.open}
+          onClose={() => setDeductionBreakdownDialog({ open: false, type: "service" })}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {deductionBreakdownDialog.type === "refundable" ? "Refundable Cuts" : "Service Deductions"}
+          </DialogTitle>
+          <DialogContent dividers>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Employee</TableCell>
+                    <TableCell>Company</TableCell>
+                    <TableCell>Service</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Booking</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(deductionBreakdownDialog.type === "refundable" ? refundableTransactions : deductionTransactions).map((row, index) => (
+                    <TableRow key={`${row.bookingId}-${row.type}-${index}`}>
+                      <TableCell>{row.date ? new Date(row.date).toLocaleDateString("en-GB") : "-"}</TableCell>
+                      <TableCell>{row.employeeName || "-"}</TableCell>
+                      <TableCell>{row.companyName || "-"}</TableCell>
+                      <TableCell>{row.service || "-"}</TableCell>
+                      <TableCell>{row.type || "-"}</TableCell>
+                      <TableCell>{row.bookingId || "-"}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                        {formatCurrency(row.deduction || 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(deductionBreakdownDialog.type === "refundable" ? refundableTransactions : deductionTransactions).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">No rows found.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeductionBreakdownDialog({ open: false, type: "service" })}>Close</Button>
           </DialogActions>
         </Dialog>
 

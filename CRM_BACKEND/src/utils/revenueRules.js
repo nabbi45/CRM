@@ -101,6 +101,7 @@ export const getTermShare = (booking = {}, termKey = "term_1") =>
   booking.term_shares?.[termKey] || {
     creator: { user_id: booking.user_id, user_name: booking.bdm },
     payment_date: booking.payment_date,
+    payment_mode: booking.bank,
     shared_with: booking.shared_with || [],
   };
 

@@ -122,6 +122,9 @@ const History = () => {
   const isAdminView = ["dev", "admin", "senior admin", "srdev", "super admin", "director"].includes(
     (userSession?.user_role || "").toLowerCase()
   );
+  const canDownloadBookings = ["dev", "srdev", "sr dev", "director"].includes(
+    (userSession?.user_role || "").toLowerCase()
+  );
 
   // NEW State for Shared Bookings Toggle
   const [shareFilter, setShareFilter] = useState("All"); // "All" | "SharedByMe" | "SharedWithMe"
@@ -158,6 +161,7 @@ const History = () => {
     return {
       creatorName: upperText(creator?.user_name || usersMap[creator?.user_id] || booking?.bdm || "N/A"),
       paymentDate: termShare?.payment_date || booking?.payment_date || booking?.date,
+      paymentMode: termShare?.payment_mode || booking?.bank || "N/A",
       sharedWith,
     };
   };
@@ -349,6 +353,10 @@ const History = () => {
   };
 
   const handleDownload = () => {
+    if (!canDownloadBookings) {
+      enqueueSnackbar("Only director and dev roles can download bookings.", { variant: "warning" });
+      return;
+    }
     // Show the pop-up when the user clicks the download button
     setOpenPopupD(true);
   };
@@ -602,6 +610,55 @@ const History = () => {
   };
 
   const handleCopy = (booking) => {
+    const termBlocks = ["term_1", "term_2", "term_3"]
+      .filter((termKey) => Number(booking?.[termKey] || 0) > 0)
+      .map((termKey, index) => {
+        const info = getTermShareInfo(booking, termKey);
+        const sharedLabel = Array.isArray(info.sharedWith) && info.sharedWith.length > 0
+          ? info.sharedWith.map((sw) => `${upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")} (${sw.percentage}%)`).join(", ")
+          : "Not Shared";
+        return `TERM ${index + 1}
+Amount: ${Number(booking?.[termKey] || 0).toLocaleString("en-IN")} INR
+Payment Date: ${formatDisplayDate(info.paymentDate)}
+Payment Mode: ${info.paymentMode}
+Created By: ${info.creatorName}
+Shared With: ${sharedLabel}`;
+      })
+      .join("\n\n");
+
+    const richBookingDetails = `
+Booking ID: ${booking._id}
+Booking Date: ${formatDisplayDate(booking.date)}
+Payment Date: ${formatDisplayDate(booking.payment_date)}
+
+Company Name: ${upperText(booking.company_name)}
+Contact Person: ${upperText(booking.contact_person)}
+Email: ${lowerEmail(booking.email)}
+Contact Number: ${booking.contact_no}
+Service: ${Array.isArray(booking.services) ? booking.services.join(", ") : booking.services}
+Total Amount: ${Number(booking.total_amount || 0).toLocaleString("en-IN")} INR
+Received Amount: ${Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0)).toLocaleString("en-IN")} INR
+Pending Amount: ${(Number(booking.total_amount || 0) - Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0))).toLocaleString("en-IN")} INR
+Booking Payment Mode: ${booking.bank || "N/A"}
+
+${termBlocks}
+
+BDM Name: ${upperText(booking.bdm)}
+Lead Closed By: ${booking.closed_by || "N/A"}
+GST No: ${upperText(booking.gst)}
+PAN No: ${upperText(booking.pan)}
+Notes: ${booking.remark}
+After Disbursement: ${booking.after_disbursement}
+State: ${booking.state}
+Status: ${booking.status}
+    `;
+    navigator.clipboard.writeText(richBookingDetails).then(() => {
+      enqueueSnackbar("Booking details copied to clipboard!", {
+        variant: "success",
+      });
+    });
+    return;
+    // eslint-disable-next-line no-unreachable
     const bookingDetails = `
       Booking ID: ${booking._id}
       Booking Date: ${formatDisplayDate(booking.date)}
@@ -1423,6 +1480,7 @@ const History = () => {
                     {renderDetailItem("Company", upperText(booking.company_name))}
                     {renderDetailItem("Term Amount", `${getTermAmount(booking, "term_2")} ₹`, { highlight: true })}
                     {renderDetailItem("Payment Date", formatDisplayDate(term2ShareInfo.paymentDate))}
+                    {renderDetailItem("Payment Mode", term2ShareInfo.paymentMode)}
                     {renderDetailItem("Created By", term2ShareInfo.creatorName)}
                     {renderDetailItem("Services", Array.isArray(booking.services) ? booking.services.join(", ") : (booking.services || "N/A"))}
                     {renderDetailItem("Shared With", renderSharedWithList(term2ShareInfo.sharedWith))}
@@ -1442,6 +1500,7 @@ const History = () => {
                     {renderDetailItem("Company", upperText(booking.company_name))}
                     {renderDetailItem("Term Amount", `${getTermAmount(booking, "term_3")} ₹`, { highlight: true })}
                     {renderDetailItem("Payment Date", formatDisplayDate(term3ShareInfo.paymentDate))}
+                    {renderDetailItem("Payment Mode", term3ShareInfo.paymentMode)}
                     {renderDetailItem("Created By", term3ShareInfo.creatorName)}
                     {renderDetailItem("Services", Array.isArray(booking.services) ? booking.services.join(", ") : (booking.services || "N/A"))}
                     {renderDetailItem("Shared With", renderSharedWithList(term3ShareInfo.sharedWith))}
@@ -1517,6 +1576,7 @@ const History = () => {
                       <Typography sx={{ fontWeight: 800, mb: 0.5 }}>{termKey.replace("_", " ").toUpperCase()}</Typography>
                       <Typography variant="body2"><strong>Amount:</strong> INR {Number(selectedBookingDetails?.[termKey] || 0).toLocaleString("en-IN")}</Typography>
                       <Typography variant="body2"><strong>Payment Date:</strong> {formatDisplayDate(info.paymentDate)}</Typography>
+                      <Typography variant="body2"><strong>Payment Mode:</strong> {info.paymentMode}</Typography>
                       <Typography variant="body2"><strong>Created By:</strong> {info.creatorName}</Typography>
                       <Typography variant="body2"><strong>Shared With:</strong> {Array.isArray(info.sharedWith) && info.sharedWith.length > 0 ? info.sharedWith.map((sw) => `${upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")} - ${sw.percentage}%`).join(", ") : "Not Shared"}</Typography>
                     </Paper>
@@ -1569,9 +1629,11 @@ const History = () => {
         onClose={closeDeleteModal}
         onConfirm={confirmDelete}
       />
-      <button className="floating-download-button" onClick={handleDownload}>
-        <i className="fa-solid fa-download"></i>
-      </button>
+      {canDownloadBookings && (
+        <button className="floating-download-button" onClick={handleDownload}>
+          <i className="fa-solid fa-download"></i>
+        </button>
+      )}
 
       {/* Changed Code */}
       <Dialog open={openPopupD} onClose={handleClosePopup}>

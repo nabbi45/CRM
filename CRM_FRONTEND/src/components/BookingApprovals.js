@@ -35,6 +35,46 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
 
+const formatBookingShareLabel = (booking = {}) => {
+  const terms = ["term_1", "term_2", "term_3"];
+  const participants = new Map();
+
+  terms.forEach((termKey) => {
+    const termShare = booking?.term_shares?.[termKey];
+    if (!termShare?.creator?.user_id && Number(booking?.[termKey] || 0) <= 0) return;
+
+    const creatorName = termShare?.creator?.user_name || booking.bdm || "N/A";
+    const creatorId = termShare?.creator?.user_id || booking.user_id || creatorName;
+    if (!participants.has(String(creatorId))) {
+      participants.set(String(creatorId), {
+        name: creatorName,
+        parts: new Set(),
+      });
+    }
+
+    (Array.isArray(termShare?.shared_with) ? termShare.shared_with : []).forEach((sw) => {
+      const key = String(sw.user_id || sw.user_name || Math.random());
+      if (!participants.has(key)) {
+        participants.set(key, {
+          name: sw.user_name || "Coworker",
+          parts: new Set(),
+        });
+      }
+      participants.get(key).parts.add(`${termKey.replace("_", " ").toUpperCase()}: ${sw.percentage}%`);
+    });
+  });
+
+  if (participants.size <= 1) return booking.bdm || "N/A";
+
+  const creatorName = booking.bdm || [...participants.values()][0]?.name || "N/A";
+  const sharedSummary = [...participants.values()]
+    .filter((person) => person.name !== creatorName && person.parts.size > 0)
+    .map((person) => `${person.name} (${[...person.parts].join(", ")})`)
+    .join(", ");
+
+  return sharedSummary ? `${creatorName} | Shared: ${sharedSummary}` : creatorName;
+};
+
 const BookingApprovals = () => {
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
   const isAdmin = adminRoles.includes((userSession.user_role || "").toLowerCase());
@@ -459,7 +499,7 @@ const BookingApprovals = () => {
                 options={bookings}
                 value={selectedBooking}
                 onChange={(_, value) => setSelectedBooking(value)}
-                getOptionLabel={(booking) => `${booking.company_name || booking.contact_person || "BOOKING"} - ${booking.bdm || ""}`}
+                getOptionLabel={(booking) => `${booking.company_name || booking.contact_person || "BOOKING"} - ${formatBookingShareLabel(booking)}`}
                 isOptionEqualToValue={(option, value) => option?._id === value?._id}
                 renderInput={(params) => <TextField {...params} label={isMobile ? "Booking" : "Select Booking"} />}
               />

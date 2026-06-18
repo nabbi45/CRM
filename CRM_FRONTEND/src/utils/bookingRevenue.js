@@ -27,6 +27,7 @@ const getTermShare = (booking, termKey) => {
       user_name: booking?.bdm,
     },
     payment_date: booking?.payment_date || booking?.date || booking?.createdAt,
+    payment_mode: booking?.bank || "",
     shared_with: termKey === "term_1" && Array.isArray(booking?.shared_with) ? booking.shared_with : [],
   };
 };
@@ -78,6 +79,67 @@ const getTermNetBeforeSharing = (booking, termKey) => {
     net -= getServiceDeductionTotal(booking);
   }
   return roundMoney(Math.max(0, net));
+};
+
+const getRefundDistributionEntries = (booking = {}, includeTerm = () => true) => {
+  const entries = [];
+  let totalBase = 0;
+
+  termKeys.forEach((termKey) => {
+    const amount = Number(booking?.[termKey] || 0);
+    if (!amount) return;
+    const termShare = getTermShare(booking, termKey);
+    if (!includeTerm(termShare, termKey)) return;
+    const baseAmount = amountExcludingGst(booking, amount);
+    if (!baseAmount) return;
+
+    const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
+    const sharedTotal = sharedWith.reduce((total, sw) => total + Number(sw.percentage || 0), 0);
+
+    const creatorBase = roundMoney(baseAmount * Math.max(0, (100 - sharedTotal) / 100));
+    if (creatorBase > 0) {
+      entries.push({
+        userId: String(termShare.creator?.user_id || booking?.user_id || ""),
+        userName: termShare.creator?.user_name || booking?.bdm || "UNKNOWN",
+        amount: creatorBase,
+        termKey,
+        date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
+      });
+      totalBase += creatorBase;
+    }
+
+    sharedWith.forEach((sw) => {
+      const sharedAmount = roundMoney(baseAmount * (Number(sw.percentage || 0) / 100));
+      if (sharedAmount <= 0) return;
+      entries.push({
+        userId: String(sw.user_id || ""),
+        userName: sw.user_name || "COWORKER",
+        amount: sharedAmount,
+        termKey,
+        date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
+      });
+      totalBase += sharedAmount;
+    });
+  });
+
+  return {
+    entries,
+    totalBase: roundMoney(totalBase),
+  };
+};
+
+const getRefundShareAmountForUser = (booking, refundAmount, userId, isAdmin = false, includeTerm = () => true) => {
+  if (isAdmin) return roundMoney(refundAmount);
+
+  const { entries, totalBase } = getRefundDistributionEntries(booking, includeTerm);
+  if (!entries.length || !totalBase) return 0;
+
+  const userBase = entries
+    .filter((entry) => String(entry.userId) === String(userId || ""))
+    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+
+  if (!userBase) return 0;
+  return roundMoney((userBase / totalBase) * Number(refundAmount || 0));
 };
 
 export const buildServiceDeductionMap = () => ({});
@@ -151,10 +213,11 @@ export const getBookingDeductionRowsForUser = (
   });
 
   (booking?.refund_adjustments || []).forEach((refund) => {
-    const refundShare = getParticipantShare(booking, getDeductionTermKey(booking), userId, isAdmin);
-    if (!refundShare) return;
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return;
+    const totalRefund = Number(refund.amount_excluding_gst || refund.amount || 0);
+    const userRefundShare = getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, includeTerm);
+    if (!userRefundShare) return;
     rows.push({
       type: "Admin Refund",
       bookingId: booking?._id,
@@ -162,9 +225,9 @@ export const getBookingDeductionRowsForUser = (
       clientName: booking?.contact_person || "N/A",
       companyName: booking?.company_name || "N/A",
       service: "Refund Adjustment",
-      totalDeduction: Number(refund.amount_excluding_gst || refund.amount || 0),
-      deduction: roundMoney(Number(refund.amount_excluding_gst || refund.amount || 0) * refundShare),
-      employeeName: booking?.bdm || "UNKNOWN",
+      totalDeduction: totalRefund,
+      deduction: userRefundShare,
+      employeeName: isAdmin ? "COMPANY" : (booking?.bdm || "UNKNOWN"),
       date: refund.refund_date || refund.created_at,
     });
   });
@@ -189,8 +252,8 @@ export const getBookingRevenueForUser = (
   const refundReversal = (booking?.refund_adjustments || []).reduce((sum, refund) => {
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return sum;
-    const share = getParticipantShare(booking, getDeductionTermKey(booking), userId, isAdmin);
-    return sum + Number(refund.amount_excluding_gst || refund.amount || 0) * share;
+    const totalRefund = Number(refund.amount_excluding_gst || refund.amount || 0);
+    return sum + getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, includeTerm);
   }, 0);
 
   return roundMoney(termRevenue - refundReversal);
@@ -228,23 +291,19 @@ export const addBookingRevenueToLeaderboard = (
   (booking?.refund_adjustments || []).forEach((refund) => {
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return;
-    const termShare = getTermShare(booking, getDeductionTermKey(booking));
     const refundAmount = Number(refund.amount_excluding_gst || refund.amount || 0);
-    const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
-
-    sharedWith.forEach((sw) => {
-      const name = sw.user_name || usersMap[sw.user_id] || "COWORKER";
-      const reversal = refundAmount * (Number(sw.percentage || 0) / 100);
+    const { entries, totalBase } = getRefundDistributionEntries(booking, () => true);
+    if (!entries.length || !totalBase) return;
+    const userTotals = {};
+    entries.forEach((entry) => {
+      const name = entry.userName || usersMap[entry.userId] || "UNKNOWN";
+      userTotals[name] = (userTotals[name] || 0) + Number(entry.amount || 0);
+    });
+    Object.entries(userTotals).forEach(([name, baseAmount]) => {
+      const reversal = roundMoney((baseAmount / totalBase) * refundAmount);
       if (!board[name]) board[name] = { revenue: 0, count: 0, deduction: 0 };
       board[name].revenue -= reversal;
       board[name].deduction += reversal;
     });
-
-    const creatorName = termShare.creator?.user_name || usersMap[termShare.creator?.user_id] || booking?.bdm || "UNKNOWN";
-    const sharedTotalPercentage = sharedWith.reduce((total, sw) => total + Number(sw.percentage || 0), 0);
-    const reversal = refundAmount * Math.max(0, (100 - sharedTotalPercentage) / 100);
-    if (!board[creatorName]) board[creatorName] = { revenue: 0, count: 0, deduction: 0 };
-    board[creatorName].revenue -= reversal;
-    board[creatorName].deduction += reversal;
   });
 };

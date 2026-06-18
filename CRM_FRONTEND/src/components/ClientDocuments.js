@@ -129,7 +129,20 @@ const ClientDocuments = () => {
         limit: '20',
         page: String(page),
       });
-      if (appliedSearch.trim()) params.set('search', appliedSearch.trim());
+      const searchValue = String(fileActivityFilters.company || appliedSearch || '').trim();
+      if (searchValue) params.set('search', searchValue);
+      [
+        'agreementSent',
+        'agreementReceived',
+        'dprPitchDeckDataCollection',
+        'dpr',
+        'pitchDeck',
+        'applicationDetailsCoordination',
+        'application',
+        'acknowledgement',
+      ].forEach((key) => {
+        if (fileActivityFilters[key]) params.set(key, fileActivityFilters[key]);
+      });
 
       const bookingsRes = await fetch(`${apiUrl}/booking-documents/all?${params.toString()}`, {
         headers: { authorization: userSession.token }
@@ -169,7 +182,7 @@ const ClientDocuments = () => {
     } finally {
       setLoading(false);
     }
-  }, [userSession, page, appliedSearch]);
+  }, [userSession, page, appliedSearch, fileActivityFilters]);
 
   useEffect(() => {
     fetchData();
@@ -356,40 +369,7 @@ const ClientDocuments = () => {
     return rows.map((row) => row?.status).filter(Boolean);
   };
 
-  const filteredFileActivityBookings = bookings.filter((booking) => {
-    const companyFilter = String(fileActivityFilters.company || '').trim().toLowerCase();
-    if (companyFilter) {
-      const company = String(booking.company_name || '').toLowerCase();
-      if (!company.includes(companyFilter)) return false;
-    }
-
-    const stageChecks = [
-      ['agreementSent', getActivityStageStatus(booking, 'agreementSent')],
-      ['agreementReceived', getActivityStageStatus(booking, 'agreementReceived')],
-      ['dprPitchDeckDataCollection', getActivityStageStatus(booking, 'dprPitchDeckDataCollection')],
-      ['dpr', getActivityStageStatus(booking, 'dpr')],
-      ['pitchDeck', getActivityStageStatus(booking, 'pitchDeck')],
-      ['applicationDetailsCoordination', getActivityStageStatus(booking, 'applicationDetailsCoordination')],
-    ];
-
-    for (const [filterKey, value] of stageChecks) {
-      if (fileActivityFilters[filterKey] && fileActivityFilters[filterKey] !== value) {
-        return false;
-      }
-    }
-
-    if (fileActivityFilters.application) {
-      const statuses = getServiceStageStatuses(booking, 'application');
-      if (!statuses.includes(fileActivityFilters.application)) return false;
-    }
-
-    if (fileActivityFilters.acknowledgement) {
-      const statuses = getServiceStageStatuses(booking, 'acknowledgement');
-      if (!statuses.includes(fileActivityFilters.acknowledgement)) return false;
-    }
-
-    return true;
-  });
+  const filteredFileActivityBookings = bookings;
 
   const StatCard = ({ title, count, total, color }) => {
     const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;

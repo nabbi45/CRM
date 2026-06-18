@@ -182,6 +182,23 @@ const ServicesComponent = () => {
     },
   });
 
+  const serviceCardSx = {
+    p: 1.45,
+    borderRadius: "8px",
+    border: "1px solid",
+    borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.14)",
+    background: theme.palette.mode === "dark"
+      ? "linear-gradient(180deg, rgba(15,23,42,0.92) 0%, rgba(15,23,42,0.88) 100%)"
+      : "linear-gradient(180deg, rgba(248,250,252,0.92) 0%, rgba(255,255,255,1) 100%)",
+    boxShadow: theme.palette.mode === "dark" ? "none" : "0 8px 20px rgba(15,23,42,0.04)",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+    "&:hover": {
+      transform: "translateY(-1px)",
+      boxShadow: theme.palette.mode === "dark" ? "0 10px 24px rgba(2,6,23,0.22)" : "0 12px 26px rgba(15,23,42,0.08)",
+      borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.22)" : "rgba(255,59,31,0.18)",
+    },
+  };
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2 }, width: "100%", maxWidth: 1560, mx: "auto" }}>
       <Stack spacing={2}>
@@ -248,7 +265,7 @@ const ServicesComponent = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               size="small"
-              sx={{ minWidth: { xs: "100%", sm: 280 }, ...fieldSx("rgba(240,249,255,0.64)") }}
+            sx={{ minWidth: { xs: "100%", sm: 280 }, ...fieldSx("rgba(240,249,255,0.64)") }}
               InputProps={{
                 startAdornment: <SearchOutlinedIcon sx={{ color: "text.secondary", mr: 1 }} />,
               }}
@@ -263,17 +280,11 @@ const ServicesComponent = () => {
             }}
           >
             {filteredServices.map((service, index) => {
-              const tone = summaryTone(index);
               return (
                 <Paper
                   key={service._id}
                   variant="outlined"
-                  sx={{
-                    p: 1.4,
-                    borderRadius: "8px",
-                    borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.14)",
-                    background: theme.palette.mode === "dark" ? "rgba(15,23,42,0.86)" : tone.bg,
-                  }}
+                  sx={serviceCardSx}
                 >
                   <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1.25, flexWrap: "wrap" }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -283,7 +294,7 @@ const ServicesComponent = () => {
                           size="small"
                           icon={<CurrencyRupeeOutlinedIcon sx={{ fontSize: "0.9rem !important" }} />}
                           label={formatCurrency(service.deduction || 0)}
-                          sx={{ borderRadius: "999px", fontWeight: 800, bgcolor: `${tone.color}12`, color: tone.color }}
+                          sx={{ borderRadius: "999px", fontWeight: 800, bgcolor: "rgba(59,130,246,0.10)", color: "#2563eb" }}
                         />
                         <Chip
                           size="small"
@@ -299,7 +310,7 @@ const ServicesComponent = () => {
                     </Box>
 
                     <Stack direction="row" spacing={0.8} alignItems="center">
-                      <IconButton onClick={() => handleEditClick(service)} sx={{ bgcolor: "rgba(59,130,246,0.12)", color: "#2563eb" }}>
+                      <IconButton onClick={() => handleEditClick(service)} sx={{ bgcolor: "rgba(59,130,246,0.10)", color: "#2563eb" }}>
                         <EditOutlinedIcon fontSize="small" />
                       </IconButton>
                       <IconButton onClick={() => toggleServiceStatus(service)} sx={{ bgcolor: service.status ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.12)", color: service.status ? "#d97706" : "#059669" }}>
@@ -359,16 +370,6 @@ const ServicesComponent = () => {
       </Dialog>
     </Box>
   );
-};
-
-const summaryTone = (index) => {
-  const tones = [
-    { bg: "linear-gradient(180deg, rgba(219,234,254,0.66) 0%, rgba(255,255,255,0.98) 100%)", color: "#2563eb" },
-    { bg: "linear-gradient(180deg, rgba(220,252,231,0.72) 0%, rgba(255,255,255,0.98) 100%)", color: "#059669" },
-    { bg: "linear-gradient(180deg, rgba(254,243,199,0.78) 0%, rgba(255,255,255,0.98) 100%)", color: "#d97706" },
-    { bg: "linear-gradient(180deg, rgba(243,232,255,0.72) 0%, rgba(255,255,255,0.98) 100%)", color: "#8b5cf6" },
-  ];
-  return tones[index % tones.length];
 };
 
 export default ServicesComponent;

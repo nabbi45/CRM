@@ -1,25 +1,30 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Avatar,
   Box,
   Card,
   CardContent,
   Chip,
-  Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
   Grid,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
+  Button,
   Typography,
   useTheme,
 } from "@mui/material";
-import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import InsightsOutlinedIcon from "@mui/icons-material/InsightsOutlined";
 import CurrencyRupeeOutlinedIcon from "@mui/icons-material/CurrencyRupeeOutlined";
 import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import Loader from "./Loader";
 import { apiUrl } from "./LoginSignup";
 import {
@@ -44,6 +49,19 @@ const formatDate = (value) => {
   return date.toLocaleDateString("en-GB");
 };
 
+const monthKeyFromDate = (value) => {
+  const date = new Date(value || 0);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const monthLabel = (monthKey) => {
+  if (!monthKey || monthKey === "all") return "All Time";
+  const [year, month] = String(monthKey).split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString("default", { month: "long", year: "numeric" });
+};
+
 const getInitials = (name = "") =>
   String(name || "")
     .trim()
@@ -53,22 +71,18 @@ const getInitials = (name = "") =>
     .join("")
     .toUpperCase() || "NA";
 
-const summaryCardPalette = [
-  { bg: "linear-gradient(180deg, rgba(20,184,166,0.14) 0%, rgba(255,255,255,0.98) 100%)", color: "#0f766e" },
-  { bg: "linear-gradient(180deg, rgba(59,130,246,0.12) 0%, rgba(255,255,255,0.98) 100%)", color: "#2563eb" },
-  { bg: "linear-gradient(180deg, rgba(249,115,22,0.12) 0%, rgba(255,255,255,0.98) 100%)", color: "#ea580c" },
-  { bg: "linear-gradient(180deg, rgba(236,72,153,0.12) 0%, rgba(255,255,255,0.98) 100%)", color: "#db2777" },
-];
-
 const Scorecard = () => {
   const theme = useTheme();
   const session = JSON.parse(localStorage.getItem("userSession")) || {};
   const isAdmin = adminRoles.includes((session.user_role || "").toLowerCase());
+  const currentMonthKey = monthKeyFromDate(new Date());
 
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [users, setUsers] = useState([]);
-  const [expandedEmployee, setExpandedEmployee] = useState(session.user_id || "");
+  const [scopeMode, setScopeMode] = useState(isAdmin ? "all" : "month");
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,15 +115,41 @@ const Scorecard = () => {
     fetchData();
   }, [isAdmin, session.token, session.user_id]);
 
+  const allMonthOptions = useMemo(() => {
+    const keys = new Set();
+    bookings.forEach((booking) => {
+      [booking.payment_date, booking.date, booking.createdAt].forEach((value) => {
+        const key = monthKeyFromDate(value);
+        if (key) keys.add(key);
+      });
+      (booking.refund_adjustments || []).forEach((refund) => {
+        const key = monthKeyFromDate(refund.refund_date || refund.created_at);
+        if (key) keys.add(key);
+      });
+    });
+    const values = [...keys].sort().reverse();
+    if (!values.length) values.push(currentMonthKey);
+    return values;
+  }, [bookings, currentMonthKey]);
+
+  useEffect(() => {
+    if (!allMonthOptions.includes(selectedMonth)) {
+      setSelectedMonth(allMonthOptions[0] || currentMonthKey);
+    }
+  }, [allMonthOptions, selectedMonth, currentMonthKey]);
+
+  const employeePool = useMemo(() => {
+    if (isAdmin) return users;
+    return [{
+      _id: session.user_id,
+      name: session.name || "My Scorecard",
+      role: session.user_role || "",
+      profilePicture: session.profilePicture || "",
+    }];
+  }, [isAdmin, users, session.user_id, session.name, session.user_role, session.profilePicture]);
+
   const employeeCards = useMemo(() => {
-    const employeePool = isAdmin
-      ? users
-      : [{
-          _id: session.user_id,
-          name: session.name || "My Scorecard",
-          role: session.user_role || "",
-          profilePicture: session.profilePicture || "",
-        }];
+    const activeMonth = scopeMode === "all" ? "all" : selectedMonth;
 
     return employeePool
       .map((employee) => {
@@ -117,7 +157,19 @@ const Scorecard = () => {
         const rows = [];
 
         bookings.forEach((booking) => {
-          const revenue = getBookingRevenueForUser(booking, employeeId, false, () => true);
+          const revenue = getBookingRevenueForUser(
+            booking,
+            employeeId,
+            false,
+            (termShare, termKey) => {
+              if (activeMonth === "all") return true;
+              if (termKey === "refund") {
+                return monthKeyFromDate(termShare?.payment_date) === activeMonth;
+              }
+              return monthKeyFromDate(termShare?.payment_date || booking.payment_date || booking.date || booking.createdAt) === activeMonth;
+            }
+          );
+
           if (revenue > 0) {
             rows.push({
               type: "Revenue",
@@ -132,7 +184,18 @@ const Scorecard = () => {
             });
           }
 
-          getBookingDeductionRowsForUser(booking, employeeId, false, () => true).forEach((row) => {
+          getBookingDeductionRowsForUser(
+            booking,
+            employeeId,
+            false,
+            (termShare, termKey) => {
+              if (activeMonth === "all") return true;
+              if (termKey === "refund") {
+                return monthKeyFromDate(termShare?.payment_date) === activeMonth;
+              }
+              return monthKeyFromDate(termShare?.payment_date || booking.payment_date || booking.date || booking.createdAt) === activeMonth;
+            }
+          ).forEach((row) => {
             rows.push({
               type: row.type,
               date: row.date,
@@ -147,14 +210,11 @@ const Scorecard = () => {
           });
         });
 
-        if (!isAdmin && String(employeeId) !== String(session.user_id)) return null;
-
         const sortedRows = rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         const revenue = sortedRows.filter((row) => row.type === "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const deductions = sortedRows.filter((row) => row.type !== "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const refundable = sortedRows.filter((row) => row.type === "Refundable Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const bookingCount = new Set(sortedRows.map((row) => row.bookingId).filter(Boolean)).size;
-        const net = revenue - deductions;
 
         return {
           ...employee,
@@ -162,19 +222,13 @@ const Scorecard = () => {
           revenue,
           deductions,
           refundable,
-          net,
+          net: revenue - deductions,
           bookingCount,
         };
       })
-      .filter(Boolean)
+      .filter((employee) => employee.rows.length > 0 || String(employee._id) === String(session.user_id))
       .sort((a, b) => b.net - a.net);
-  }, [bookings, isAdmin, session.name, session.profilePicture, session.user_id, session.user_role, users]);
-
-  useEffect(() => {
-    if (!expandedEmployee && employeeCards[0]?._id) {
-      setExpandedEmployee(employeeCards[0]._id);
-    }
-  }, [employeeCards, expandedEmployee]);
+  }, [bookings, employeePool, scopeMode, selectedMonth, session.user_id]);
 
   const dashboardStats = useMemo(() => {
     const totals = employeeCards.reduce((acc, item) => {
@@ -203,6 +257,22 @@ const Scorecard = () => {
       : "#ffffff",
   };
 
+  const employeeRowSx = {
+    borderRadius: "8px",
+    border: "1px solid",
+    borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.14)",
+    boxShadow: "none",
+    background: theme.palette.mode === "dark"
+      ? "linear-gradient(180deg, rgba(15,23,42,0.88) 0%, rgba(15,23,42,0.84) 100%)"
+      : "linear-gradient(180deg, rgba(248,250,252,0.92) 0%, rgba(255,255,255,1) 100%)",
+    transition: "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease",
+    "&:hover": {
+      borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.24)" : "rgba(255,59,31,0.18)",
+      boxShadow: theme.palette.mode === "dark" ? "0 10px 22px rgba(2,6,23,0.22)" : "0 10px 24px rgba(15,23,42,0.07)",
+      transform: "translateY(-1px)",
+    },
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -222,17 +292,39 @@ const Scorecard = () => {
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary">
-            Employee-wise revenue history with deductions, refundable cuts, and booking-wise ledger.
+            Transaction-wise employee revenue with month-aware deductions and refund reversals.
           </Typography>
         </Box>
-        <Chip
-          label={isAdmin ? `${employeeCards.length} employees` : "My scorecard"}
-          sx={{ borderRadius: "999px", fontWeight: 800 }}
-        />
+
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ minWidth: { xs: "100%", sm: "auto" } }}>
+          {isAdmin && (
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel>Scope</InputLabel>
+              <Select label="Scope" value={scopeMode} onChange={(e) => setScopeMode(e.target.value)}>
+                <MenuItem value="all">All Time</MenuItem>
+                <MenuItem value="month">Month Wise</MenuItem>
+              </Select>
+            </FormControl>
+          )}
+          {(scopeMode === "month" || !isAdmin) && (
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Month</InputLabel>
+              <Select label="Month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                {allMonthOptions.map((month) => (
+                  <MenuItem key={month} value={month}>{monthLabel(month)}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          <Chip
+            label={scopeMode === "all" && isAdmin ? `${employeeCards.length} employees` : monthLabel(selectedMonth)}
+            sx={{ borderRadius: "999px", fontWeight: 800 }}
+          />
+        </Stack>
       </Box>
 
       <Grid container spacing={{ xs: 1.25, sm: 1.5, md: 1.75 }} sx={{ mb: 2.25 }}>
-        {dashboardStats.map((card, index) => (
+        {dashboardStats.map((card) => (
           <Grid item xs={6} md={3} key={card.label}>
             <Card sx={{ ...surfaceSx, height: "100%" }}>
               <CardContent sx={{ p: { xs: 1.3, sm: 1.5 } }}>
@@ -264,7 +356,7 @@ const Scorecard = () => {
             Employee Scorecards
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Tap or click an employee row to expand the latest transaction history.
+            Lower roles see only their selected month. Higher roles can switch between all-time and month-wise history.
           </Typography>
         </Box>
 
@@ -275,154 +367,189 @@ const Scorecard = () => {
             </Paper>
           )}
 
-          {employeeCards.map((employee, index) => {
-            const palette = summaryCardPalette[index % summaryCardPalette.length];
-            const isExpanded = String(expandedEmployee) === String(employee._id);
-
+          {employeeCards.map((employee) => {
             return (
-              <Accordion
+              <Paper
                 key={employee._id || employee.name}
-                expanded={isExpanded}
-                onChange={(_, expanded) => setExpandedEmployee(expanded ? employee._id : "")}
-                disableGutters
                 sx={{
-                  borderRadius: "8px !important",
-                  border: "1px solid",
-                  borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.18)" : "rgba(148,163,184,0.16)",
-                  boxShadow: "none",
-                  overflow: "hidden",
-                  background: theme.palette.mode === "dark" ? "rgba(15,23,42,0.9)" : palette.bg,
-                  "&:before": { display: "none" },
+                  ...employeeRowSx,
+                  p: { xs: 1.15, sm: 1.35, md: 1.45 },
                 }}
               >
-                <AccordionSummary
-                  expandIcon={<ExpandMoreRoundedIcon />}
+                <Box
                   sx={{
-                    px: { xs: 1.2, sm: 1.5 },
-                    py: 0.4,
-                    "& .MuiAccordionSummary-content": { my: 1.1 },
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.25,
+                    flexWrap: "wrap",
                   }}
                 >
-                  <Box sx={{ width: "100%" }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
-                      <Avatar src={employee.profilePicture || ""} sx={{ width: 44, height: 44, bgcolor: `${palette.color}20`, color: palette.color, fontWeight: 800 }}>
-                        {getInitials(employee.name)}
-                      </Avatar>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: { xs: "0.96rem", sm: "1rem" } }} noWrap>
-                          {employee.name || "Employee"}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {(employee.role || "").toUpperCase() || "TEAM MEMBER"}
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "grid",
-                          gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
-                          gap: 1,
-                          width: { xs: "100%", md: "auto" },
-                          minWidth: { md: 560 },
-                        }}
-                      >
-                        {[
-                          { label: "Bookings", value: employee.bookingCount, color: palette.color },
-                          { label: "Revenue", value: formatCurrency(employee.revenue), color: "#059669" },
-                          { label: "Deductions", value: formatCurrency(employee.deductions), color: "#ea580c" },
-                          { label: "Net", value: formatCurrency(employee.net), color: "#2563eb" },
-                        ].map((item) => (
-                          <Box
-                            key={item.label}
-                            sx={{
-                              borderRadius: "8px",
-                              px: 1.1,
-                              py: 0.9,
-                              bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.86)",
-                              border: "1px solid",
-                              borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.14)" : "rgba(148,163,184,0.12)",
-                            }}
-                          >
-                            <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontWeight: 700, textTransform: "uppercase" }}>
-                              {item.label}
-                            </Typography>
-                            <Typography sx={{ fontWeight: 800, color: item.color, fontSize: { xs: "0.82rem", sm: "0.9rem" } }}>
-                              {item.value}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    </Box>
+                  <Avatar
+                    src={employee.profilePicture || ""}
+                    sx={{ width: 44, height: 44, bgcolor: "rgba(59,130,246,0.12)", color: "#2563eb", fontWeight: 800 }}
+                  >
+                    {getInitials(employee.name)}
+                  </Avatar>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: { xs: "0.96rem", sm: "1rem" } }} noWrap>
+                      {employee.name || "Employee"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {(employee.role || "").toUpperCase() || "TEAM MEMBER"}
+                    </Typography>
                   </Box>
-                </AccordionSummary>
-
-                <AccordionDetails sx={{ px: { xs: 1.2, sm: 1.5 }, pb: { xs: 1.3, sm: 1.5 } }}>
-                  <Divider sx={{ mb: 1.3 }} />
-                  <Stack spacing={1}>
-                    {employee.rows.length === 0 && (
-                      <Typography color="text.secondary">No scorecard entries found for this employee.</Typography>
-                    )}
-
-                    {employee.rows.map((row, rowIndex) => (
-                      <Paper
-                        key={`${employee._id}-${row.bookingId}-${row.type}-${rowIndex}`}
-                        variant="outlined"
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+                      gap: 1,
+                      width: { xs: "100%", lg: "auto" },
+                      minWidth: { lg: 560 },
+                    }}
+                  >
+                    {[
+                      { label: "Bookings", value: employee.bookingCount, color: "#334155" },
+                      { label: "Revenue", value: formatCurrency(employee.revenue), color: "#059669" },
+                      { label: "Deductions", value: formatCurrency(employee.deductions), color: "#ea580c" },
+                      { label: "Net", value: formatCurrency(employee.net), color: "#2563eb" },
+                    ].map((item) => (
+                      <Box
+                        key={item.label}
                         sx={{
-                          p: 1.25,
                           borderRadius: "8px",
-                          borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.14)",
-                          boxShadow: "none",
+                          px: 1.1,
+                          py: 0.9,
+                          bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "#ffffff",
+                          border: "1px solid",
+                          borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.14)" : "rgba(148,163,184,0.12)",
                         }}
                       >
-                        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 0.8, flexWrap: "wrap", alignItems: "center" }}>
-                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                            <Chip
-                              size="small"
-                              label={row.type}
-                              sx={{
-                                borderRadius: "999px",
-                                fontWeight: 800,
-                                bgcolor: row.tone === "success" ? "rgba(16,185,129,0.12)" : row.tone === "warning" ? "rgba(249,115,22,0.12)" : "rgba(225,29,72,0.12)",
-                                color: row.tone === "success" ? "#059669" : row.tone === "warning" ? "#ea580c" : "#e11d48",
-                              }}
-                            />
-                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                              {formatDate(row.date)}
-                            </Typography>
-                          </Stack>
-                          <Typography sx={{ fontWeight: 900, color: row.type === "Revenue" ? "#059669" : "#e11d48" }}>
-                            {row.type === "Revenue" ? formatCurrency(row.amount) : `- ${formatCurrency(row.amount)}`}
-                          </Typography>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            display: "grid",
-                            gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr)" },
-                            gap: 1,
-                          }}
-                        >
-                          <Box>
-                            <Typography sx={{ fontWeight: 800 }}>{row.companyName}</Typography>
-                            <Typography variant="body2" color="text.secondary">{row.clientName}</Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 700 }}>Service</Typography>
-                            <Typography variant="body2">{row.service}</Typography>
-                          </Box>
-                          <Box>
-                            <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 700 }}>Note</Typography>
-                            <Typography variant="body2">{row.note}</Typography>
-                          </Box>
-                        </Box>
-                      </Paper>
+                        <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontWeight: 700, textTransform: "uppercase" }}>
+                          {item.label}
+                        </Typography>
+                        <Typography sx={{ fontWeight: 800, color: item.color, fontSize: { xs: "0.82rem", sm: "0.9rem" } }}>
+                          {item.value}
+                        </Typography>
+                      </Box>
                     ))}
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    startIcon={<VisibilityOutlinedIcon fontSize="small" />}
+                    onClick={() => setSelectedEmployee(employee)}
+                    sx={{ borderRadius: "8px", fontWeight: 800, minWidth: { xs: "100%", sm: 140 } }}
+                  >
+                    View History
+                  </Button>
+                </Box>
+              </Paper>
             );
           })}
         </Stack>
       </Paper>
+
+      <Dialog
+        open={Boolean(selectedEmployee)}
+        onClose={() => setSelectedEmployee(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {selectedEmployee?.name || "Employee"} Scorecard History
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedEmployee && (
+            <Stack spacing={1}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+                  gap: 1,
+                  mb: 1,
+                }}
+              >
+                {[
+                  { label: "Bookings", value: selectedEmployee.bookingCount, color: "#334155" },
+                  { label: "Revenue", value: formatCurrency(selectedEmployee.revenue), color: "#059669" },
+                  { label: "Deductions", value: formatCurrency(selectedEmployee.deductions), color: "#ea580c" },
+                  { label: "Net", value: formatCurrency(selectedEmployee.net), color: "#2563eb" },
+                ].map((item) => (
+                  <Paper key={item.label} variant="outlined" sx={{ p: 1.1, borderRadius: "8px" }}>
+                    <Typography variant="caption" sx={{ display: "block", color: "text.secondary", fontWeight: 700, textTransform: "uppercase" }}>
+                      {item.label}
+                    </Typography>
+                    <Typography sx={{ fontWeight: 800, color: item.color, mt: 0.35 }}>
+                      {item.value}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Box>
+
+              {selectedEmployee.rows.length === 0 && (
+                <Typography color="text.secondary">No scorecard entries found for this scope.</Typography>
+              )}
+
+              {selectedEmployee.rows.map((row, rowIndex) => (
+                <Paper
+                  key={`${selectedEmployee._id}-${row.bookingId}-${row.type}-${rowIndex}`}
+                  variant="outlined"
+                  sx={{
+                    p: 1.25,
+                    borderRadius: "8px",
+                    borderColor: theme.palette.mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.14)",
+                    boxShadow: "none",
+                  }}
+                >
+                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 0.8, flexWrap: "wrap", alignItems: "center" }}>
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Chip
+                        size="small"
+                        label={row.type}
+                        sx={{
+                          borderRadius: "999px",
+                          fontWeight: 800,
+                          bgcolor: row.tone === "success" ? "rgba(16,185,129,0.12)" : row.tone === "warning" ? "rgba(249,115,22,0.12)" : "rgba(225,29,72,0.12)",
+                          color: row.tone === "success" ? "#059669" : row.tone === "warning" ? "#ea580c" : "#e11d48",
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                        {formatDate(row.date)}
+                      </Typography>
+                    </Stack>
+                    <Typography sx={{ fontWeight: 900, color: row.type === "Revenue" ? "#059669" : "#e11d48" }}>
+                      {row.type === "Revenue" ? formatCurrency(row.amount) : `- ${formatCurrency(row.amount)}`}
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr)" },
+                      gap: 1,
+                    }}
+                  >
+                    <Box>
+                      <Typography sx={{ fontWeight: 800 }}>{row.companyName}</Typography>
+                      <Typography variant="body2" color="text.secondary">{row.clientName}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 700 }}>Service</Typography>
+                      <Typography variant="body2">{row.service}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 700 }}>Note</Typography>
+                      <Typography variant="body2">{row.note}</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedEmployee(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

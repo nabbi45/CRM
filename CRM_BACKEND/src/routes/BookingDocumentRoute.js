@@ -22,6 +22,32 @@ const DOCUMENT_TYPES = [
     "fa_application_service", "fa_acknowledgement_service"
 ];
 
+const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
+const bookingAccessConditions = (userId) => [
+    { user_id: userId },
+    { "shared_with.user_id": userId },
+    { "term_shares.term_1.creator.user_id": userId },
+    { "term_shares.term_1.shared_with.user_id": userId },
+    { "term_shares.term_2.creator.user_id": userId },
+    { "term_shares.term_2.shared_with.user_id": userId },
+    { "term_shares.term_3.creator.user_id": userId },
+    { "term_shares.term_3.shared_with.user_id": userId },
+];
+
+const canAccessBooking = (booking, userId, isAdmin = false) => {
+    if (isAdmin) return true;
+    if (!booking || !userId) return false;
+    const normalizedUserId = String(userId);
+    if (String(booking.user_id || "") === normalizedUserId) return true;
+    if ((booking.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId)) return true;
+
+    return ["term_1", "term_2", "term_3"].some((termKey) => {
+        const termShare = booking?.term_shares?.[termKey] || {};
+        if (String(termShare?.creator?.user_id || "") === normalizedUserId) return true;
+        return (termShare?.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId);
+    });
+};
+
 /**
  * Upload a document for a booking
  * POST /api/booking-documents/upload
@@ -46,6 +72,12 @@ BookingDocumentRoutes.post("/upload", authenticateUser, upload.single("file"), a
         const booking = await BookingModel.findById(bookingId);
         if (!booking) {
             return res.status(404).send({ message: "Booking not found" });
+        }
+
+        const userId = req.user?.userId || req.user?.user_id || "";
+        const userRole = String(req.user?.user_role || "").trim().toLowerCase();
+        if (!canAccessBooking(booking, userId, adminRoles.includes(userRole))) {
+            return res.status(403).send({ message: "You do not have access to this booking." });
         }
 
         // Upload to Cloudinary
@@ -89,6 +121,17 @@ BookingDocumentRoutes.get("/booking/:bookingId", authenticateUser, async (req, r
     try {
         const { bookingId } = req.params;
         const { documentType } = req.query;
+        const userId = req.user?.userId || req.user?.user_id || "";
+        const userRole = String(req.user?.user_role || "").trim().toLowerCase();
+        const booking = await BookingModel.findById(bookingId).lean();
+
+        if (!booking || booking.isDeleted) {
+            return res.status(404).send({ message: "Booking not found" });
+        }
+
+        if (!canAccessBooking(booking, userId, adminRoles.includes(userRole))) {
+            return res.status(403).send({ message: "You do not have access to this booking." });
+        }
 
         const query = { bookingId, isDeleted: false };
         if (documentType) {
@@ -112,29 +155,102 @@ BookingDocumentRoutes.get("/booking/:bookingId", authenticateUser, async (req, r
  */
 BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
     try {
-        const { search, limit = 20, page = 1 } = req.query;
+        const {
+            search,
+            limit = 20,
+            page = 1,
+            agreementSent = "",
+            agreementReceived = "",
+            dprPitchDeckDataCollection = "",
+            dpr = "",
+            pitchDeck = "",
+            applicationDetailsCoordination = "",
+            application = "",
+            acknowledgement = "",
+        } = req.query;
         const limitNumber = Math.max(parseInt(limit, 10) || 20, 1);
         const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+        const userId = req.user?.userId || req.user?.user_id || "";
+        const userRole = String(req.user?.user_role || "").trim().toLowerCase();
+        const isAdmin = adminRoles.includes(userRole);
 
         let bookingQuery = { isDeleted: false };
+        if (!isAdmin) {
+            bookingQuery.$or = bookingAccessConditions(userId);
+        }
         
         if (search) {
             const searchRegex = new RegExp(search, "i");
-            bookingQuery.$or = [
+            const textConditions = [
                 { company_name: searchRegex },
                 { contact_person: searchRegex },
-                { bdm: searchRegex }
+                { contact_no: searchRegex },
+                { email: searchRegex },
+                { bdm: searchRegex },
+                { services: searchRegex }
             ];
+            if (bookingQuery.$or) {
+                bookingQuery = {
+                    ...bookingQuery,
+                    $and: [
+                        { $or: bookingQuery.$or },
+                        { $or: textConditions },
+                    ]
+                };
+                delete bookingQuery.$or;
+            } else {
+                bookingQuery.$or = textConditions;
+            }
         }
 
-        const totalCount = await BookingModel.countDocuments(bookingQuery);
+        const stageFilters = {
+            agreementSent,
+            agreementReceived,
+            dprPitchDeckDataCollection,
+            dpr,
+            pitchDeck,
+            applicationDetailsCoordination,
+            application,
+            acknowledgement,
+        };
+        const hasStageFilter = Object.values(stageFilters).some(Boolean);
 
-        const bookings = await BookingModel.find(bookingQuery)
+        const allMatchingBookings = await BookingModel.find(bookingQuery)
             .select("_id company_name contact_person contact_no services bdm date status total_amount term_1 term_2 term_3")
             .sort({ createdAt: -1 })
-            .skip((pageNumber - 1) * limitNumber)
-            .limit(limitNumber)
             .lean();
+
+        let filteredBookings = allMatchingBookings;
+        if (hasStageFilter) {
+            const bookingIds = allMatchingBookings.map((booking) => booking._id.toString());
+            const { FileActivityModel } = await import("../models/FileActivityModel.js");
+            const activities = await FileActivityModel.find({ bookingId: { $in: bookingIds } }).lean();
+            const activityByBooking = activities.reduce((acc, activity) => {
+                acc[String(activity.bookingId)] = activity;
+                return acc;
+            }, {});
+
+            filteredBookings = allMatchingBookings.filter((booking) => {
+                const activity = activityByBooking[String(booking._id)] || {};
+                const stages = activity.stages || {};
+                const applicationStatuses = Array.isArray(activity.application) ? activity.application.map((row) => row?.status).filter(Boolean) : [];
+                const acknowledgementStatuses = Array.isArray(activity.acknowledgement) ? activity.acknowledgement.map((row) => row?.status).filter(Boolean) : [];
+
+                if (agreementSent && (stages.agreementSent?.status || "") !== agreementSent) return false;
+                if (agreementReceived && (stages.agreementReceived?.status || "") !== agreementReceived) return false;
+                if (dprPitchDeckDataCollection && (stages.dprPitchDeckDataCollection?.status || "") !== dprPitchDeckDataCollection) return false;
+                if (dpr && (stages.dpr?.status || "") !== dpr) return false;
+                if (pitchDeck && (stages.pitchDeck?.status || "") !== pitchDeck) return false;
+                if (applicationDetailsCoordination && (stages.applicationDetailsCoordination?.status || "") !== applicationDetailsCoordination) return false;
+                if (application && !applicationStatuses.includes(application)) return false;
+                if (acknowledgement && !acknowledgementStatuses.includes(acknowledgement)) return false;
+                return true;
+            });
+        }
+
+        const totalCount = filteredBookings.length;
+        const bookings = filteredBookings
+            .slice((pageNumber - 1) * limitNumber, pageNumber * limitNumber);
 
         const bookingIds = bookings.map(b => b._id.toString());
 
@@ -194,8 +310,26 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
  */
 BookingDocumentRoutes.get("/stats", authenticateUser, async (req, res) => {
     try {
+        const userId = req.user?.userId || req.user?.user_id || "";
+        const userRole = String(req.user?.user_role || "").trim().toLowerCase();
+        const isAdmin = adminRoles.includes(userRole);
+
+        let accessibleBookingIds = null;
+        if (!isAdmin) {
+            const bookings = await BookingModel.find({
+                isDeleted: false,
+                $or: bookingAccessConditions(userId),
+            }).select("_id").lean();
+            accessibleBookingIds = bookings.map((booking) => booking._id);
+        }
+
+        const statsMatch = { isDeleted: false };
+        if (accessibleBookingIds) {
+            statsMatch.bookingId = { $in: accessibleBookingIds };
+        }
+
         const stats = await BookingDocumentModel.aggregate([
-            { $match: { isDeleted: false } },
+            { $match: statsMatch },
             {
                 $group: {
                     _id: "$documentType",
@@ -219,7 +353,9 @@ BookingDocumentRoutes.get("/stats", authenticateUser, async (req, res) => {
         });
 
         // Get total bookings count
-        const totalBookings = await BookingModel.countDocuments({ isDeleted: false });
+        const totalBookings = isAdmin
+            ? await BookingModel.countDocuments({ isDeleted: false })
+            : await BookingModel.countDocuments({ isDeleted: false, $or: bookingAccessConditions(userId) });
 
         return res.status(200).send({
             ...result,
@@ -241,6 +377,17 @@ BookingDocumentRoutes.get("/:id", authenticateUser, async (req, res) => {
         if (!document || document.isDeleted) {
             return res.status(404).send({ message: "Document not found" });
         }
+
+        const booking = await BookingModel.findById(document.bookingId).lean();
+        const userId = req.user?.userId || req.user?.user_id || "";
+        const userRole = String(req.user?.user_role || "").trim().toLowerCase();
+        if (!booking || booking.isDeleted) {
+            return res.status(404).send({ message: "Booking not found" });
+        }
+        if (!canAccessBooking(booking, userId, adminRoles.includes(userRole))) {
+            return res.status(403).send({ message: "You do not have access to this document." });
+        }
+
         return res.status(200).send(document);
     } catch (error) {
         return res.status(500).send({ message: error.message });

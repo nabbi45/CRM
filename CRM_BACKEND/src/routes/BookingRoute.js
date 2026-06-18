@@ -235,6 +235,7 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
         term_1: {
           creator: { user_id, user_name: bdm },
           payment_date,
+          payment_mode: bank,
           shared_with: Array.isArray(shared_with) ? shared_with : [],
         },
       },

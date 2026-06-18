@@ -74,6 +74,7 @@ const bookingSchema = mongoose.Schema(
           user_name: { type: String },
         },
         payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
         shared_with: [{
           user_id: { type: String },
           user_name: { type: String },
@@ -86,6 +87,7 @@ const bookingSchema = mongoose.Schema(
           user_name: { type: String },
         },
         payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
         shared_with: [{
           user_id: { type: String },
           user_name: { type: String },
@@ -98,6 +100,7 @@ const bookingSchema = mongoose.Schema(
           user_name: { type: String },
         },
         payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
         shared_with: [{
           user_id: { type: String },
           user_name: { type: String },

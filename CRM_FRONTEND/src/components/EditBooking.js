@@ -247,6 +247,7 @@ const EditBooking = ({ initialData, onClose }) => {
                 user_name: initialData.bdm,
               },
               payment_date: formData.paymentDate,
+              payment_mode: formData.bank,
               shared_with: shareEntries,
             },
           },
