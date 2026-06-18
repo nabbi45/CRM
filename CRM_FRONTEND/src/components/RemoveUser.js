@@ -20,6 +20,8 @@ import {
   Grid,
   IconButton,
   Chip,
+  Avatar,
+  Stack,
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 import { enqueueSnackbar } from "notistack";
@@ -220,11 +222,16 @@ const RemoveUser = () => {
           {filteredUsers.length > 0 ? filteredUsers.map((user, index) => (
             <Paper key={user._id} sx={{ p: 1.4, borderRadius: "8px", border: "1px solid", borderColor: "divider", boxShadow: "none" }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start" }}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>#{index + 1}</Typography>
-                  <Typography sx={{ fontWeight: 800, mt: 0.3 }}>{user.name?.toUpperCase()}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, wordBreak: "break-word" }}>{user.email?.toLowerCase()}</Typography>
-                </Box>
+                <Stack direction="row" spacing={1.1} sx={{ minWidth: 0, flex: 1 }}>
+                  <Avatar src={user.profilePicture || ""} sx={{ width: 42, height: 42, bgcolor: "#dbeafe", color: "#2563eb", fontWeight: 800 }}>
+                    {!user.profilePicture && (user.name?.charAt(0)?.toUpperCase() || "U")}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>#{index + 1}</Typography>
+                    <Typography sx={{ fontWeight: 800, mt: 0.3 }}>{user.name?.toUpperCase()}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4, wordBreak: "break-word" }}>{user.email?.toLowerCase()}</Typography>
+                  </Box>
+                </Stack>
                 <Chip
                   size="small"
                   label={user.user_role}
@@ -275,7 +282,16 @@ const RemoveUser = () => {
               filteredUsers.map((user, index) => (
                 <TableRow key={user._id}>
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell>{user.name?.toUpperCase()}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1.1} alignItems="center">
+                      <Avatar src={user.profilePicture || ""} sx={{ width: 34, height: 34, bgcolor: "#dbeafe", color: "#2563eb", fontWeight: 800 }}>
+                        {!user.profilePicture && (user.name?.charAt(0)?.toUpperCase() || "U")}
+                      </Avatar>
+                      <Box>
+                        <Typography sx={{ fontWeight: 700 }}>{user.name?.toUpperCase()}</Typography>
+                      </Box>
+                    </Stack>
+                  </TableCell>
                   {!isMobileOrTablet && <TableCell>{user.email?.toLowerCase()}</TableCell>}
                   <TableCell>
                     <Chip

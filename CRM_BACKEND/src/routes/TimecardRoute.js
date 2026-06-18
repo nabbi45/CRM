@@ -3,6 +3,7 @@ import AttendanceModel from "../models/AttendanceModel.js";
 import HolidayModel from "../models/HolidayModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
+import { EmployeeModel } from "../models/EmployeeProfile.js";
 
 const router = express.Router();
 
@@ -161,8 +162,29 @@ router.get("/employees", async (req, res) => {
     return res.status(403).json({ error: "Unauthorized" });
   }
   try {
-    const users = await UserModel.find().select("name email user_role");
-    res.json({ users });
+    const users = await UserModel.find().select("name email user_role profilePicture").lean();
+    const missingIds = users
+      .filter((user) => !user.profilePicture)
+      .map((user) => String(user._id || ""))
+      .filter(Boolean);
+
+    let photoMap = new Map();
+    if (missingIds.length) {
+      const employeeProfiles = await EmployeeModel.find({ userId: { $in: missingIds } })
+        .select("userId employeePhoto")
+        .lean();
+      photoMap = new Map(
+        employeeProfiles
+          .filter((profile) => profile?.userId && profile?.employeePhoto)
+          .map((profile) => [String(profile.userId), profile.employeePhoto])
+      );
+    }
+
+    const normalizedUsers = users.map((user) => ({
+      ...user,
+      profilePicture: user.profilePicture || photoMap.get(String(user._id || "")) || "",
+    }));
+    res.json({ users: normalizedUsers });
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch employees" });
   }

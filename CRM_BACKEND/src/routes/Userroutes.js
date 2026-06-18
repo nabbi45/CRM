@@ -132,6 +132,34 @@ const bookingAccessConditions = (userId) => [
   { "term_shares.term_3.shared_with.user_id": userId },
 ];
 
+const withResolvedProfilePictures = async (users = []) => {
+  const plainUsers = Array.isArray(users)
+    ? users.map((user) => (typeof user?.toObject === "function" ? user.toObject() : { ...user }))
+    : [];
+
+  const missingIds = plainUsers
+    .filter((user) => !user.profilePicture)
+    .map((user) => String(user._id || ""))
+    .filter(Boolean);
+
+  if (!missingIds.length) return plainUsers;
+
+  const employeeProfiles = await EmployeeModel.find({ userId: { $in: missingIds } })
+    .select("userId employeePhoto")
+    .lean();
+
+  const photoMap = new Map(
+    employeeProfiles
+      .filter((profile) => profile?.userId && profile?.employeePhoto)
+      .map((profile) => [String(profile.userId), profile.employeePhoto])
+  );
+
+  return plainUsers.map((user) => ({
+    ...user,
+    profilePicture: user.profilePicture || photoMap.get(String(user._id || "")) || "",
+  }));
+};
+
 const UserRoutes = express.Router();
 
 //Creating User
@@ -358,7 +386,8 @@ UserRoutes.delete("/deleteuser/:id", authenticateUser, authorizeFeature('manage_
 //listing all users (requires manage_users permission)
 UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
-    const Users = await UserModel.find({}).select("-password");
+    const userDocs = await UserModel.find({}).select("-password");
+    const Users = await withResolvedProfilePictures(userDocs);
     if (Users.length === 0) {
       return res.status(404).send({
         message: "No Users found",
@@ -377,7 +406,8 @@ UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async
 // Sanitized user list for dropdowns/share selectors
 UserRoutes.get('/options', authenticateUser, async (req, res) => {
   try {
-    const users = await UserModel.find({}, 'name user_role profilePicture').sort({ name: 1 }).lean();
+    const userDocs = await UserModel.find({}, 'name user_role profilePicture').sort({ name: 1 }).lean();
+    const users = await withResolvedProfilePictures(userDocs);
     return res.status(200).send({ users });
   } catch (error) {
     console.log(error.message);

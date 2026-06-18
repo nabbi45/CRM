@@ -915,10 +915,15 @@ const Timecard = () => {
                                     return (
                                         <Paper key={`daily-${emp._id}`} sx={{ ...surfaceSx, p: 1.35 }}>
                                             <Stack spacing={0.8}>
-                                                <Box>
-                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
-                                                    <Typography variant="caption" color="text.secondary">{emp.email}</Typography>
-                                                </Box>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <Avatar src={emp.profilePicture || ""} sx={{ width: 38, height: 38, bgcolor: 'rgba(59,130,246,0.12)', color: '#2563eb', fontWeight: 800 }}>
+                                                        {!emp.profilePicture && (emp.name?.charAt(0)?.toUpperCase() || 'U')}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">{emp.email}</Typography>
+                                                    </Box>
+                                                </Stack>
                                                 <Typography variant="caption" sx={{ textTransform: 'capitalize' }}>{emp.user_role || '-'}</Typography>
                                                 <Chip size="small" label={status} sx={{ alignSelf: 'flex-start', fontWeight: 700, bgcolor: statusColor?.bg || 'rgba(107, 114, 128, 0.12)', color: statusColor?.color || '#6b7280', border: `1px solid ${statusColor?.border || 'rgba(107, 114, 128, 0.25)'}`, borderRadius: '999px' }} />
                                                 <Typography variant="body2" color="text.secondary">{record?.notes || '-'}</Typography>
@@ -950,8 +955,15 @@ const Timecard = () => {
                                         return (
                                             <TableRow key={`daily-${emp._id}`}>
                                                 <TableCell>
-                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
-                                                    <Typography variant="caption" color="text.secondary">{emp.email}</Typography>
+                                                    <Stack direction="row" spacing={1} alignItems="center">
+                                                        <Avatar src={emp.profilePicture || ""} sx={{ width: 34, height: 34, bgcolor: 'rgba(59,130,246,0.12)', color: '#2563eb', fontWeight: 800 }}>
+                                                            {!emp.profilePicture && (emp.name?.charAt(0)?.toUpperCase() || 'U')}
+                                                        </Avatar>
+                                                        <Box>
+                                                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                            <Typography variant="caption" color="text.secondary">{emp.email}</Typography>
+                                                        </Box>
+                                                    </Stack>
                                                 </TableCell>
                                                 <TableCell sx={{ textTransform: 'capitalize' }}>{emp.user_role || '-'}</TableCell>
                                                 <TableCell>
@@ -1000,10 +1012,15 @@ const Timecard = () => {
                                 return (
                                     <Paper key={emp._id} sx={{ ...surfaceSx, p: 1.35 }}>
                                         <Stack spacing={0.9}>
-                                            <Box>
-                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
-                                            </Box>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <Avatar src={emp.profilePicture || ""} sx={{ width: 38, height: 38, bgcolor: 'rgba(59,130,246,0.12)', color: '#2563eb', fontWeight: 800 }}>
+                                                    {!emp.profilePicture && (emp.name?.charAt(0)?.toUpperCase() || 'U')}
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                                </Box>
+                                            </Stack>
                                             <Select
                                                 size="small"
                                                 displayEmpty
@@ -1036,8 +1053,15 @@ const Timecard = () => {
                                     return (
                                         <TableRow key={emp._id} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f9fafb' } }}>
                                             <TableCell>
-                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <Avatar src={emp.profilePicture || ""} sx={{ width: 34, height: 34, bgcolor: 'rgba(59,130,246,0.12)', color: '#2563eb', fontWeight: 800 }}>
+                                                        {!emp.profilePicture && (emp.name?.charAt(0)?.toUpperCase() || 'U')}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
+                                                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                                    </Box>
+                                                </Stack>
                                             </TableCell>
                                             <TableCell sx={{ minWidth: 190 }}>
                                                 <Select
@@ -1118,10 +1142,15 @@ const Timecard = () => {
                                 return (
                                     <Paper key={`act-${emp._id}`} sx={{ ...surfaceSx, p: 1.35 }}>
                                         <Stack spacing={0.8}>
-                                            <Box>
-                                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
-                                            </Box>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <Avatar src={emp.profilePicture || ""} sx={{ width: 38, height: 38, bgcolor: 'rgba(59,130,246,0.12)', color: '#2563eb', fontWeight: 800 }}>
+                                                    {!emp.profilePicture && (emp.name?.charAt(0)?.toUpperCase() || 'U')}
+                                                </Avatar>
+                                                <Box>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{emp.name}</Typography>
+                                                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                                </Box>
+                                            </Stack>
                                             <Chip size="small" label={online ? "Online Now" : (actRecord.firstOnline ? "Offline" : "No Activity")} sx={{ alignSelf: 'flex-start', bgcolor: online ? 'rgba(16, 185, 129, 0.15)' : (actRecord.firstOnline ? 'rgba(107, 114, 128, 0.15)' : 'transparent'), color: online ? '#10b981' : '#6b7280', fontWeight: 600, borderRadius: '999px', ...( !actRecord.firstOnline ? { border: '1px dashed' } : {} ) }} />
                                             <Typography variant="body2"><strong>First Login:</strong> {actRecord.firstOnline ? formatTime(actRecord.firstOnline) : '—'}</Typography>
                                             <Typography variant="body2"><strong>Last Activity:</strong> {actRecord.lastOnline ? formatTime(actRecord.lastOnline) : '—'}</Typography>
@@ -1150,8 +1179,15 @@ const Timecard = () => {
                                     return (
                                         <TableRow key={`act-${emp._id}`} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : '#f9fafb' } }}>
                                             <TableCell>
-                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
-                                                <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <Avatar src={emp.profilePicture || ""} sx={{ width: 34, height: 34, bgcolor: 'rgba(59,130,246,0.12)', color: '#2563eb', fontWeight: 800 }}>
+                                                        {!emp.profilePicture && (emp.name?.charAt(0)?.toUpperCase() || 'U')}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{emp.name}</Typography>
+                                                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{emp.user_role}</Typography>
+                                                    </Box>
+                                                </Stack>
                                             </TableCell>
                                             <TableCell>
                                                 <Chip 
