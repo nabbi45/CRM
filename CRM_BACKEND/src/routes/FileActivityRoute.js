@@ -5,6 +5,21 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 
 const FileActivityRoutes = express.Router();
 
+const adminRoles = ["admin", "senior admin", "super admin", "dev", "srdev", "director", "hr", "sr dev"];
+const canAccessBooking = (booking, userId, userRole = "") => {
+  const normalizedRole = String(userRole || "").trim().toLowerCase();
+  if (adminRoles.includes(normalizedRole)) return true;
+  const normalizedUserId = String(userId || "");
+  if (!booking || !normalizedUserId) return false;
+  if (String(booking.user_id || "") === normalizedUserId) return true;
+  if ((booking.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId)) return true;
+  return ["term_1", "term_2", "term_3"].some((termKey) => {
+    const termShare = booking?.term_shares?.[termKey] || {};
+    if (String(termShare?.creator?.user_id || "") === normalizedUserId) return true;
+    return (termShare?.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId);
+  });
+};
+
 // Helper to sync services from Booking to FileActivity
 const syncServices = (activity, booking) => {
   const bookingServices = booking.services || [];
@@ -36,6 +51,10 @@ FileActivityRoutes.get("/:bookingId", authenticateUser, async (req, res) => {
       return res.status(404).send({ message: "Booking not found" });
     }
 
+    if (!canAccessBooking(booking, req.user?.userId || req.user?.user_id, req.user?.user_role)) {
+      return res.status(403).send({ message: "You do not have access to this booking." });
+    }
+
     let activity = await FileActivityModel.findOne({ bookingId });
     
     if (!activity) {
@@ -60,7 +79,6 @@ FileActivityRoutes.patch("/:bookingId", authenticateUser, async (req, res) => {
     const updates = req.body; // Expects { stages, application, acknowledgement, anyUpdates, adminNotes }
     
     const userRole = (req.user?.user_role || req.headers["user-role"] || "").toString().trim().toLowerCase();
-    const adminRoles = ["admin", "senior admin", "super admin", "dev", "srdev", "director", "hr"];
     
     if (!adminRoles.includes(userRole)) {
       return res.status(403).send({ message: "Only admins can edit file activity." });
@@ -125,7 +143,11 @@ FileActivityRoutes.post("/bulk", authenticateUser, async (req, res) => {
     if (!Array.isArray(bookingIds)) {
       return res.status(400).send({ message: "bookingIds must be an array" });
     }
-    const activities = await FileActivityModel.find({ bookingId: { $in: bookingIds } });
+    const bookings = await BookingModel.find({ _id: { $in: bookingIds } }).select("_id user_id shared_with term_shares").lean();
+    const accessibleBookingIds = bookings
+      .filter((booking) => canAccessBooking(booking, req.user?.userId || req.user?.user_id, req.user?.user_role))
+      .map((booking) => booking._id);
+    const activities = await FileActivityModel.find({ bookingId: { $in: accessibleBookingIds } });
     return res.status(200).send(activities);
   } catch (error) {
     return res.status(500).send({ message: error.message });

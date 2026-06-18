@@ -568,17 +568,18 @@ UserRoutes.get('/bookings/:id', authenticateUser, async (req, res) => {
 UserRoutes.get('/:id?', authenticateUser, async (req, res) => {
   const booking_id = req.params.id; // This may be undefined if no id is provided
   const searchPattern = req.query.pattern; // Search pattern from the query parameter
-  const userRole = req.query.userRole; // Assuming user's role is stored in req.user
-  const userId = req.query.userId; // Assuming user's ID is stored in req.user
+  const userRole = normalizeRole(req.query.userRole || req.user?.user_role || ""); // Assuming user's role is stored in req.user
+  const userId = req.query.userId || req.user?.userId || req.user?.user_id; // Assuming user's ID is stored in req.user
   // console.log(userRole,userId);
   let contactNo = parseInt(searchPattern)
+  const privilegedRoles = ['dev', 'admin', 'senior admin', 'srdev', 'sr dev', 'super admin', 'director'];
 
   try {
     let Booking;
 
     if (booking_id) {
       // If an ID is provided, search by the booking ID
-      if (['dev', 'admin', 'senior admin', 'srdev'].includes(userRole)) {
+      if (privilegedRoles.includes(userRole)) {
         Booking = await BookingModel.find({ _id: booking_id });
       } else {
         // If the user is not dev, admin, or senior admin, search only within their bookings
@@ -613,7 +614,7 @@ UserRoutes.get('/:id?', authenticateUser, async (req, res) => {
         ]
       };
 
-      if (['dev', 'admin', 'senior admin', 'srdev'].includes(userRole)) {
+      if (privilegedRoles.includes(userRole)) {
         Booking = await BookingModel.find(searchQuery).sort({ createdAt: -1 });
       } else {
         // Search within user's bookings only if not dev, admin, or senior admin

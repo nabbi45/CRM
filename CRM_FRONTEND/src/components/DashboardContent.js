@@ -43,6 +43,7 @@ import {
   addBookingRevenueToLeaderboard,
   buildServiceDeductionMap,
   getBookingDeductionRowsForUser,
+  getBookingDeductionRowsForStats,
   getBookingRevenueForUser,
 } from "../utils/bookingRevenue";
 
@@ -122,10 +123,12 @@ const DashboardContent = () => {
   const [personalMostRevenueService, setPersonalMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [serviceDeductionCatalog, setServiceDeductionCatalog] = useState([]);
   const [totalServiceDeductions, setTotalServiceDeductions] = useState(0);
+  const [totalManualRefunds, setTotalManualRefunds] = useState(0);
   const [totalRefundableCuts, setTotalRefundableCuts] = useState(0);
   const [deductionTransactions, setDeductionTransactions] = useState([]);
+  const [manualRefundTransactions, setManualRefundTransactions] = useState([]);
   const [refundableTransactions, setRefundableTransactions] = useState([]);
-  const [deductionBreakdownDialog, setDeductionBreakdownDialog] = useState({ open: false, type: "service" });
+  const [deductionBreakdownDialog, setDeductionBreakdownDialog] = useState({ open: false, type: "vendor" });
   const [loading, setLoading] = useState(true);
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -593,14 +596,20 @@ const DashboardContent = () => {
         addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm, serviceDeductionMap);
 
         currentMonthDeductions.push(
-          ...getBookingDeductionRowsForUser(
-            booking,
-            session.user_id,
-            isAdmin,
-            isCurrentMonthTerm,
-            serviceDeductionMap,
-            activeUsersMap
-          )
+          ...(isAdmin
+            ? getBookingDeductionRowsForStats(
+                booking,
+                isCurrentMonthTerm,
+                activeUsersMap
+              )
+            : getBookingDeductionRowsForUser(
+                booking,
+                session.user_id,
+                false,
+                isCurrentMonthTerm,
+                serviceDeductionMap,
+                activeUsersMap
+              ))
         );
 
         const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
@@ -753,11 +762,16 @@ const DashboardContent = () => {
 
       setServiceDeductionCatalog(serviceDeductionCatalogRows);
       const serviceDeductionRows = currentMonthDeductions.filter((row) => row.type === "Service Deduction");
-      const refundableDeductionRows = currentMonthDeductions.filter((row) => row.type === "Refundable Deduction");
+      const manualRefundRows = currentMonthDeductions.filter((row) => row.type === "Manual Refund Adjustment");
+      const refundableDeductionRows = currentMonthDeductions.filter((row) => row.type === "Refundable Clause Deduction");
       setDeductionTransactions(serviceDeductionRows);
+      setManualRefundTransactions(manualRefundRows);
       setRefundableTransactions(refundableDeductionRows);
       setTotalServiceDeductions(
         serviceDeductionRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
+      );
+      setTotalManualRefunds(
+        manualRefundRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
       );
       setTotalRefundableCuts(
         refundableDeductionRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
@@ -822,7 +836,8 @@ const DashboardContent = () => {
     const adminCards = [
       { label: "Bookings", value: totalBookings.toLocaleString(), sub: "All accessible bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
       { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
-      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "service" },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "vendor" },
+      { label: "Refund Adjustments", value: formatCurrency(Math.round(totalManualRefunds)), sub: "Manual refunds this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "manualRefund" },
       { label: "Refundable Cuts", value: formatCurrency(Math.round(totalRefundableCuts)), sub: "Refundable clause this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "refundable" },
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "Live today after deductions", icon: <TodayOutlinedIcon fontSize="small" /> },
       { label: "Total Users", value: totalUsers.toLocaleString(), sub: "Active CRM users", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
@@ -834,7 +849,8 @@ const DashboardContent = () => {
     const userCards = [
       { label: "Bookings", value: totalBookings.toLocaleString(), sub: "Your live bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
       { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
-      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "This month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "service" },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "vendor" },
+      { label: "Refund Adjustments", value: formatCurrency(Math.round(totalManualRefunds)), sub: "Manual refunds this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "manualRefund" },
       { label: "Refundable Cuts", value: formatCurrency(Math.round(totalRefundableCuts)), sub: "This month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "refundable" },
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "From today's bookings", icon: <TodayOutlinedIcon fontSize="small" /> },
     ];
@@ -848,6 +864,7 @@ const DashboardContent = () => {
     todayRevenue,
     totalBookings,
     totalRevenue,
+    totalManualRefunds,
     totalServiceDeductions,
     totalRefundableCuts,
     totalUsers,
@@ -1549,12 +1566,16 @@ const DashboardContent = () => {
 
         <Dialog
           open={deductionBreakdownDialog.open}
-          onClose={() => setDeductionBreakdownDialog({ open: false, type: "service" })}
+          onClose={() => setDeductionBreakdownDialog({ open: false, type: "vendor" })}
           maxWidth="md"
           fullWidth
         >
           <DialogTitle>
-            {deductionBreakdownDialog.type === "refundable" ? "Refundable Cuts" : "Service Deductions"}
+            {deductionBreakdownDialog.type === "refundable"
+              ? "Refundable Cuts"
+              : deductionBreakdownDialog.type === "manualRefund"
+                ? "Refund Adjustments"
+                : "Service Deductions"}
           </DialogTitle>
           <DialogContent dividers>
             <TableContainer>
@@ -1571,7 +1592,13 @@ const DashboardContent = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(deductionBreakdownDialog.type === "refundable" ? refundableTransactions : deductionTransactions).map((row, index) => (
+                  {(
+                    deductionBreakdownDialog.type === "refundable"
+                      ? refundableTransactions
+                      : deductionBreakdownDialog.type === "manualRefund"
+                        ? manualRefundTransactions
+                        : deductionTransactions
+                  ).map((row, index) => (
                     <TableRow key={`${row.bookingId}-${row.type}-${index}`}>
                       <TableCell>{row.date ? new Date(row.date).toLocaleDateString("en-GB") : "-"}</TableCell>
                       <TableCell>{row.employeeName || "-"}</TableCell>
@@ -1584,7 +1611,13 @@ const DashboardContent = () => {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {(deductionBreakdownDialog.type === "refundable" ? refundableTransactions : deductionTransactions).length === 0 && (
+                  {(
+                    deductionBreakdownDialog.type === "refundable"
+                      ? refundableTransactions
+                      : deductionBreakdownDialog.type === "manualRefund"
+                        ? manualRefundTransactions
+                        : deductionTransactions
+                  ).length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} align="center">No rows found.</TableCell>
                     </TableRow>
@@ -1594,7 +1627,7 @@ const DashboardContent = () => {
             </TableContainer>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setDeductionBreakdownDialog({ open: false, type: "service" })}>Close</Button>
+            <Button onClick={() => setDeductionBreakdownDialog({ open: false, type: "vendor" })}>Close</Button>
           </DialogActions>
         </Dialog>
 

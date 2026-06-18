@@ -204,7 +204,7 @@ const Scorecard = () => {
               clientName: row.clientName || "-",
               service: row.service || "-",
               amount: row.deduction || 0,
-              tone: row.type === "Refundable Deduction" ? "warning" : "error",
+              tone: row.type === "Refundable Clause Deduction" ? "warning" : "error",
               note: row.type,
             });
           });
@@ -213,7 +213,7 @@ const Scorecard = () => {
         const sortedRows = rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         const revenue = sortedRows.filter((row) => row.type === "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const deductions = sortedRows.filter((row) => row.type !== "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-        const refundable = sortedRows.filter((row) => row.type === "Refundable Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+        const refundable = sortedRows.filter((row) => row.type === "Refundable Clause Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const bookingCount = new Set(sortedRows.map((row) => row.bookingId).filter(Boolean)).size;
 
         return {

@@ -142,6 +142,44 @@ const getRefundShareAmountForUser = (booking, refundAmount, userId, isAdmin = fa
   return roundMoney((userBase / totalBase) * Number(refundAmount || 0));
 };
 
+const getParticipantEntriesForTerm = (booking, termKey, usersMap = {}) => {
+  const termShare = getTermShare(booking, termKey);
+  const amount = Number(booking?.[termKey] || 0);
+  if (!amount) return [];
+
+  const baseAmount = amountExcludingGst(booking, amount);
+  if (!baseAmount) return [];
+
+  const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
+  const sharedTotal = sharedWith.reduce((total, sw) => total + Number(sw.percentage || 0), 0);
+  const entries = [];
+
+  const creatorShare = Math.max(0, (100 - sharedTotal) / 100);
+  if (creatorShare > 0) {
+    entries.push({
+      userId: String(termShare.creator?.user_id || booking?.user_id || ""),
+      userName: termShare.creator?.user_name || usersMap[termShare.creator?.user_id] || booking?.bdm || "UNKNOWN",
+      share: creatorShare,
+      date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
+      termKey,
+    });
+  }
+
+  sharedWith.forEach((sw) => {
+    const share = Number(sw.percentage || 0) / 100;
+    if (share <= 0) return;
+    entries.push({
+      userId: String(sw.user_id || ""),
+      userName: sw.user_name || usersMap[sw.user_id] || "COWORKER",
+      share,
+      date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
+      termKey,
+    });
+  });
+
+  return entries;
+};
+
 export const buildServiceDeductionMap = () => ({});
 
 export const getBookingServiceDeductions = (booking) => getSnapshotServiceDeductions(booking);
@@ -199,12 +237,12 @@ export const getBookingDeductionRowsForUser = (
     const refundableDeduction = getRefundableDeduction(booking, amount);
     if (!share || !refundableDeduction) return;
     rows.push({
-      type: "Refundable Deduction",
+      type: "Refundable Clause Deduction",
       bookingId: booking?._id,
       bookingName: booking?.contact_person || booking?.company_name || "N/A",
       clientName: booking?.contact_person || "N/A",
       companyName: booking?.company_name || "N/A",
-      service: "Refundable Clause",
+      service: `Refundable Clause ${Number(booking?.refundable_percentage || 0)}%`,
       totalDeduction: refundableDeduction,
       deduction: roundMoney(refundableDeduction * share),
       employeeName: termShare.creator?.user_name || usersMap[termShare.creator?.user_id] || booking?.bdm || "UNKNOWN",
@@ -219,16 +257,107 @@ export const getBookingDeductionRowsForUser = (
     const userRefundShare = getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, includeTerm);
     if (!userRefundShare) return;
     rows.push({
-      type: "Admin Refund",
+      type: "Manual Refund Adjustment",
       bookingId: booking?._id,
       bookingName: booking?.contact_person || booking?.company_name || "N/A",
       clientName: booking?.contact_person || "N/A",
       companyName: booking?.company_name || "N/A",
-      service: "Refund Adjustment",
+      service: booking?.is_refundable ? "Manual Refund - Refundable Booking" : "Manual Refund - Standard Booking",
       totalDeduction: totalRefund,
       deduction: userRefundShare,
       employeeName: isAdmin ? "COMPANY" : (booking?.bdm || "UNKNOWN"),
       date: refund.refund_date || refund.created_at,
+    });
+  });
+
+  return rows;
+};
+
+export const getBookingDeductionRowsForStats = (
+  booking,
+  includeTerm = () => true,
+  usersMap = {}
+) => {
+  const rows = [];
+  const deductionTermKey = getDeductionTermKey(booking);
+  const serviceTermShare = getTermShare(booking, deductionTermKey);
+
+  if (includeTerm(serviceTermShare, deductionTermKey)) {
+    const participantEntries = getParticipantEntriesForTerm(booking, deductionTermKey, usersMap);
+    getSnapshotServiceDeductions(booking).forEach((item) => {
+      participantEntries.forEach((entry) => {
+        rows.push({
+          type: "Service Deduction",
+          bookingId: booking?._id,
+          bookingName: booking?.contact_person || booking?.company_name || "N/A",
+          clientName: booking?.contact_person || "N/A",
+          companyName: booking?.company_name || "N/A",
+          service: item.service,
+          totalDeduction: item.amount,
+          deduction: roundMoney(item.amount * entry.share),
+          employeeName: entry.userName || "UNKNOWN",
+          employeeId: entry.userId || "",
+          date: entry.date,
+        });
+      });
+    });
+  }
+
+  termKeys.forEach((termKey) => {
+    const amount = Number(booking?.[termKey] || 0);
+    if (!amount) return;
+    const termShare = getTermShare(booking, termKey);
+    if (!includeTerm(termShare, termKey)) return;
+    const refundableDeduction = getRefundableDeduction(booking, amount);
+    if (!refundableDeduction) return;
+
+    getParticipantEntriesForTerm(booking, termKey, usersMap).forEach((entry) => {
+      rows.push({
+        type: "Refundable Clause Deduction",
+        bookingId: booking?._id,
+        bookingName: booking?.contact_person || booking?.company_name || "N/A",
+        clientName: booking?.contact_person || "N/A",
+        companyName: booking?.company_name || "N/A",
+        service: `Refundable Clause ${Number(booking?.refundable_percentage || 0)}%`,
+        totalDeduction: refundableDeduction,
+        deduction: roundMoney(refundableDeduction * entry.share),
+        employeeName: entry.userName || "UNKNOWN",
+        employeeId: entry.userId || "",
+        date: entry.date,
+      });
+    });
+  });
+
+  (booking?.refund_adjustments || []).forEach((refund) => {
+    const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
+    if (!includeTerm(pseudoTerm, "refund")) return;
+    const refundAmount = Number(refund.amount_excluding_gst || refund.amount || 0);
+    const { entries, totalBase } = getRefundDistributionEntries(booking, () => true);
+    if (!entries.length || !totalBase || !refundAmount) return;
+
+    const aggregatedByUser = entries.reduce((acc, entry) => {
+      const key = String(entry.userId || entry.userName || "");
+      if (!acc[key]) {
+        acc[key] = { userId: entry.userId, userName: entry.userName, amount: 0 };
+      }
+      acc[key].amount += Number(entry.amount || 0);
+      return acc;
+    }, {});
+
+    Object.values(aggregatedByUser).forEach((entry) => {
+      rows.push({
+        type: "Manual Refund Adjustment",
+        bookingId: booking?._id,
+        bookingName: booking?.contact_person || booking?.company_name || "N/A",
+        clientName: booking?.contact_person || "N/A",
+        companyName: booking?.company_name || "N/A",
+        service: booking?.is_refundable ? "Manual Refund - Refundable Booking" : "Manual Refund - Standard Booking",
+        totalDeduction: refundAmount,
+        deduction: roundMoney((Number(entry.amount || 0) / totalBase) * refundAmount),
+        employeeName: entry.userName || "UNKNOWN",
+        employeeId: entry.userId || "",
+        date: refund.refund_date || refund.created_at,
+      });
     });
   });
 

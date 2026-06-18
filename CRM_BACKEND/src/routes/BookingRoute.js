@@ -633,6 +633,8 @@ BookingRoutes.get("/bookings/filter", authenticateUser, async (req, res) => {
 
   try {
     const query = {};
+    const normalizedRole = String(userRole || req.user?.user_role || "").trim().toLowerCase();
+    const normalizedUserId = userId || req.user?.userId || req.user?.user_id || "";
 
     // Booking date filter (if no payment date is applied)
     if (startDate && endDate && !paymentStartDate && !paymentEndDate) {
@@ -701,22 +703,22 @@ BookingRoutes.get("/bookings/filter", authenticateUser, async (req, res) => {
     }
 
     // Role-based access check
-    const validRoles = ["dev", "admin", "senior admin", "srdev"];
-    if (!userRole || !validRoles.includes(userRole)) {
-      if (!userId) {
+    const validRoles = ["dev", "admin", "senior admin", "srdev", "sr dev", "super admin", "director"];
+    if (!normalizedRole || !validRoles.includes(normalizedRole)) {
+      if (!normalizedUserId) {
         return res.status(403).send({
           message: "Access forbidden. No valid role or user ID provided.",
         });
       }
       query.$or = [
-        { user_id: userId },
-        { "shared_with.user_id": userId },
-        { "term_shares.term_1.creator.user_id": userId },
-        { "term_shares.term_1.shared_with.user_id": userId },
-        { "term_shares.term_2.creator.user_id": userId },
-        { "term_shares.term_2.shared_with.user_id": userId },
-        { "term_shares.term_3.creator.user_id": userId },
-        { "term_shares.term_3.shared_with.user_id": userId },
+        { user_id: normalizedUserId },
+        { "shared_with.user_id": normalizedUserId },
+        { "term_shares.term_1.creator.user_id": normalizedUserId },
+        { "term_shares.term_1.shared_with.user_id": normalizedUserId },
+        { "term_shares.term_2.creator.user_id": normalizedUserId },
+        { "term_shares.term_2.shared_with.user_id": normalizedUserId },
+        { "term_shares.term_3.creator.user_id": normalizedUserId },
+        { "term_shares.term_3.shared_with.user_id": normalizedUserId },
       ];
     }
 
