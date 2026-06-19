@@ -44,6 +44,7 @@ import {
   getBookingDeductionRowsForUser,
   getBookingDeductionRowsForStats,
   getBookingRevenueForUser,
+  getBookingRevenueRowsForUser,
 } from "../utils/bookingRevenue";
 
 const ACCENT = "#ff3b1f";
@@ -552,14 +553,13 @@ const DashboardContent = () => {
       for (const booking of bookings) {
         bookingCount += 1;
 
-        const termActivityThisMonth = ["term_1", "term_2", "term_3"].some((termKey) => {
-          if (!Number(booking?.[termKey] || 0)) return false;
-          const termShare = booking?.term_shares?.[termKey] || {
-            payment_date: booking?.payment_date || booking?.date || booking?.createdAt,
-          };
-          return isCurrentMonthTerm(termShare);
-        });
-        if (termActivityThisMonth) {
+        const currentMonthParticipationRows = getBookingRevenueRowsForUser(
+          booking,
+          session.user_id,
+          isAdmin,
+          (termShare, termKey) => termKey !== "refund" && isCurrentMonthTerm(termShare)
+        );
+        if (currentMonthParticipationRows.length > 0) {
           bookingCountThisMonth += 1;
         }
 

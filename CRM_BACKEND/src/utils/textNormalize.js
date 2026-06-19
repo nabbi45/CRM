@@ -4,6 +4,20 @@ export const toUpperText = (value) =>
 export const toLowerEmail = (value) =>
   typeof value === "string" ? value.trim().toLowerCase() : value;
 
+const normalizeSharedEntries = (entries = [], creatorUserId = "") =>
+  (Array.isArray(entries) ? entries : [])
+    .map((shared) => ({
+      ...shared,
+      user_name: toUpperText(shared.user_name),
+      percentage: Number(shared?.percentage || 0),
+    }))
+    .filter((shared) => {
+      const userId = String(shared?.user_id || "");
+      if (!userId || Number(shared?.percentage || 0) <= 0) return false;
+      if (creatorUserId && userId === String(creatorUserId)) return false;
+      return true;
+    });
+
 export const normalizeBookingPayload = (booking = {}) => {
   const normalized = { ...booking };
 
@@ -18,10 +32,7 @@ export const normalizeBookingPayload = (booking = {}) => {
   }
 
   if (Array.isArray(normalized.shared_with)) {
-    normalized.shared_with = normalized.shared_with.map((shared) => ({
-      ...shared,
-      user_name: toUpperText(shared.user_name),
-    }));
+    normalized.shared_with = normalizeSharedEntries(normalized.shared_with, normalized.user_id);
   }
 
   if (normalized.term_shares && typeof normalized.term_shares === "object") {
@@ -37,12 +48,10 @@ export const normalizeBookingPayload = (booking = {}) => {
               user_name: toUpperText(normalized.term_shares[termKey].creator.user_name),
             }
           : normalized.term_shares[termKey].creator,
-        shared_with: Array.isArray(normalized.term_shares[termKey].shared_with)
-          ? normalized.term_shares[termKey].shared_with.map((shared) => ({
-              ...shared,
-              user_name: toUpperText(shared.user_name),
-            }))
-          : [],
+        shared_with: normalizeSharedEntries(
+          normalized.term_shares[termKey].shared_with,
+          normalized.term_shares[termKey].creator?.user_id
+        ),
       };
     });
   }

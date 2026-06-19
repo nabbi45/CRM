@@ -17,9 +17,23 @@ const amountExcludingGst = (booking, amount) => {
   return isGstIncluded(booking) ? roundMoney(numericAmount / GST_MULTIPLIER) : numericAmount;
 };
 
+const normalizeSharedWith = (sharedWith = [], creatorUserId = "") =>
+  (Array.isArray(sharedWith) ? sharedWith : []).filter((shared) => {
+    const userId = String(shared?.user_id || "");
+    const percentage = Number(shared?.percentage || 0);
+    if (!userId || percentage <= 0) return false;
+    if (creatorUserId && userId === String(creatorUserId)) return false;
+    return true;
+  });
+
 const getTermShare = (booking, termKey) => {
   const termShare = booking?.term_shares?.[termKey];
-  if (termShare?.creator?.user_id) return termShare;
+  if (termShare?.creator?.user_id) {
+    return {
+      ...termShare,
+      shared_with: normalizeSharedWith(termShare?.shared_with, termShare?.creator?.user_id),
+    };
+  }
 
   return {
     creator: {
@@ -28,7 +42,10 @@ const getTermShare = (booking, termKey) => {
     },
     payment_date: booking?.payment_date || booking?.date || booking?.createdAt,
     payment_mode: booking?.bank || "",
-    shared_with: termKey === "term_1" && Array.isArray(booking?.shared_with) ? booking.shared_with : [],
+    shared_with:
+      termKey === "term_1"
+        ? normalizeSharedWith(booking?.shared_with, booking?.user_id)
+        : [],
   };
 };
 
@@ -39,7 +56,7 @@ const getParticipantShare = (booking, termKey, userId, isAdmin = false) => {
   if (isAdmin) return 1;
 
   const termShare = getTermShare(booking, termKey);
-  const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
+  const sharedWith = normalizeSharedWith(termShare.shared_with, termShare.creator?.user_id);
   const sharedTotal = sharedWith.reduce((total, sw) => total + Number(sw.percentage || 0), 0);
 
   if (String(termShare.creator?.user_id || "") === String(userId || "")) {
@@ -127,7 +144,7 @@ const getRefundDistributionEntries = (booking = {}, includeTerm = () => true) =>
     const baseAmount = amountExcludingGst(booking, amount);
     if (!baseAmount) return;
 
-    const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
+    const sharedWith = normalizeSharedWith(termShare.shared_with, termShare.creator?.user_id);
     const sharedTotal = sharedWith.reduce((total, sw) => total + Number(sw.percentage || 0), 0);
 
     const creatorBase = roundMoney(baseAmount * Math.max(0, (100 - sharedTotal) / 100));
@@ -184,7 +201,7 @@ const getParticipantEntriesForTerm = (booking, termKey, usersMap = {}) => {
   const baseAmount = amountExcludingGst(booking, amount);
   if (!baseAmount) return [];
 
-  const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
+  const sharedWith = normalizeSharedWith(termShare.shared_with, termShare.creator?.user_id);
   const sharedTotal = sharedWith.reduce((total, sw) => total + Number(sw.percentage || 0), 0);
   const entries = [];
 
@@ -482,7 +499,7 @@ export const addBookingRevenueToLeaderboard = (
     const termShare = getTermShare(booking, termKey);
     if (!includeTerm(termShare, termKey)) return;
     const netAmount = getTermNetBeforeSharing(booking, termKey);
-    const sharedWith = Array.isArray(termShare.shared_with) ? termShare.shared_with : [];
+    const sharedWith = normalizeSharedWith(termShare.shared_with, termShare.creator?.user_id);
 
     sharedWith.forEach((sw) => {
       const name = sw.user_name || usersMap[sw.user_id] || "COWORKER";
