@@ -221,10 +221,10 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
 
       const mergedBooking = {
         ...existingBooking.toObject(),
-        payment_date: payload.payment_date,
-        services: payload.services,
-        total_amount: payload.total_amount,
-        shared_with: payload.shared_with,
+        services: Array.from(new Set([
+          ...(Array.isArray(existingBooking.services) ? existingBooking.services : []),
+          ...(Array.isArray(payload.services) ? payload.services : []),
+        ].filter(Boolean))),
         term_shares: {
           ...(existingBooking.term_shares || {}),
           ...(payload.term_shares || {}),

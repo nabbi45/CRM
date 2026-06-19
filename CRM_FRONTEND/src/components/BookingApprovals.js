@@ -25,6 +25,7 @@ import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
+import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
 
@@ -315,10 +316,10 @@ const BookingApprovals = () => {
                       {approval.payload?.company_name || approval.payload?.contact_person || "BOOKING"}
                     </Typography>
                     <Chip size="small" label={approval.status.replace("_", " ").toUpperCase()} sx={{ borderRadius: "999px", fontWeight: 800 }} />
-                    {approval.payload?.is_refundable && (
+                    {getBookingRefundableLabel(approval.payload) && (
                       <Chip
                         size="small"
-                        label={`Refundable ${approval.payload?.refundable_percentage || 0}%`}
+                        label={getBookingRefundableLabel(approval.payload)}
                         sx={{ borderRadius: "999px", fontWeight: 800, bgcolor: "rgba(245,158,11,0.12)", color: "#d97706" }}
                       />
                     )}

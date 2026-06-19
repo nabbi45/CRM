@@ -463,6 +463,7 @@ const ClientDocuments = () => {
           mb: 3,
           borderRadius: 3,
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 2,
           alignItems: 'center',
           background: (theme) => theme.palette.mode === 'dark'
@@ -483,9 +484,18 @@ const ClientDocuments = () => {
                 <SearchIcon color="action" />
               </InputAdornment>
             ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton aria-label="search file activity" onClick={handleSearch} edge="end">
+                  <SearchIcon />
+                </IconButton>
+              </InputAdornment>
+            ),
           }}
           size="small"
           sx={{
+            minWidth: 0,
+            flex: '1 1 320px',
             '& .MuiOutlinedInput-root': {
               borderRadius: 2,
             }
@@ -497,6 +507,7 @@ const ClientDocuments = () => {
           sx={{
             borderRadius: 2,
             px: 3,
+            minWidth: { xs: '100%', sm: 120 },
             background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
             '&:hover': {
               background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',

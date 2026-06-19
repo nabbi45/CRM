@@ -29,7 +29,7 @@ import Loader from "./Loader";
 import { apiUrl } from "./LoginSignup";
 import {
   getBookingDeductionRowsForUser,
-  getBookingRevenueForUser,
+  getBookingRevenueRowsForUser,
 } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
@@ -122,6 +122,10 @@ const Scorecard = () => {
         const key = monthKeyFromDate(value);
         if (key) keys.add(key);
       });
+      ["term_1", "term_2", "term_3"].forEach((termKey) => {
+        const key = monthKeyFromDate(booking?.term_shares?.[termKey]?.payment_date);
+        if (key) keys.add(key);
+      });
       (booking.refund_adjustments || []).forEach((refund) => {
         const key = monthKeyFromDate(refund.refund_date || refund.created_at);
         if (key) keys.add(key);
@@ -157,7 +161,7 @@ const Scorecard = () => {
         const rows = [];
 
         bookings.forEach((booking) => {
-          const revenue = getBookingRevenueForUser(
+          getBookingRevenueRowsForUser(
             booking,
             employeeId,
             false,
@@ -168,21 +172,19 @@ const Scorecard = () => {
               }
               return monthKeyFromDate(termShare?.payment_date || booking.payment_date || booking.date || booking.createdAt) === activeMonth;
             }
-          );
-
-          if (revenue > 0) {
+          ).forEach((row) => {
             rows.push({
               type: "Revenue",
-              date: booking.payment_date || booking.date || booking.createdAt,
-              bookingId: booking._id,
-              companyName: booking.company_name || "-",
-              clientName: booking.contact_person || "-",
-              service: Array.isArray(booking.services) ? booking.services.join(", ") : booking.services || "-",
-              amount: revenue,
+              date: row.date,
+              bookingId: row.bookingId,
+              companyName: row.companyName || "-",
+              clientName: row.clientName || "-",
+              service: row.service || "-",
+              amount: row.amount || 0,
               tone: "success",
-              note: "Net credited after GST and deductions",
+              note: row.note || "Net credited after GST and deductions",
             });
-          }
+          });
 
           getBookingDeductionRowsForUser(
             booking,

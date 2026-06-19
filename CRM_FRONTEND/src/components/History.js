@@ -37,6 +37,7 @@ import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { canAccessFeature, isHigherAuthority } from "../utils/featureAccess";
 import { jsonToCSV, downloadCSV } from "./exelData";
+import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 import { useColorMode } from "../context/AppThemeProvider"; // Import for theming
 
 const History = () => {
@@ -1061,8 +1062,8 @@ Status: ${booking.status}
                 )}
                 <div className="booking-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {booking.is_refundable && (
-                      <Chip size="small" color="warning" label={`Refundable: ${booking.refundable_percentage}%`} />
+                    {getBookingRefundableLabel(booking) && (
+                      <Chip size="small" color="warning" label={getBookingRefundableLabel(booking)} />
                     )}
                   </div>
                   <button

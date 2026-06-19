@@ -31,6 +31,8 @@ const bookingSchema = mongoose.Schema(
     }],
     is_refundable: { type: Boolean, default: false },
     refundable_percentage: { type: Number, default: 0 },
+    is_approval_refundable: { type: Boolean, default: false },
+    approval_refundable_percentage: { type: Number, default: 0 },
     refund_adjustments: [{
       amount: { type: Number, required: true },
       amount_excluding_gst: { type: Number, required: true },

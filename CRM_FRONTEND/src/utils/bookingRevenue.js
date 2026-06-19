@@ -63,9 +63,43 @@ const getSnapshotServiceDeductions = (booking) =>
 const getServiceDeductionTotal = (booking) =>
   getSnapshotServiceDeductions(booking).reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
+export const getRefundableMeta = (booking = {}) => {
+  if (booking?.is_refundable && Number(booking?.refundable_percentage || 0) > 0) {
+    return {
+      type: "disbursement",
+      label: "Disbursement Refundable",
+      percentage: Number(booking.refundable_percentage || 0),
+      autoDeduct: true,
+    };
+  }
+
+  if (booking?.is_approval_refundable && Number(booking?.approval_refundable_percentage || 0) > 0) {
+    return {
+      type: "approval",
+      label: "Approval Refundable",
+      percentage: Number(booking.approval_refundable_percentage || 0),
+      autoDeduct: false,
+    };
+  }
+
+  return {
+    type: "none",
+    label: "",
+    percentage: 0,
+    autoDeduct: false,
+  };
+};
+
+export const getBookingRefundableLabel = (booking = {}) => {
+  const meta = getRefundableMeta(booking);
+  if (meta.type === "none" || !meta.percentage) return "";
+  return `${meta.label} ${meta.percentage}%`;
+};
+
 const getRefundableDeduction = (booking, grossTermAmount) => {
-  if (!booking?.is_refundable) return 0;
-  const pct = Number(booking?.refundable_percentage || 0);
+  const meta = getRefundableMeta(booking);
+  if (!meta.autoDeduct) return 0;
+  const pct = Number(meta.percentage || 0);
   if (!pct) return 0;
   return roundMoney(amountExcludingGst(booking, grossTermAmount) * (pct / 100));
 };
@@ -242,7 +276,7 @@ export const getBookingDeductionRowsForUser = (
       bookingName: booking?.contact_person || booking?.company_name || "N/A",
       clientName: booking?.contact_person || "N/A",
       companyName: booking?.company_name || "N/A",
-      service: `Refundable Clause ${Number(booking?.refundable_percentage || 0)}%`,
+      service: `${getRefundableMeta(booking).label} ${Number(getRefundableMeta(booking).percentage || 0)}%`,
       totalDeduction: refundableDeduction,
       deduction: roundMoney(refundableDeduction * share),
       employeeName: termShare.creator?.user_name || usersMap[termShare.creator?.user_id] || booking?.bdm || "UNKNOWN",
@@ -254,15 +288,21 @@ export const getBookingDeductionRowsForUser = (
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return;
     const totalRefund = Number(refund.amount_excluding_gst || refund.amount || 0);
-    const userRefundShare = getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, includeTerm);
+    const userRefundShare = getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, () => true);
     if (!userRefundShare) return;
+    const refundableMeta = getRefundableMeta(booking);
     rows.push({
       type: "Manual Refund Adjustment",
       bookingId: booking?._id,
       bookingName: booking?.contact_person || booking?.company_name || "N/A",
       clientName: booking?.contact_person || "N/A",
       companyName: booking?.company_name || "N/A",
-      service: booking?.is_refundable ? "Manual Refund - Refundable Booking" : "Manual Refund - Standard Booking",
+      service:
+        refundableMeta.type === "disbursement"
+          ? "Manual Refund - Disbursement Refundable Booking"
+          : refundableMeta.type === "approval"
+            ? "Manual Refund - Approval Refundable Booking"
+            : "Manual Refund - Standard Booking",
       totalDeduction: totalRefund,
       deduction: userRefundShare,
       employeeName: isAdmin ? "COMPANY" : (booking?.bdm || "UNKNOWN"),
@@ -318,7 +358,7 @@ export const getBookingDeductionRowsForStats = (
         bookingName: booking?.contact_person || booking?.company_name || "N/A",
         clientName: booking?.contact_person || "N/A",
         companyName: booking?.company_name || "N/A",
-        service: `Refundable Clause ${Number(booking?.refundable_percentage || 0)}%`,
+        service: `${getRefundableMeta(booking).label} ${Number(getRefundableMeta(booking).percentage || 0)}%`,
         totalDeduction: refundableDeduction,
         deduction: roundMoney(refundableDeduction * entry.share),
         employeeName: entry.userName || "UNKNOWN",
@@ -345,13 +385,19 @@ export const getBookingDeductionRowsForStats = (
     }, {});
 
     Object.values(aggregatedByUser).forEach((entry) => {
+      const refundableMeta = getRefundableMeta(booking);
       rows.push({
         type: "Manual Refund Adjustment",
         bookingId: booking?._id,
         bookingName: booking?.contact_person || booking?.company_name || "N/A",
         clientName: booking?.contact_person || "N/A",
         companyName: booking?.company_name || "N/A",
-        service: booking?.is_refundable ? "Manual Refund - Refundable Booking" : "Manual Refund - Standard Booking",
+        service:
+          refundableMeta.type === "disbursement"
+            ? "Manual Refund - Disbursement Refundable Booking"
+            : refundableMeta.type === "approval"
+              ? "Manual Refund - Approval Refundable Booking"
+              : "Manual Refund - Standard Booking",
         totalDeduction: refundAmount,
         deduction: roundMoney((Number(entry.amount || 0) / totalBase) * refundAmount),
         employeeName: entry.userName || "UNKNOWN",
@@ -382,10 +428,46 @@ export const getBookingRevenueForUser = (
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return sum;
     const totalRefund = Number(refund.amount_excluding_gst || refund.amount || 0);
-    return sum + getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, includeTerm);
+    return sum + getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, () => true);
   }, 0);
 
   return roundMoney(termRevenue - refundReversal);
+};
+
+export const getBookingRevenueRowsForUser = (
+  booking,
+  userId,
+  isAdmin = false,
+  includeTerm = () => true
+) => {
+  const rows = [];
+
+  termKeys.forEach((termKey) => {
+    const amount = Number(booking?.[termKey] || 0);
+    if (!amount) return;
+    const termShare = getTermShare(booking, termKey);
+    if (!includeTerm(termShare, termKey)) return;
+    const participantShare = getParticipantShare(booking, termKey, userId, isAdmin);
+    if (!participantShare) return;
+
+    const termRevenue = roundMoney(getTermNetBeforeSharing(booking, termKey) * participantShare);
+    if (!termRevenue) return;
+
+    rows.push({
+      type: "Revenue",
+      bookingId: booking?._id,
+      bookingName: booking?.contact_person || booking?.company_name || "N/A",
+      clientName: booking?.contact_person || "N/A",
+      companyName: booking?.company_name || "N/A",
+      service: Array.isArray(booking?.services) ? booking.services.join(", ") : booking?.services || "-",
+      amount: termRevenue,
+      termKey,
+      date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
+      note: `Credited from ${String(termKey || "").replace("_", " ").toUpperCase()}`,
+    });
+  });
+
+  return rows;
 };
 
 export const addBookingRevenueToLeaderboard = (

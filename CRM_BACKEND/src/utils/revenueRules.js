@@ -50,14 +50,26 @@ export const buildGstMetadata = (booking = {}) => {
   };
 };
 
-export const sanitizeRefundable = ({ is_refundable, refundable_percentage } = {}) => {
-  const enabled = Boolean(is_refundable);
-  const percentage = enabled
+export const sanitizeRefundable = ({
+  is_refundable,
+  refundable_percentage,
+  is_approval_refundable,
+  approval_refundable_percentage,
+} = {}) => {
+  const disbursementEnabled = Boolean(is_refundable);
+  const approvalEnabled = !disbursementEnabled && Boolean(is_approval_refundable);
+  const disbursementPercentage = disbursementEnabled
     ? Math.min(Math.max(Number(refundable_percentage || 0), 0), 100)
     : 0;
+  const approvalPercentage = approvalEnabled
+    ? Math.min(Math.max(Number(approval_refundable_percentage || 0), 0), 100)
+    : 0;
+
   return {
-    is_refundable: enabled && percentage > 0,
-    refundable_percentage: enabled ? percentage : 0,
+    is_refundable: disbursementEnabled && disbursementPercentage > 0,
+    refundable_percentage: disbursementEnabled ? disbursementPercentage : 0,
+    is_approval_refundable: approvalEnabled && approvalPercentage > 0,
+    approval_refundable_percentage: approvalEnabled ? approvalPercentage : 0,
   };
 };
 

@@ -63,6 +63,8 @@ const AddBooking = ({ onClose }) => {
     funddisbursement: "",
     isRefundable: false,
     refundablePercentage: "",
+    isApprovalRefundable: false,
+    approvalRefundablePercentage: "",
   });
   
   // Document upload state
@@ -120,7 +122,7 @@ const AddBooking = ({ onClose }) => {
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (["refundablePercentage", "funddisbursement"].includes(name)) {
+    if (["refundablePercentage", "approvalRefundablePercentage", "funddisbursement"].includes(name)) {
       setNormalizedFormPercent(name, value);
       return;
     }
@@ -193,6 +195,8 @@ const AddBooking = ({ onClose }) => {
     funddisbursement: booking?.after_disbursement || "",
     isRefundable: Boolean(booking?.is_refundable),
     refundablePercentage: booking?.refundable_percentage || "",
+    isApprovalRefundable: Boolean(booking?.is_approval_refundable),
+    approvalRefundablePercentage: booking?.approval_refundable_percentage || "",
   });
 
   useEffect(() => {
@@ -385,6 +389,15 @@ const AddBooking = ({ onClose }) => {
         validationErrors.refundablePercentage = "Enter deduction percentage between 1 and 100";
       }
     }
+    if (!isContinuationTerm && formData.isApprovalRefundable) {
+      const approvalRefundablePct = Number(formData.approvalRefundablePercentage || 0);
+      if (!approvalRefundablePct || approvalRefundablePct < 0 || approvalRefundablePct > 100) {
+        validationErrors.approvalRefundablePercentage = "Enter approval guarantee percentage between 1 and 100";
+      }
+    }
+    if (!isContinuationTerm && formData.isRefundable && formData.isApprovalRefundable) {
+      validationErrors.refundableType = "Select only one refundable booking type";
+    }
     if (!formData.pan) {
       validationErrors.pan = "PAN Number is required";
     } else {
@@ -480,7 +493,7 @@ const AddBooking = ({ onClose }) => {
               ...(Array.isArray(selectedSourceBooking.services) ? selectedSourceBooking.services : []),
               ...(Array.isArray(formData.services) ? formData.services : []),
             ].filter(Boolean))),
-            total_amount,
+            total_amount: Number(selectedSourceBooking.total_amount || total_amount || 0),
             pan: formData.pan?.toUpperCase() || "",
             gst: formData.gst?.toUpperCase() || "N/A",
             remark: formData.notes,
@@ -491,6 +504,8 @@ const AddBooking = ({ onClose }) => {
             funddisbursement: formData.funddisbursement || "",
             is_refundable: Boolean(selectedSourceBooking.is_refundable),
             refundable_percentage: Number(selectedSourceBooking.refundable_percentage || 0),
+            is_approval_refundable: Boolean(selectedSourceBooking.is_approval_refundable),
+            approval_refundable_percentage: Number(selectedSourceBooking.approval_refundable_percentage || 0),
             shared_with: Array.from(accessUsers.values()),
             term_shares: {
               [termKey]: {
@@ -573,6 +588,8 @@ const AddBooking = ({ onClose }) => {
           funddisbursement: formData.funddisbursement || "",
           is_refundable: Boolean(formData.isRefundable),
           refundable_percentage: formData.isRefundable ? Number(formData.refundablePercentage || 0) : 0,
+          is_approval_refundable: Boolean(formData.isApprovalRefundable),
+          approval_refundable_percentage: formData.isApprovalRefundable ? Number(formData.approvalRefundablePercentage || 0) : 0,
           projectionLeadId,
           shared_with: buildShareEntries(),
           term_shares: {
@@ -716,6 +733,8 @@ const AddBooking = ({ onClose }) => {
           funddisbursement: "",
           isRefundable: false,
           refundablePercentage: "",
+          isApprovalRefundable: false,
+          approvalRefundablePercentage: "",
         });
         setSharedPersons([]);
         setShareCount(0);
@@ -1014,9 +1033,17 @@ const AddBooking = ({ onClose }) => {
               value={formData.totalAmount}
               onChange={handleChange}
               placeholder="Enter total amount"
+              disabled={isContinuationTerm}
               variant="outlined"
               error={Boolean(errors.totalAmount)}
-              helperText={errors.totalAmount || (!isCashPayment(formData.bank) ? "Enter the final amount already including 18% GST." : "Cash bookings do not include GST.")}
+              helperText={
+                errors.totalAmount ||
+                (isContinuationTerm
+                  ? "Locked from the original booking for continuation terms."
+                  : (!isCashPayment(formData.bank)
+                    ? "Enter the final amount already including 18% GST."
+                    : "Cash bookings do not include GST."))
+              }
             />
           </Grid>
 
@@ -1091,29 +1118,79 @@ const AddBooking = ({ onClose }) => {
           {!isContinuationTerm && (
             <Grid item xs={12}>
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={Boolean(formData.isRefundable)}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, isRefundable: e.target.checked }))}
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={Boolean(formData.isRefundable)}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              isRefundable: e.target.checked,
+                              isApprovalRefundable: e.target.checked ? false : prev.isApprovalRefundable,
+                              approvalRefundablePercentage: e.target.checked ? "" : prev.approvalRefundablePercentage,
+                            }))
+                          }
+                        />
+                      }
+                      label="Disbursement Guarantee Refundable Booking"
                     />
-                  }
-                  label="Refundable booking"
-                />
-                <TextField
-                  sx={{ ml: { sm: 2 }, mt: { xs: 1, sm: 0 }, maxWidth: 220 }}
-                  size="small"
-                  label="Deduction %"
-                  name="refundablePercentage"
-                  type="text"
-                  value={formData.refundablePercentage}
-                  onChange={handleChange}
-                  onBlur={(e) => setNormalizedFormPercent("refundablePercentage", e.target.value, true)}
-                  disabled={!formData.isRefundable}
-                  error={Boolean(errors.refundablePercentage)}
-                  helperText={errors.refundablePercentage}
-                  InputProps={{ endAdornment: <Typography sx={{ ml: 1 }}>%</Typography> }}
-                />
+                    <TextField
+                      fullWidth
+                      sx={{ mt: 1 }}
+                      size="small"
+                      label="Deduction %"
+                      name="refundablePercentage"
+                      type="text"
+                      value={formData.refundablePercentage}
+                      onChange={handleChange}
+                      onBlur={(e) => setNormalizedFormPercent("refundablePercentage", e.target.value, true)}
+                      disabled={!formData.isRefundable}
+                      error={Boolean(errors.refundablePercentage)}
+                      helperText={errors.refundablePercentage || "This percentage is auto-deducted from revenue after GST removal."}
+                      InputProps={{ endAdornment: <Typography sx={{ ml: 1 }}>%</Typography> }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={Boolean(formData.isApprovalRefundable)}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              isApprovalRefundable: e.target.checked,
+                              isRefundable: e.target.checked ? false : prev.isRefundable,
+                              refundablePercentage: e.target.checked ? "" : prev.refundablePercentage,
+                            }))
+                          }
+                        />
+                      }
+                      label="Approval Guarantee Refundable Booking"
+                    />
+                    <TextField
+                      fullWidth
+                      sx={{ mt: 1 }}
+                      size="small"
+                      label="Guarantee %"
+                      name="approvalRefundablePercentage"
+                      type="text"
+                      value={formData.approvalRefundablePercentage}
+                      onChange={handleChange}
+                      onBlur={(e) => setNormalizedFormPercent("approvalRefundablePercentage", e.target.value, true)}
+                      disabled={!formData.isApprovalRefundable}
+                      error={Boolean(errors.approvalRefundablePercentage)}
+                      helperText={errors.approvalRefundablePercentage || "No automatic deduction is applied. It stays a normal revenue booking."}
+                      InputProps={{ endAdornment: <Typography sx={{ ml: 1 }}>%</Typography> }}
+                    />
+                  </Grid>
+                </Grid>
+                {errors.refundableType && (
+                  <Typography sx={{ mt: 1, color: "error.main", fontSize: "0.8rem", fontWeight: 600 }}>
+                    {errors.refundableType}
+                  </Typography>
+                )}
               </Paper>
             </Grid>
           )}

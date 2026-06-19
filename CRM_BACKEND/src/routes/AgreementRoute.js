@@ -130,7 +130,11 @@ const selectTemplateSection = (booking) => {
     0
   );
   const isNoPending = receivedAmount >= totalAmount && totalAmount > 0;
-  const isRefundable = Boolean(booking.is_refundable) || toNumber(booking.refundable_percentage) > 0;
+  const isRefundable =
+    Boolean(booking.is_refundable) ||
+    toNumber(booking.refundable_percentage) > 0 ||
+    Boolean(booking.is_approval_refundable) ||
+    toNumber(booking.approval_refundable_percentage) > 0;
   const agreementType = getAgreementTypeFromServices(booking.services);
 
   const matchedSection = sections.find((section) => {
@@ -186,7 +190,9 @@ const buildPlaceholderMap = (booking) => {
     receivedamount: formatAmount(receivedAmount || toNumber(booking.term_1)),
     pendingamount: formatAmount(pendingAmount),
     percentage: afterDisbursement,
-    refundablepercentage: formatAmount(toNumber(booking.refundable_percentage)),
+    refundablepercentage: formatAmount(
+      toNumber(booking.refundable_percentage || booking.approval_refundable_percentage)
+    ),
   };
 };
 

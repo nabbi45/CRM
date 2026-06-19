@@ -541,23 +541,26 @@ const DashboardContent = () => {
       const currentMonthDeductions = [];
 
       const isCurrentMonthTerm = (termShare) => {
-        const termDate = new Date(termShare?.payment_date || "");
+        const termDate = new Date(termShare?.payment_date || termShare?.date || "");
         return !Number.isNaN(termDate.getTime()) &&
           termDate.getMonth() === currentMonth &&
           termDate.getFullYear() === currentYear;
       };
 
-      for (const booking of bookings) {
-        if (isAdmin || String(booking.user_id) === String(session.user_id)) {
-          bookingCount += 1;
-        }
+      const isTodayTerm = (termShare) => getDateKey(termShare?.payment_date) === today;
 
-        const createdDate = parseDateValue(booking.createdAt || booking.date || booking.payment_date);
-        const createdDateKey = getDateKey(booking.createdAt || booking.date || booking.payment_date);
-        if (createdDate) {
-          if (createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear) {
-            bookingCountThisMonth += 1;
-          }
+      for (const booking of bookings) {
+        bookingCount += 1;
+
+        const termActivityThisMonth = ["term_1", "term_2", "term_3"].some((termKey) => {
+          if (!Number(booking?.[termKey] || 0)) return false;
+          const termShare = booking?.term_shares?.[termKey] || {
+            payment_date: booking?.payment_date || booking?.date || booking?.createdAt,
+          };
+          return isCurrentMonthTerm(termShare);
+        });
+        if (termActivityThisMonth) {
+          bookingCountThisMonth += 1;
         }
 
         const revenueForAccess = getBookingRevenueForUser(booking, session.user_id, isAdmin, () => true, serviceDeductionMap);
@@ -567,9 +570,9 @@ const DashboardContent = () => {
 
         currentMonthRevenue += currentMonthRev;
 
-        if (createdDateKey === today) {
-          todayRevenueAmt += revenueForAccess;
-        }
+        todayRevenueAmt += isAdmin
+          ? getBookingRevenueForUser(booking, session.user_id, true, isTodayTerm, serviceDeductionMap)
+          : getBookingRevenueForUser(booking, session.user_id, false, isTodayTerm, serviceDeductionMap);
 
         addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm, serviceDeductionMap);
 

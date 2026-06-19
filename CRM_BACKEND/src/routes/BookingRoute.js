@@ -165,6 +165,8 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
     term_shares,
     is_refundable,
     refundable_percentage,
+    is_approval_refundable,
+    approval_refundable_percentage,
   } = requestBody;
 
   const requiredFields = {
@@ -242,6 +244,8 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
       },
       is_refundable,
       refundable_percentage,
+      is_approval_refundable,
+      approval_refundable_percentage,
     });
     const new_booking = {
       ...basePayload,
@@ -326,6 +330,8 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     delete updates.refund_adjustments;
     updates.is_refundable = oldBooking.is_refundable;
     updates.refundable_percentage = oldBooking.refundable_percentage || 0;
+    updates.is_approval_refundable = oldBooking.is_approval_refundable || false;
+    updates.approval_refundable_percentage = oldBooking.approval_refundable_percentage || 0;
 
     if (!isAdminRole(user_role)) {
       if (continuationEdit) {
