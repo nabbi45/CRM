@@ -2,7 +2,7 @@ import { ServiceModel } from "../models/ServiceModel.js";
 
 export const GST_RATE = 18;
 export const GST_MULTIPLIER = 1 + GST_RATE / 100;
-export const TERM_KEYS = ["term_1", "term_2", "term_3"];
+export const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 export const ADMIN_ROLES = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
 
 export const normalizeRole = (role = "") => String(role || "").trim().toLowerCase();
@@ -28,12 +28,12 @@ export const gstComponent = (amount, gstIncluded = true) =>
 
 export const buildGstMetadata = (booking = {}) => {
   const gstIncluded = isGstIncludedBooking(booking.bank);
-  const amounts = {
+  const amounts = TERM_KEYS.reduce((acc, termKey) => {
+    acc[termKey] = Number(booking[termKey] || 0);
+    return acc;
+  }, {
     total_amount: Number(booking.total_amount || 0),
-    term_1: Number(booking.term_1 || 0),
-    term_2: Number(booking.term_2 || 0),
-    term_3: Number(booking.term_3 || 0),
-  };
+  });
 
   return {
     gst_included: gstIncluded,
@@ -41,12 +41,10 @@ export const buildGstMetadata = (booking = {}) => {
     gst_rate: gstIncluded ? GST_RATE : 0,
     total_amount_before_gst: amountExcludingGst(amounts.total_amount, gstIncluded),
     gst_amount: gstComponent(amounts.total_amount, gstIncluded),
-    gst_excluded_amounts: {
-      total_amount: amountExcludingGst(amounts.total_amount, gstIncluded),
-      term_1: amountExcludingGst(amounts.term_1, gstIncluded),
-      term_2: amountExcludingGst(amounts.term_2, gstIncluded),
-      term_3: amountExcludingGst(amounts.term_3, gstIncluded),
-    },
+    gst_excluded_amounts: Object.entries(amounts).reduce((acc, [key, value]) => {
+      acc[key] = amountExcludingGst(value, gstIncluded);
+      return acc;
+    }, {}),
   };
 };
 
@@ -114,7 +112,7 @@ export const getTermShare = (booking = {}, termKey = "term_1") =>
     creator: { user_id: booking.user_id, user_name: booking.bdm },
     payment_date: booking.payment_date,
     payment_mode: booking.bank,
-    shared_with: booking.shared_with || [],
+    shared_with: termKey === "term_1" ? (booking.shared_with || []) : [],
   };
 
 export const getFirstPaidTermKey = (booking = {}) =>

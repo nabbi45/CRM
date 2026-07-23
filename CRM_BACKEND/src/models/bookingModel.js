@@ -55,6 +55,13 @@ const bookingSchema = mongoose.Schema(
     term_1: { type: Number },
     term_2: { type: Number },
     term_3: { type: Number },
+    term_4: { type: Number, default: 0 },
+    term_5: { type: Number, default: 0 },
+    term_6: { type: Number, default: 0 },
+    term_7: { type: Number, default: 0 },
+    term_8: { type: Number, default: 0 },
+    term_9: { type: Number, default: 0 },
+    term_10: { type: Number, default: 0 },
     payment_date: { type: Date },
     pan: { type: String },
     gst: { type: String },
@@ -108,6 +115,48 @@ const bookingSchema = mongoose.Schema(
           user_name: { type: String },
           percentage: { type: Number }
         }]
+      },
+      term_4: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
+      },
+      term_5: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
+      },
+      term_6: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
+      },
+      term_7: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
+      },
+      term_8: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
+      },
+      term_9: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
+      },
+      term_10: {
+        creator: { user_id: { type: String }, user_name: { type: String } },
+        payment_date: { type: Date },
+        payment_mode: { type: String, default: "" },
+        shared_with: [{ user_id: { type: String }, user_name: { type: String }, percentage: { type: Number } }]
       },
     },
     updatedhistory: [

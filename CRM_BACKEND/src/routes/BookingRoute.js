@@ -12,8 +12,10 @@ import {
   buildGstMetadata,
   collectAffectedUserIds,
   gstComponent,
+  isCashPayment,
   isAdminRole,
   prepareBookingFinancials,
+  TERM_KEYS,
 } from "../utils/revenueRules.js";
 
 const BookingRoutes = express.Router();
@@ -89,8 +91,7 @@ const CONTINUATION_EDIT_FIELDS = new Set([
   "total_amount",
   "shared_with",
   "term_shares",
-  "term_2",
-  "term_3",
+  ...TERM_KEYS.slice(1),
 ]);
 
 const getBookingAccessUserIds = (booking) => {
@@ -115,9 +116,9 @@ const isContinuationEditPayload = (updates = {}) => {
   if (!keys.length) return false;
   if (!keys.every((key) => CONTINUATION_EDIT_FIELDS.has(key))) return false;
 
-  const hasTermAmount =
-    Object.prototype.hasOwnProperty.call(updates, "term_2") ||
-    Object.prototype.hasOwnProperty.call(updates, "term_3");
+  const hasTermAmount = TERM_KEYS.slice(1).some((termKey) =>
+    Object.prototype.hasOwnProperty.call(updates, termKey)
+  );
 
   return hasTermAmount && Object.prototype.hasOwnProperty.call(updates, "term_shares");
 };
@@ -224,6 +225,13 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
       term_1: Number(term_1 || 0),
       term_2: Number(term_2 || 0),
       term_3: Number(term_3 || 0),
+      term_4: Number(requestBody.term_4 || 0),
+      term_5: Number(requestBody.term_5 || 0),
+      term_6: Number(requestBody.term_6 || 0),
+      term_7: Number(requestBody.term_7 || 0),
+      term_8: Number(requestBody.term_8 || 0),
+      term_9: Number(requestBody.term_9 || 0),
+      term_10: Number(requestBody.term_10 || 0),
       payment_date, // 👈 Set here
       pan,
       gst: gst || "N/A",
@@ -310,9 +318,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     const continuationEdit = isContinuationEditPayload(updates);
 
     if (
-      Object.prototype.hasOwnProperty.call(updates, "term_1") ||
-      Object.prototype.hasOwnProperty.call(updates, "term_2") ||
-      Object.prototype.hasOwnProperty.call(updates, "term_3") ||
+      TERM_KEYS.some((termKey) => Object.prototype.hasOwnProperty.call(updates, termKey)) ||
       Object.prototype.hasOwnProperty.call(updates, "total_amount") ||
       Object.prototype.hasOwnProperty.call(updates, "bank")
     ) {
@@ -333,6 +339,32 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     updates.is_approval_refundable = oldBooking.is_approval_refundable || false;
     updates.approval_refundable_percentage = oldBooking.approval_refundable_percentage || 0;
 
+    if (Object.prototype.hasOwnProperty.call(updates, "payment_date") && !continuationEdit) {
+      const selectedTermKey =
+        TERM_KEYS.find((termKey) => Object.prototype.hasOwnProperty.call(updates, termKey) && Number(updates[termKey] || 0) > 0) ||
+        TERM_KEYS.find((termKey) => Number(oldBooking[termKey] || 0) > 0) ||
+        "term_1";
+      updates.term_shares = {
+        ...(oldBooking.term_shares || {}),
+        ...(updates.term_shares || {}),
+        [selectedTermKey]: {
+          ...(oldBooking.term_shares?.[selectedTermKey] || {}),
+          ...(updates.term_shares?.[selectedTermKey] || {}),
+          creator: updates.term_shares?.[selectedTermKey]?.creator || oldBooking.term_shares?.[selectedTermKey]?.creator || {
+            user_id: oldBooking.user_id,
+            user_name: oldBooking.bdm,
+          },
+          payment_date: updates.payment_date,
+          payment_mode: updates.bank || oldBooking.term_shares?.[selectedTermKey]?.payment_mode || oldBooking.bank || "",
+          shared_with: Array.isArray(updates.term_shares?.[selectedTermKey]?.shared_with)
+            ? updates.term_shares[selectedTermKey].shared_with
+            : Array.isArray(oldBooking.term_shares?.[selectedTermKey]?.shared_with)
+              ? oldBooking.term_shares[selectedTermKey].shared_with
+              : [],
+        },
+      };
+    }
+
     if (!isAdminRole(user_role)) {
       if (continuationEdit) {
         const accessIds = getBookingAccessUserIds(oldBooking);
@@ -349,11 +381,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
     }
 
     if (continuationEdit) {
-      const targetTermKey = Object.prototype.hasOwnProperty.call(updates, "term_2")
-        ? "term_2"
-        : Object.prototype.hasOwnProperty.call(updates, "term_3")
-          ? "term_3"
-          : "";
+      const targetTermKey = TERM_KEYS.slice(1).find((termKey) => Object.prototype.hasOwnProperty.call(updates, termKey)) || "";
       const targetTermShare = updates.term_shares?.[targetTermKey];
 
       if (
@@ -366,25 +394,16 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
         });
       }
 
-      if (
-        Object.prototype.hasOwnProperty.call(updates, "term_2") &&
-        Number(oldBooking.term_2 || 0) > 0
-      ) {
-        return res.status(400).send({ message: "Term 2 already exists for this booking." });
+      if (targetTermKey && Number(oldBooking[targetTermKey] || 0) > 0) {
+        return res.status(400).send({ message: `${targetTermKey.replace("_", " ").toUpperCase()} already exists for this booking.` });
       }
 
-      if (
-        Object.prototype.hasOwnProperty.call(updates, "term_3") &&
-        Number(oldBooking.term_3 || 0) > 0
-      ) {
-        return res.status(400).send({ message: "Term 3 already exists for this booking." });
-      }
-
-      if (
-        Object.prototype.hasOwnProperty.call(updates, "term_3") &&
-        Number(oldBooking.term_2 || 0) <= 0
-      ) {
-        return res.status(400).send({ message: "Term 2 must be completed before Term 3." });
+      const targetIndex = TERM_KEYS.indexOf(targetTermKey);
+      if (targetIndex > 0) {
+        const previousTermKey = TERM_KEYS[targetIndex - 1];
+        if (Number(oldBooking[previousTermKey] || 0) <= 0) {
+          return res.status(400).send({ message: `${previousTermKey.replace("_", " ").toUpperCase()} must be completed before ${targetTermKey.replace("_", " ").toUpperCase()}.` });
+        }
       }
 
       updates.term_shares = {
@@ -868,7 +887,12 @@ BookingRoutes.post("/:id/refunds", authenticateUser, async (req, res) => {
       return res.status(404).send({ message: "Booking not found." });
     }
 
-    const gstIncluded = Boolean(booking.gst_included ?? booking.gst_applied);
+    const gstIncluded =
+      typeof booking.gst_included === "boolean"
+        ? booking.gst_included
+        : typeof booking.gst_applied === "boolean"
+          ? booking.gst_applied
+          : !isCashPayment(booking.bank);
     const refundEntry = {
       amount: refundAmount,
       amount_excluding_gst: amountExcludingGst(refundAmount, gstIncluded),
@@ -902,6 +926,71 @@ BookingRoutes.post("/:id/refunds", authenticateUser, async (req, res) => {
     });
   } catch (err) {
     console.error("Refund adjustment error:", err);
+    return res.status(500).send({ message: err.message });
+  }
+});
+
+BookingRoutes.patch("/:id/refunds/:refundId", authenticateUser, async (req, res) => {
+  const requesterRole = String(req.user?.user_role || req.headers["user-role"] || "").trim().toLowerCase();
+  if (!["director", "dev", "srdev", "sr dev"].includes(requesterRole)) {
+    return res.status(403).send({ message: "Only director and dev roles can edit refund adjustments." });
+  }
+
+  try {
+    const booking = await BookingModel.findById(req.params.id);
+    if (!booking || booking.isDeleted) {
+      return res.status(404).send({ message: "Booking not found." });
+    }
+
+    const refund = (booking.refund_adjustments || []).id(req.params.refundId);
+    if (!refund) {
+      return res.status(404).send({ message: "Refund adjustment not found." });
+    }
+
+    const refundAmount = Number(req.body.amount || 0);
+    if (!refundAmount || refundAmount <= 0) {
+      return res.status(400).send({ message: "Refund amount must be greater than 0." });
+    }
+
+    const gstIncluded =
+      typeof booking.gst_included === "boolean"
+        ? booking.gst_included
+        : typeof booking.gst_applied === "boolean"
+          ? booking.gst_applied
+          : !isCashPayment(booking.bank);
+
+    refund.amount = refundAmount;
+    refund.amount_excluding_gst = amountExcludingGst(refundAmount, gstIncluded);
+    refund.gst_amount = gstComponent(refundAmount, gstIncluded);
+    refund.refund_date = req.body.refund_date ? new Date(req.body.refund_date) : refund.refund_date;
+    refund.note = typeof req.body.note === "string" ? req.body.note : refund.note;
+    await booking.save();
+
+    return res.status(200).send({ message: "Refund adjustment updated successfully.", refund, booking });
+  } catch (err) {
+    return res.status(500).send({ message: err.message });
+  }
+});
+
+BookingRoutes.delete("/:id/refunds/:refundId", authenticateUser, async (req, res) => {
+  const requesterRole = String(req.user?.user_role || req.headers["user-role"] || "").trim().toLowerCase();
+  if (!["director", "dev", "srdev", "sr dev"].includes(requesterRole)) {
+    return res.status(403).send({ message: "Only director and dev roles can delete refund adjustments." });
+  }
+
+  try {
+    const booking = await BookingModel.findById(req.params.id);
+    if (!booking || booking.isDeleted) {
+      return res.status(404).send({ message: "Booking not found." });
+    }
+
+    booking.refund_adjustments = (booking.refund_adjustments || []).filter(
+      (entry) => String(entry._id) !== String(req.params.refundId)
+    );
+    await booking.save();
+
+    return res.status(200).send({ message: "Refund adjustment deleted successfully.", booking });
+  } catch (err) {
     return res.status(500).send({ message: err.message });
   }
 });

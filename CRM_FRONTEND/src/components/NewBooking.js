@@ -37,6 +37,8 @@ import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import Mailer from "./mail";
 
 const getCurrentDateInput = () => new Date().toISOString().split("T")[0];
+const TERM_NUMBERS = Array.from({ length: 10 }, (_, index) => index + 1);
+const TERM_LABELS = TERM_NUMBERS.map((termNumber) => `Term ${termNumber}`);
 
 const AddBooking = ({ onClose }) => {
   const theme = useTheme();
@@ -161,7 +163,8 @@ const AddBooking = ({ onClose }) => {
   const termPrefillBooking = location?.state?.termPrefillBooking || null;
   const requestedTerm = location?.state?.requestedTerm || "";
 
-  const isContinuationTerm = formData.selectTerm === "Term 2" || formData.selectTerm === "Term 3";
+  const selectedTermNumber = Number(String(formData.selectTerm || "").replace("Term ", "") || 0);
+  const isContinuationTerm = selectedTermNumber >= 2;
   const userSessionForUi = JSON.parse(localStorage.getItem("userSession")) || {};
   const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
   const isAdminRole = adminRoles.includes((userSessionForUi.user_role || "").toLowerCase());
@@ -267,19 +270,10 @@ const AddBooking = ({ onClose }) => {
         const bookings = Array.isArray(data?.Allbookings) ? data.Allbookings : Array.isArray(data) ? data : [];
 
         const eligibleBookings = bookings.filter((booking) => {
-          const t1 = Number(booking.term_1 || 0);
-          const t2 = Number(booking.term_2 || 0);
-          const t3 = Number(booking.term_3 || 0);
-
-          if (formData.selectTerm === "Term 2") {
-            return t1 > 0 && t2 <= 0;
-          }
-
-          if (formData.selectTerm === "Term 3") {
-            return t2 > 0 && t3 <= 0;
-          }
-
-          return false;
+          if (!selectedTermNumber || selectedTermNumber <= 1) return false;
+          const previousTermKey = `term_${selectedTermNumber - 1}`;
+          const currentTermKey = `term_${selectedTermNumber}`;
+          return Number(booking[previousTermKey] || 0) > 0 && Number(booking[currentTermKey] || 0) <= 0;
         });
 
         setTermSourceBookings(eligibleBookings);
@@ -292,7 +286,7 @@ const AddBooking = ({ onClose }) => {
     };
 
     fetchTermSourceBookings();
-  }, [isContinuationTerm, formData.selectTerm]);
+  }, [isContinuationTerm, formData.selectTerm, selectedTermNumber]);
 
   // Fetch all users to populate the Shared With dropdown
   useEffect(() => {
@@ -458,7 +452,7 @@ const AddBooking = ({ onClose }) => {
 
       try {
         if (isContinuationTerm && selectedSourceBooking?._id) {
-          const termKey = formData.selectTerm === "Term 2" ? "term_2" : "term_3";
+          const termKey = `term_${selectedTermNumber}`;
           const termSharedWith = buildShareEntries();
           const existingSharedWith = Array.isArray(selectedSourceBooking.shared_with)
             ? selectedSourceBooking.shared_with
@@ -525,13 +519,7 @@ const AddBooking = ({ onClose }) => {
             continuation_term_label: formData.selectTerm,
           };
 
-          if (formData.selectTerm === "Term 2") {
-            continuationPayload.term_2 = receivedAmount;
-          }
-
-          if (formData.selectTerm === "Term 3") {
-            continuationPayload.term_3 = receivedAmount;
-          }
+          continuationPayload[termKey] = receivedAmount;
 
           const continuationForm = new FormData();
           continuationForm.append("payload", JSON.stringify(continuationPayload));
@@ -579,6 +567,13 @@ const AddBooking = ({ onClose }) => {
           term_1: formData.selectTerm === "Term 1" ? receivedAmount : null,
           term_2: formData.selectTerm === "Term 2" ? receivedAmount : null,
           term_3: formData.selectTerm === "Term 3" ? receivedAmount : null,
+          term_4: formData.selectTerm === "Term 4" ? receivedAmount : null,
+          term_5: formData.selectTerm === "Term 5" ? receivedAmount : null,
+          term_6: formData.selectTerm === "Term 6" ? receivedAmount : null,
+          term_7: formData.selectTerm === "Term 7" ? receivedAmount : null,
+          term_8: formData.selectTerm === "Term 8" ? receivedAmount : null,
+          term_9: formData.selectTerm === "Term 9" ? receivedAmount : null,
+          term_10: formData.selectTerm === "Term 10" ? receivedAmount : null,
           payment_date: formData.paymentDate,
           pan: formData.pan?.toUpperCase() || "",
           gst: formData.gst?.toUpperCase() || "N/A",
@@ -1065,9 +1060,9 @@ const AddBooking = ({ onClose }) => {
                 variant="outlined"
               >
                 <MenuItem value="">Select Term</MenuItem>
-                <MenuItem value="Term 1">Term 1</MenuItem>
-                <MenuItem value="Term 2">Term 2</MenuItem>
-                <MenuItem value="Term 3">Term 3</MenuItem>
+                {TERM_LABELS.map((termLabel) => (
+                  <MenuItem key={termLabel} value={termLabel}>{termLabel}</MenuItem>
+                ))}
               </Select>
               {errors.selectTerm && <Typography color="error" variant="caption">{errors.selectTerm}</Typography>}
             </FormControl>
@@ -1085,10 +1080,10 @@ const AddBooking = ({ onClose }) => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label={`Search ${formData.selectTerm === "Term 2" ? "Term 1" : "Term 2"} Booking`}
+                    label={`Search Term ${Math.max(1, selectedTermNumber - 1)} Booking`}
                     placeholder="Search by company, user, date, booking id"
                     error={Boolean(errors.termSource)}
-                    helperText={errors.termSource || `Select existing ${formData.selectTerm === "Term 2" ? "Term 1" : "Term 2"} record to continue receivable`}
+                    helperText={errors.termSource || `Select existing Term ${Math.max(1, selectedTermNumber - 1)} record to continue receivable`}
                   />
                 )}
               />

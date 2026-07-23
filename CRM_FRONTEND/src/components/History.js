@@ -40,6 +40,8 @@ import { jsonToCSV, downloadCSV } from "./exelData";
 import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 import { useColorMode } from "../context/AppThemeProvider"; // Import for theming
 
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
+
 const History = () => {
   const { mode } = useColorMode(); // Extract theme mode
   const [bookings, setBookings] = useState([]); // Initialize bookings as an empty array
@@ -168,7 +170,7 @@ const History = () => {
   };
 
   const getReceivedAmount = (booking) =>
-    Number(booking?.term_1 || 0) + Number(booking?.term_2 || 0) + Number(booking?.term_3 || 0);
+    TERM_KEYS.reduce((sum, termKey) => sum + Number(booking?.[termKey] || 0), 0);
 
   const renderSharedWithList = (sharedList = [], emptyLabel = "Not Shared") => (
     Array.isArray(sharedList) && sharedList.length > 0 ? (
@@ -611,8 +613,8 @@ const History = () => {
   };
 
   const handleCopy = (booking) => {
-    const termBlocks = ["term_1", "term_2", "term_3"]
-      .filter((termKey) => Number(booking?.[termKey] || 0) > 0)
+    const populatedTermKeys = TERM_KEYS.filter((termKey) => Number(booking?.[termKey] || 0) > 0);
+    const termBlocks = populatedTermKeys
       .map((termKey, index) => {
         const info = getTermShareInfo(booking, termKey);
         const sharedLabel = Array.isArray(info.sharedWith) && info.sharedWith.length > 0
@@ -638,8 +640,8 @@ Email: ${lowerEmail(booking.email)}
 Contact Number: ${booking.contact_no}
 Service: ${Array.isArray(booking.services) ? booking.services.join(", ") : booking.services}
 Total Amount: ${Number(booking.total_amount || 0).toLocaleString("en-IN")} INR
-Received Amount: ${Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0)).toLocaleString("en-IN")} INR
-Pending Amount: ${(Number(booking.total_amount || 0) - Number((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0))).toLocaleString("en-IN")} INR
+Received Amount: ${Number(getReceivedAmount(booking)).toLocaleString("en-IN")} INR
+Pending Amount: ${(Number(booking.total_amount || 0) - Number(getReceivedAmount(booking))).toLocaleString("en-IN")} INR
 Booking Payment Mode: ${booking.bank || "N/A"}
 
 ${termBlocks}
@@ -1046,9 +1048,10 @@ Status: ${booking.status}
             })
             .map((booking, bookingIndex) => {
               const receivedAmount = getReceivedAmount(booking);
+              const visibleContinuationTerms = TERM_KEYS.slice(1).filter((termKey) => Number(booking?.[termKey] || 0) > 0);
+              const term1ShareInfo = getTermShareInfo(booking, "term_1");
               const term2Visible = Number(booking.term_2 || 0) > 0;
               const term3Visible = Number(booking.term_3 || 0) > 0;
-              const term1ShareInfo = getTermShareInfo(booking, "term_1");
               const term2ShareInfo = getTermShareInfo(booking, "term_2");
               const term3ShareInfo = getTermShareInfo(booking, "term_3");
               const primaryTone = getBookingTone(bookingIndex, "primary");
@@ -1061,7 +1064,7 @@ Status: ${booking.status}
                 ...primaryTone,
                 position: 'relative'
               }}>
-                {(Number(booking.term_2 || 0) > 0 || Number(booking.term_3 || 0) > 0) && (
+                {visibleContinuationTerms.length > 0 && (
                   <div style={{
                     position: 'absolute',
                     top: '10px',
@@ -1427,22 +1430,18 @@ Status: ${booking.status}
                       <VisibilityOutlinedIcon fontSize="small" />
                       View Details
                     </button>
-                    {term2Visible && (
-                      <button
-                        className="term-toggle-button"
-                        onClick={() => toggleTermCard(booking._id, "term_2")}
-                      >
-                        {isTermExpanded(booking._id, "term_2") ? "Hide Term 2" : "View Term 2"}
-                      </button>
-                    )}
-                    {term3Visible && (
-                      <button
-                        className="term-toggle-button"
-                        onClick={() => toggleTermCard(booking._id, "term_3")}
-                      >
-                        {isTermExpanded(booking._id, "term_3") ? "Hide Term 3" : "View Term 3"}
-                      </button>
-                    )}
+                    {visibleContinuationTerms.map((termKey) => {
+                      const termNumber = TERM_KEYS.indexOf(termKey) + 1;
+                      return (
+                        <button
+                          key={termKey}
+                          className="term-toggle-button"
+                          onClick={() => toggleTermCard(booking._id, termKey)}
+                        >
+                          {isTermExpanded(booking._id, termKey) ? `Hide Term ${termNumber}` : `View Term ${termNumber}`}
+                        </button>
+                      );
+                    })}
                   </div>
                   <div className="booking-footer-right">
                   <button
@@ -1587,7 +1586,7 @@ Status: ${booking.status}
                 Terms
               </Typography>
               <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 1.1 }}>
-                {["term_1", "term_2", "term_3"].filter((termKey) => Number(selectedBookingDetails?.[termKey] || 0) > 0).map((termKey) => {
+                {TERM_KEYS.filter((termKey) => Number(selectedBookingDetails?.[termKey] || 0) > 0).map((termKey) => {
                   const info = getTermShareInfo(selectedBookingDetails, termKey);
                   return (
                     <Paper key={termKey} variant="outlined" sx={{ p: 1.25, borderRadius: "8px" }}>
@@ -1979,3 +1978,4 @@ Status: ${booking.status}
 };
 
 export default History;
+

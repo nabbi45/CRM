@@ -1,3 +1,5 @@
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
+
 export const toUpperText = (value) =>
   typeof value === "string" ? value.trim().toUpperCase() : value;
 
@@ -38,7 +40,7 @@ export const normalizeBookingPayload = (booking = {}) => {
   if (normalized.term_shares && typeof normalized.term_shares === "object") {
     normalized.term_shares = { ...normalized.term_shares };
 
-    ["term_1", "term_2", "term_3"].forEach((termKey) => {
+    TERM_KEYS.forEach((termKey) => {
       if (!normalized.term_shares[termKey]) return;
       normalized.term_shares[termKey] = {
         ...normalized.term_shares[termKey],

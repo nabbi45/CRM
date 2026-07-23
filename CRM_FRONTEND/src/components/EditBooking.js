@@ -25,6 +25,11 @@ import servicesList from '../Data/ServicesData';
 import ServiceDropdown from './Servicesdropdown'
 const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 const updatedBy = userSession.name || 'Unknown';
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
+const TERM_OPTIONS = TERM_KEYS.map((termKey, index) => ({
+  key: termKey,
+  label: `Term ${index + 1}`,
+}));
 
 const EditBooking = ({ initialData, onClose }) => {
   const theme = useTheme();
@@ -66,16 +71,20 @@ const EditBooking = ({ initialData, onClose }) => {
       : []),
   ];
 
-  const nextReceivableTerm = Number(initialData?.term_1 || 0) > 0 && Number(initialData?.term_2 || 0) <= 0
-    ? 'Term 2'
-    : Number(initialData?.term_2 || 0) > 0 && Number(initialData?.term_3 || 0) <= 0
-      ? 'Term 3'
-      : '';
+  const nextReceivableTerm = (() => {
+    for (let index = 1; index < TERM_KEYS.length; index += 1) {
+      if (Number(initialData?.[TERM_KEYS[index - 1]] || 0) > 0 && Number(initialData?.[TERM_KEYS[index]] || 0) <= 0) {
+        return `Term ${index + 1}`;
+      }
+    }
+    return "";
+  })();
 
   // Populate the form with initialData if available
   useEffect(() => {
     if (initialData) {
       console.log(initialData)
+      const firstActiveTermKey = TERM_KEYS.find((termKey) => Number(initialData?.[termKey] || 0) > 0) || 'term_1';
       setFormData({
         branch: initialData.branch_name || '',
         companyName: initialData.company_name ? initialData.company_name.toUpperCase() : '',
@@ -85,8 +94,8 @@ const EditBooking = ({ initialData, onClose }) => {
         date: initialData.date ? new Date(initialData.date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '', // format to 'dd-mm-yyyy',
         services: Array.isArray(initialData.services) ? initialData.services : [],
         totalAmount: initialData.total_amount || '',
-        selectTerm: initialData.term_1 ? 'Term 1' : initialData.term_2 ? 'Term 2' : '',
-        amount: initialData.term_1 || initialData.term_2 || '',
+        selectTerm: TERM_OPTIONS.find((option) => option.key === firstActiveTermKey)?.label || 'Term 1',
+        amount: initialData[firstActiveTermKey] || '',
         paymentDate: initialData.payment_date ? new Date(initialData.payment_date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '',
         pan: initialData.pan ? initialData.pan.toUpperCase() : '',
         gst: initialData.gst ? initialData.gst.toUpperCase() : '',
@@ -214,8 +223,18 @@ const EditBooking = ({ initialData, onClose }) => {
                 percentage: Number(person.percentage),
               };
             });
-        const termKey = formData.selectTerm === "Term 2" ? "term_2" : formData.selectTerm === "Term 3" ? "term_3" : "term_1";
+        const selectedTermNumber = Math.min(
+          Math.max(Number(String(formData.selectTerm || "Term 1").replace(/\D/g, "")) || 1, 1),
+          TERM_KEYS.length
+        );
+        const termKey = TERM_KEYS[selectedTermNumber - 1] || "term_1";
         const shareEntries = buildShareEntries();
+        const termAmounts = TERM_KEYS.reduce((acc, currentTermKey, index) => {
+          acc[currentTermKey] = currentTermKey === termKey
+            ? Number(formData.amount || 0)
+            : Number(initialData?.[currentTermKey] || 0) || null;
+          return acc;
+        }, {});
         const dataToSubmit = {
           branch_name: formData.branch,
           company_name: formData.companyName?.toUpperCase() || "",
@@ -225,9 +244,7 @@ const EditBooking = ({ initialData, onClose }) => {
           services: formData.services,
           closed_by: formData.closed,
           total_amount: Number(formData.totalAmount),
-          term_1: formData.selectTerm === "Term 1" ? Number(formData.amount) : initialData.term_1 || null,
-          term_2: formData.selectTerm === "Term 2" ? Number(formData.amount) : initialData.term_2 || null,
-          term_3: formData.selectTerm === "Term 3" ? Number(formData.amount) : null, // Ensure Term 3 is handled correctly
+          ...termAmounts,
           pan: formData.pan?.toUpperCase() || "",
           gst: formData.gst?.toUpperCase() || "",
           payment_date:formData.paymentDate,
@@ -409,9 +426,9 @@ const EditBooking = ({ initialData, onClose }) => {
                   onChange={handleChange}
                 >
                   <MenuItem value="">Select Term</MenuItem>
-                  <MenuItem value="Term 1">Term 1</MenuItem>
-                  <MenuItem value="Term 2">Term 2</MenuItem>
-                  <MenuItem value="Term 3">Term 3</MenuItem>
+                  {TERM_OPTIONS.map((term) => (
+                    <MenuItem key={term.key} value={term.label}>{term.label}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>

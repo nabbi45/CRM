@@ -33,6 +33,7 @@ import {
 } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -122,7 +123,7 @@ const Scorecard = () => {
         const key = monthKeyFromDate(value);
         if (key) keys.add(key);
       });
-      ["term_1", "term_2", "term_3"].forEach((termKey) => {
+      TERM_KEYS.forEach((termKey) => {
         const key = monthKeyFromDate(booking?.term_shares?.[termKey]?.payment_date);
         if (key) keys.add(key);
       });
@@ -216,6 +217,7 @@ const Scorecard = () => {
         const revenue = sortedRows.filter((row) => row.type === "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const deductions = sortedRows.filter((row) => row.type !== "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const refundable = sortedRows.filter((row) => row.type === "Refundable Clause Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+        const manualRefunds = sortedRows.filter((row) => row.type === "Manual Refund Adjustment").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const bookingCount = new Set(sortedRows.map((row) => row.bookingId).filter(Boolean)).size;
 
         return {
@@ -224,7 +226,8 @@ const Scorecard = () => {
           revenue,
           deductions,
           refundable,
-          net: revenue - deductions,
+          net: revenue - manualRefunds,
+          manualRefunds,
           bookingCount,
         };
       })

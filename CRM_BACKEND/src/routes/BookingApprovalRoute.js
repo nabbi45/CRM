@@ -9,7 +9,7 @@ import { UserModel } from "../models/UserModel.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { normalizeBookingPayload } from "../utils/textNormalize.js";
 import { getCloudinaryPublicExtension, prepareUploadFiles, toDataUri } from "../utils/uploadCompression.js";
-import { collectAffectedUserIds, isAdminRole, prepareBookingFinancials } from "../utils/revenueRules.js";
+import { collectAffectedUserIds, isAdminRole, prepareBookingFinancials, TERM_KEYS } from "../utils/revenueRules.js";
 
 const BookingApprovalRoutes = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
@@ -49,12 +49,14 @@ const requiredBookingFields = [
 
 const parsePayload = (body = {}) => {
   const rawPayload = body.payload ? JSON.parse(body.payload) : body;
+  const numericTerms = TERM_KEYS.reduce((acc, termKey) => {
+    acc[termKey] = Number(rawPayload[termKey] || 0);
+    return acc;
+  }, {});
   return normalizeBookingPayload({
     ...rawPayload,
     total_amount: Number(rawPayload.total_amount || 0),
-    term_1: Number(rawPayload.term_1 || 0),
-    term_2: Number(rawPayload.term_2 || 0),
-    term_3: Number(rawPayload.term_3 || 0),
+    ...numericTerms,
   });
 };
 
@@ -206,17 +208,20 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
       }
 
       const termKey = payload.continuation_term_key;
-      if (!["term_2", "term_3"].includes(termKey)) {
+      if (!TERM_KEYS.slice(1).includes(termKey)) {
         return res.status(400).send({ message: "Invalid continuation term." });
       }
-      if (termKey === "term_2" && Number(existingBooking.term_2 || 0) > 0) {
-        return res.status(400).send({ message: "Term 2 already exists for this booking." });
+      if (Number(existingBooking[termKey] || 0) > 0) {
+        return res.status(400).send({ message: `${termKey.replace("_", " ").toUpperCase()} already exists for this booking.` });
       }
-      if (termKey === "term_3" && Number(existingBooking.term_3 || 0) > 0) {
-        return res.status(400).send({ message: "Term 3 already exists for this booking." });
-      }
-      if (termKey === "term_3" && Number(existingBooking.term_2 || 0) <= 0) {
-        return res.status(400).send({ message: "Term 2 must be completed before approving Term 3." });
+      const termIndex = TERM_KEYS.indexOf(termKey);
+      if (termIndex > 0) {
+        const previousTermKey = TERM_KEYS[termIndex - 1];
+        if (Number(existingBooking[previousTermKey] || 0) <= 0) {
+          return res.status(400).send({
+            message: `${previousTermKey.replace("_", " ").toUpperCase()} must be completed before approving ${termKey.replace("_", " ").toUpperCase()}.`,
+          });
+        }
       }
 
       const mergedBooking = {
@@ -301,9 +306,11 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
       approval_id: approval._id.toString(),
       ...(await prepareBookingFinancials(payload)),
     };
-    if (bookingPayload.term_shares?.term_1 && !bookingPayload.term_shares.term_1.payment_mode) {
-      bookingPayload.term_shares.term_1.payment_mode = payload.bank || "";
-    }
+    TERM_KEYS.forEach((termKey) => {
+      if (Number(bookingPayload[termKey] || 0) > 0 && bookingPayload.term_shares?.[termKey] && !bookingPayload.term_shares[termKey].payment_mode) {
+        bookingPayload.term_shares[termKey].payment_mode = payload.term_shares?.[termKey]?.payment_mode || payload.bank || "";
+      }
+    });
     delete bookingPayload.funddisbursement;
     delete bookingPayload.projectionLeadId;
 

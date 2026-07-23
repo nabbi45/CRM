@@ -47,6 +47,8 @@ import {
   getBookingRevenueRowsForUser,
 } from "../utils/bookingRevenue";
 
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
+
 const ACCENT = "#ff3b1f";
 const ACCENT_DARK = "#e03118";
 const ACCENT_LIGHT = "rgba(255,59,31,0.14)";
@@ -616,7 +618,7 @@ const DashboardContent = () => {
           }
         }
 
-        ["term_1", "term_2", "term_3"].forEach((termKey) => {
+        TERM_KEYS.forEach((termKey) => {
           const termAmount = getBookingRevenueForUser(
             booking,
             session.user_id,
@@ -1283,7 +1285,7 @@ const DashboardContent = () => {
                         </Box>
                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: { xs: "stretch", sm: "flex-end" }, gap: 0.6, width: { xs: "100%", sm: "auto" } }}>
                           <Typography sx={{ fontWeight: 800, color: ACCENT_DARK, textAlign: { xs: "left", sm: "right" } }}>
-                            {formatCurrency((booking.term_1 || 0) + (booking.term_2 || 0) + (booking.term_3 || 0))}
+                            {formatCurrency(TERM_KEYS.reduce((sum, termKey) => sum + Number(booking?.[termKey] || 0), 0))}
                           </Typography>
                           <Button size="small" fullWidth={isMobile} onClick={() => handleOpenBooking(booking._id)}>
                             Open

@@ -24,11 +24,14 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
 import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
+const refundControlRoles = ["director", "dev", "srdev", "sr dev"];
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -90,6 +93,7 @@ const BookingApprovals = () => {
   const [loading, setLoading] = useState(false);
   const [proofPreview, setProofPreview] = useState({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "", isImage: false });
   const [approvalSearch, setApprovalSearch] = useState("");
+  const [editingRefundId, setEditingRefundId] = useState("");
 
   const authHeaders = useMemo(() => ({
     authorization: userSession.token || "",
@@ -200,17 +204,52 @@ const BookingApprovals = () => {
 
     try {
       setLoading(true);
-      const res = await fetch(`${apiUrl}/booking/${selectedBooking._id}/refunds`, {
-        method: "POST",
+      const isEditing = Boolean(editingRefundId);
+      const res = await fetch(`${apiUrl}/booking/${selectedBooking._id}/refunds${isEditing ? `/${editingRefundId}` : ""}`, {
+        method: isEditing ? "PATCH" : "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify(refund),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Refund failed");
-      enqueueSnackbar("Refund adjustment added.", { variant: "success" });
+      enqueueSnackbar(isEditing ? "Refund adjustment updated." : "Refund adjustment added.", { variant: "success" });
       setRefund({ amount: "", refund_date: new Date().toISOString().split("T")[0], note: "" });
+      setEditingRefundId("");
       setSelectedBooking(null);
       await fetchBookings();
+    } catch (err) {
+      enqueueSnackbar(err.message, { variant: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const beginEditRefund = (booking, refundEntry) => {
+    setSelectedBooking(booking);
+    setEditingRefundId(refundEntry?._id || "");
+    setRefund({
+      amount: refundEntry?.amount || "",
+      refund_date: refundEntry?.refund_date ? new Date(refundEntry.refund_date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      note: refundEntry?.note || "",
+    });
+  };
+
+  const handleDeleteRefund = async (bookingId, refundId) => {
+    if (!window.confirm("Delete this refund adjustment?")) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`${apiUrl}/booking/${bookingId}/refunds/${refundId}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Delete failed");
+      enqueueSnackbar("Refund adjustment deleted.", { variant: "success" });
+      await fetchBookings();
+      if (selectedBooking?._id === bookingId) {
+        const refreshed = (bookings || []).find((item) => item._id === bookingId);
+        if (refreshed) setSelectedBooking(refreshed);
+      }
     } catch (err) {
       enqueueSnackbar(err.message, { variant: "error" });
     } finally {
@@ -561,7 +600,7 @@ const BookingApprovals = () => {
             </Grid>
             <Grid item xs={12}>
               <Button disabled={loading} variant="contained" onClick={submitRefund} sx={{ borderRadius: "8px" }}>
-                Add Refund Adjustment
+                {editingRefundId ? "Update Refund Adjustment" : "Add Refund Adjustment"}
               </Button>
             </Grid>
             {selectedBooking?.refund_adjustments?.length > 0 && (
@@ -575,6 +614,9 @@ const BookingApprovals = () => {
                         <th style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid rgba(0,0,0,0.12)" }}>Amount</th>
                         <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid rgba(0,0,0,0.12)" }}>Note</th>
                         <th style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid rgba(0,0,0,0.12)" }}>By</th>
+                        {refundControlRoles.includes((userSession.user_role || "").toLowerCase()) && (
+                          <th style={{ padding: "8px", textAlign: "right", borderBottom: "1px solid rgba(0,0,0,0.12)" }}>Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -592,6 +634,16 @@ const BookingApprovals = () => {
                           <td style={{ padding: "8px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                             {r.created_by_name || "Unknown"}
                           </td>
+                          {refundControlRoles.includes((userSession.user_role || "").toLowerCase()) && (
+                            <td style={{ padding: "8px", borderBottom: "1px solid rgba(0,0,0,0.06)", textAlign: "right" }}>
+                              <Button size="small" startIcon={<EditOutlinedIcon fontSize="small" />} onClick={() => beginEditRefund(selectedBooking, r)}>
+                                Edit
+                              </Button>
+                              <Button size="small" color="error" startIcon={<DeleteOutlineIcon fontSize="small" />} onClick={() => handleDeleteRefund(selectedBooking._id, r._id)}>
+                                Delete
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>

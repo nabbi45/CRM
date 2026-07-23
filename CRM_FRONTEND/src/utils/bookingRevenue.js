@@ -1,4 +1,4 @@
-const termKeys = ["term_1", "term_2", "term_3"];
+const termKeys = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 const GST_MULTIPLIER = 1.18;
 
 const roundMoney = (amount) => Math.round((Number(amount || 0) + Number.EPSILON) * 100) / 100;
@@ -17,6 +17,18 @@ const amountExcludingGst = (booking, amount) => {
   return isGstIncluded(booking) ? roundMoney(numericAmount / GST_MULTIPLIER) : numericAmount;
 };
 
+const getRefundAmountExcludingGst = (booking = {}, refund = {}) => {
+  const rawAmount = Number(refund.amount || 0);
+  const storedExcludingGst = Number(refund.amount_excluding_gst || 0);
+  const storedGst = Number(refund.gst_amount || 0);
+
+  if (!rawAmount) return 0;
+  if (!isGstIncluded(booking)) return rawAmount;
+  if (storedExcludingGst > 0 && storedGst > 0) return storedExcludingGst;
+
+  return amountExcludingGst(booking, rawAmount);
+};
+
 const normalizeSharedWith = (sharedWith = [], creatorUserId = "") =>
   (Array.isArray(sharedWith) ? sharedWith : []).filter((shared) => {
     const userId = String(shared?.user_id || "");
@@ -31,6 +43,14 @@ const getTermShare = (booking, termKey) => {
   if (termShare?.creator?.user_id) {
     return {
       ...termShare,
+      payment_date:
+        termKey === "term_1"
+          ? booking?.payment_date || termShare?.payment_date || booking?.date || booking?.createdAt
+          : termShare?.payment_date || booking?.date || booking?.createdAt,
+      payment_mode:
+        termKey === "term_1"
+          ? termShare?.payment_mode || booking?.bank || ""
+          : termShare?.payment_mode || booking?.bank || "",
       shared_with: normalizeSharedWith(termShare?.shared_with, termShare?.creator?.user_id),
     };
   }
@@ -270,9 +290,7 @@ export const getBookingDeductionRowsForUser = (
           service: item.service,
           totalDeduction: item.amount,
           deduction: roundMoney(item.amount * share),
-          employeeName: isAdmin
-            ? "COMPANY"
-            : serviceTermShare.creator?.user_name || usersMap[serviceTermShare.creator?.user_id] || booking?.bdm || "UNKNOWN",
+          employeeName: serviceTermShare.creator?.user_name || usersMap[serviceTermShare.creator?.user_id] || booking?.bdm || "UNKNOWN",
           date: serviceTermShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
         });
       });
@@ -304,7 +322,7 @@ export const getBookingDeductionRowsForUser = (
   (booking?.refund_adjustments || []).forEach((refund) => {
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return;
-    const totalRefund = Number(refund.amount_excluding_gst || refund.amount || 0);
+    const totalRefund = getRefundAmountExcludingGst(booking, refund);
     const userRefundShare = getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, () => true);
     if (!userRefundShare) return;
     const refundableMeta = getRefundableMeta(booking);
@@ -322,7 +340,7 @@ export const getBookingDeductionRowsForUser = (
             : "Manual Refund - Standard Booking",
       totalDeduction: totalRefund,
       deduction: userRefundShare,
-      employeeName: isAdmin ? "COMPANY" : (booking?.bdm || "UNKNOWN"),
+      employeeName: booking?.bdm || "UNKNOWN",
       date: refund.refund_date || refund.created_at,
     });
   });
@@ -388,7 +406,7 @@ export const getBookingDeductionRowsForStats = (
   (booking?.refund_adjustments || []).forEach((refund) => {
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return;
-    const refundAmount = Number(refund.amount_excluding_gst || refund.amount || 0);
+    const refundAmount = getRefundAmountExcludingGst(booking, refund);
     const { entries, totalBase } = getRefundDistributionEntries(booking, () => true);
     if (!entries.length || !totalBase || !refundAmount) return;
 
@@ -444,7 +462,7 @@ export const getBookingRevenueForUser = (
   const refundReversal = (booking?.refund_adjustments || []).reduce((sum, refund) => {
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return sum;
-    const totalRefund = Number(refund.amount_excluding_gst || refund.amount || 0);
+    const totalRefund = getRefundAmountExcludingGst(booking, refund);
     return sum + getRefundShareAmountForUser(booking, totalRefund, userId, isAdmin, () => true);
   }, 0);
 
@@ -519,7 +537,7 @@ export const addBookingRevenueToLeaderboard = (
   (booking?.refund_adjustments || []).forEach((refund) => {
     const pseudoTerm = { payment_date: refund.refund_date || refund.created_at };
     if (!includeTerm(pseudoTerm, "refund")) return;
-    const refundAmount = Number(refund.amount_excluding_gst || refund.amount || 0);
+    const refundAmount = getRefundAmountExcludingGst(booking, refund);
     const { entries, totalBase } = getRefundDistributionEntries(booking, () => true);
     if (!entries.length || !totalBase) return;
     const userTotals = {};
