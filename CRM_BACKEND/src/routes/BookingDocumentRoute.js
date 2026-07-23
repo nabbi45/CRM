@@ -77,6 +77,7 @@ BookingDocumentRoutes.post("/upload", authenticateUser, upload.single("file"), a
 
         const userId = req.user?.userId || req.user?.user_id || "";
         const userRole = String(req.user?.user_role || "").trim().toLowerCase();
+        const userName = req.user?.name || req.headers["user-name"] || "Unknown";
         if (!canAccessBooking(booking, userId, adminRoles.includes(userRole))) {
             return res.status(403).send({ message: "You do not have access to this booking." });
         }
@@ -99,8 +100,8 @@ BookingDocumentRoutes.post("/upload", authenticateUser, upload.single("file"), a
             fileUrl: result.secure_url,
             fileSize: uploadFile.size,
             mimeType: uploadFile.mimetype,
-            uploadedBy: req.user.userId,
-            uploadedByName: req.user.name || "Unknown",
+            uploadedBy: userId,
+            uploadedByName: userName,
             notes: notes || ""
         });
 
@@ -425,9 +426,9 @@ BookingDocumentRoutes.patch("/:id/notes", authenticateUser, async (req, res) => 
  */
 BookingDocumentRoutes.delete("/:id", authenticateUser, async (req, res) => {
     try {
-        const userRole = req.user?.user_role;
+        const userRole = String(req.user?.user_role || "").trim().toLowerCase();
         const userPermissions = req.user?.feature_permissions || [];
-        const allowedRoles = ["admin", "srdev", "dev", "super admin", "senior admin"];
+        const allowedRoles = ["admin", "srdev", "dev", "super admin", "senior admin", "director", "sr dev"];
         
         // Check if user has permission to delete
         const canDelete = allowedRoles.includes(userRole) || 

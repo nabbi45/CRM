@@ -705,12 +705,29 @@ Status: ${booking.status}
       });
       if (res.ok) {
         const docs = await res.json();
-        const bdmUploadedIdentityDocs = docs.filter((doc) => {
-          const type = (doc.documentType || "").toLowerCase();
-          return ["aadhaar", "adhar", "pan"].includes(type) &&
-            String(doc.uploadedBy || "") === String(booking.user_id || "");
-        });
-        setBookingDocuments(bdmUploadedIdentityDocs);
+        const paymentProofDocs = (
+          Array.isArray(booking?.payment_proofs) && booking.payment_proofs.length > 0
+            ? booking.payment_proofs
+            : booking?.payment_proof_url
+              ? [{
+                  url: booking.payment_proof_url,
+                  file_name: booking.payment_proof_file_name || "payment-proof",
+                  mime_type: booking.payment_proof_mime_type || "",
+                }]
+              : []
+        ).map((proof, index) => ({
+          _id: `payment-proof-${booking._id}-${index}`,
+          documentType: "payment_proof",
+          fileName: proof.file_name || `payment-proof-${index + 1}`,
+          fileUrl: proof.url,
+          mimeType: proof.mime_type || "",
+          fileSize: null,
+          uploadedBy: booking.user_id,
+          uploadedByName: booking.bdm || "Payment Proof",
+          createdAt: booking.payment_date || booking.date,
+          isSyntheticProof: true,
+        }));
+        setBookingDocuments([...paymentProofDocs, ...docs]);
       } else {
         setBookingDocuments([]);
       }
@@ -1874,7 +1891,7 @@ Status: ${booking.status}
             </Box>
           ) : bookingDocuments.length === 0 ? (
             <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-              No BDM-uploaded Aadhaar/PAN documents found for this booking
+              No documents found for this booking.
             </Typography>
           ) : (
             <TableContainer>
@@ -1898,12 +1915,14 @@ Status: ${booking.status}
                           size="small"
                           sx={{
                             bgcolor: 
+                              doc.documentType === 'payment_proof' ? '#0ea5e920' :
                               doc.documentType === 'agreement' ? '#8b5cf620' :
                               doc.documentType === 'pitch_deck' ? '#06b6d420' :
                               doc.documentType === 'dpr' ? '#f59e0b20' :
                               doc.documentType === 'application' ? '#10b98120' :
                               '#64748b20',
                             color:
+                              doc.documentType === 'payment_proof' ? '#0284c7' :
                               doc.documentType === 'agreement' ? '#8b5cf6' :
                               doc.documentType === 'pitch_deck' ? '#06b6d4' :
                               doc.documentType === 'dpr' ? '#f59e0b' :
@@ -1932,7 +1951,7 @@ Status: ${booking.status}
                         </Tooltip>
                         {(isHigherAuthority(userSession) || 
                           canAccessFeature(userSession, 'manage_documents') ||
-                          canAccessFeature(userSession, 'edit_documents')) && (
+                          canAccessFeature(userSession, 'edit_documents')) && !doc.isSyntheticProof && (
                           <Tooltip title="Delete">
                             <IconButton 
                               size="small"

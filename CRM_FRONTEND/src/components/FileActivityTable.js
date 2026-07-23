@@ -20,6 +20,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
 import DescriptionIcon from '@mui/icons-material/Description';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { enqueueSnackbar } from 'notistack';
 import { apiUrl } from './LoginSignup';
 
@@ -322,6 +323,32 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
     } catch (error) {
       console.error('Download failed', error);
       enqueueSnackbar(`Failed to download ${doc.fileName || 'document'}`, { variant: 'error' });
+    }
+  };
+
+  const handleDeleteDocument = async (doc) => {
+    if (!doc?._id) {
+      enqueueSnackbar('Document record not found', { variant: 'error' });
+      return;
+    }
+    if (!isAdmin) {
+      enqueueSnackbar('You do not have permission to delete documents', { variant: 'warning' });
+      return;
+    }
+    if (!window.confirm(`Delete ${doc.fileName || 'this document'}?`)) return;
+
+    try {
+      const response = await fetch(`${apiUrl}/booking-documents/${doc._id}`, {
+        method: 'DELETE',
+        headers: { authorization: userSession.token },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Failed to delete document');
+      enqueueSnackbar('Document deleted successfully', { variant: 'success' });
+      setViewDocs((prev) => prev.filter((item) => String(item._id) !== String(doc._id)));
+      fetchDocuments();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to delete document', { variant: 'error' });
     }
   };
 
@@ -681,27 +708,44 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {viewDocs.map(doc => (
-            <Box key={doc._id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderBottom: '1px solid #eee' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DescriptionIcon color="primary" />
-                <Box>
-                  <Typography variant="body2">{doc.fileName}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(doc.createdAt).toLocaleDateString()}
-                  </Typography>
+          {viewDocs.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 2 }}>
+              No documents uploaded for this stage yet.
+            </Typography>
+          ) : (
+            viewDocs.map(doc => (
+              <Box key={doc._id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderBottom: '1px solid #eee', gap: 1.25, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                  <DescriptionIcon color="primary" />
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, wordBreak: 'break-word' }}>{doc.fileName}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(doc.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+                  <Button size="small" variant="outlined" onClick={() => openDocumentPreview(doc)}>
+                    View
+                  </Button>
+                  <Button size="small" variant="contained" onClick={() => handleDocumentDownload(doc)}>
+                    Download
+                  </Button>
+                  {isAdmin && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteOutlineIcon fontSize="small" />}
+                      onClick={() => handleDeleteDocument(doc)}
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button size="small" variant="outlined" onClick={() => openDocumentPreview(doc)}>
-                  View
-                </Button>
-                <Button size="small" variant="contained" onClick={() => handleDocumentDownload(doc)}>
-                  Download
-                </Button>
-              </Box>
-            </Box>
-          ))}
+            ))
+          )}
         </DialogContent>
       </Dialog>
     </Box>

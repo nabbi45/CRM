@@ -104,6 +104,17 @@ const ClientDocuments = () => {
     application: '',
     acknowledgement: '',
   });
+  const [appliedFileActivityFilters, setAppliedFileActivityFilters] = useState({
+    company: '',
+    agreementSent: '',
+    agreementReceived: '',
+    dprPitchDeckDataCollection: '',
+    dpr: '',
+    pitchDeck: '',
+    applicationDetailsCoordination: '',
+    application: '',
+    acknowledgement: '',
+  });
 
   useEffect(() => {
     const session = JSON.parse(localStorage.getItem('userSession'));
@@ -129,7 +140,7 @@ const ClientDocuments = () => {
         limit: '20',
         page: String(page),
       });
-      const searchValue = String(fileActivityFilters.company || appliedSearch || '').trim();
+      const searchValue = String(appliedFileActivityFilters.company || appliedSearch || '').trim();
       if (searchValue) params.set('search', searchValue);
       [
         'agreementSent',
@@ -141,7 +152,7 @@ const ClientDocuments = () => {
         'application',
         'acknowledgement',
       ].forEach((key) => {
-        if (fileActivityFilters[key]) params.set(key, fileActivityFilters[key]);
+        if (appliedFileActivityFilters[key]) params.set(key, appliedFileActivityFilters[key]);
       });
 
       const bookingsRes = await fetch(`${apiUrl}/booking-documents/all?${params.toString()}`, {
@@ -182,7 +193,7 @@ const ClientDocuments = () => {
     } finally {
       setLoading(false);
     }
-  }, [userSession, page, appliedSearch, fileActivityFilters]);
+  }, [userSession, page, appliedSearch, appliedFileActivityFilters]);
 
   useEffect(() => {
     fetchData();
@@ -190,6 +201,33 @@ const ClientDocuments = () => {
 
   const handleSearch = async () => {
     setAppliedSearch(searchQuery.trim());
+    setPage(1);
+    setExpandedBookingId(null);
+  };
+
+  const handleFileActivitySearch = () => {
+    setAppliedFileActivityFilters({
+      ...fileActivityFilters,
+      company: String(fileActivityFilters.company || '').trim(),
+    });
+    setPage(1);
+    setExpandedBookingId(null);
+  };
+
+  const handleFileActivityReset = () => {
+    const resetFilters = {
+      company: '',
+      agreementSent: '',
+      agreementReceived: '',
+      dprPitchDeckDataCollection: '',
+      dpr: '',
+      pitchDeck: '',
+      applicationDetailsCoordination: '',
+      application: '',
+      acknowledgement: '',
+    };
+    setFileActivityFilters(resetFilters);
+    setAppliedFileActivityFilters(resetFilters);
     setPage(1);
     setExpandedBookingId(null);
   };
@@ -751,9 +789,17 @@ const ClientDocuments = () => {
           >
             <TextField
               size="small"
-              label="Company Name"
+              label="Search Company / Phone / BDM"
               value={fileActivityFilters.company}
               onChange={(e) => setFileActivityFilters((prev) => ({ ...prev, company: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && handleFileActivitySearch()}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
             {[
               ['agreementSent', 'Agreement Sent', ['Pending', 'In Progress', 'Completed']],
@@ -779,6 +825,24 @@ const ClientDocuments = () => {
                 </Select>
               </FormControl>
             ))}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', gridColumn: { xs: '1 / -1', md: '1 / -1' } }}>
+              <Button
+                variant="contained"
+                startIcon={<SearchIcon />}
+                onClick={handleFileActivitySearch}
+                sx={{ minWidth: { xs: '100%', sm: 160 }, borderRadius: '8px' }}
+              >
+                Search
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={handleFileActivityReset}
+                sx={{ minWidth: { xs: '100%', sm: 140 }, borderRadius: '8px' }}
+              >
+                Reset
+              </Button>
+            </Box>
           </Paper>
 
           <Box sx={{ display: 'grid', gap: 1.5 }}>

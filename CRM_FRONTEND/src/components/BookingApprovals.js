@@ -23,6 +23,7 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
 import { getBookingRefundableLabel } from "../utils/bookingRevenue";
@@ -88,6 +89,7 @@ const BookingApprovals = () => {
   const [commentById, setCommentById] = useState({});
   const [loading, setLoading] = useState(false);
   const [proofPreview, setProofPreview] = useState({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "", isImage: false });
+  const [approvalSearch, setApprovalSearch] = useState("");
 
   const authHeaders = useMemo(() => ({
     authorization: userSession.token || "",
@@ -282,6 +284,33 @@ const BookingApprovals = () => {
     setProofPreview({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "", isImage: false });
   };
 
+  const getApprovalTermLabel = (approval) => {
+    if (approval?.payload?.continuation_term_label) return approval.payload.continuation_term_label;
+    if (Number(approval?.payload?.term_3 || 0) > 0) return "Term 3";
+    if (Number(approval?.payload?.term_2 || 0) > 0) return "Term 2";
+    return "Term 1";
+  };
+
+  const filteredApprovals = useMemo(() => {
+    const needle = String(approvalSearch || "").trim().toLowerCase();
+    if (!needle) return approvals;
+    return approvals.filter((approval) => {
+      const haystack = [
+        approval?.payload?.company_name,
+        approval?.payload?.contact_person,
+        approval?.payload?.bdm,
+        Array.isArray(approval?.payload?.services) ? approval.payload.services.join(" ") : approval?.payload?.services,
+        approval?.status,
+        getApprovalTermLabel(approval),
+        approval?.submitted_by_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [approvals, approvalSearch]);
+
   return (
     <Box sx={{ p: { xs: 0.5, sm: 1.5, md: 2 }, width: "100%", maxWidth: 1560, mx: "auto", overflowX: "hidden" }}>
       <Box sx={{ display: isMobile ? "none" : "flex", alignItems: "center", gap: 1, mb: 2 }}>
@@ -292,8 +321,20 @@ const BookingApprovals = () => {
       </Box>
 
       <Stack spacing={2}>
-        {approvals.length === 0 && <Alert severity="info">No booking approval requests found.</Alert>}
-        {approvals.map((approval) => {
+        <Paper variant="outlined" sx={{ ...surfaceSx, p: { xs: 1, sm: 1.25 } }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search company, BDM, service, status, or term..."
+            value={approvalSearch}
+            onChange={(e) => setApprovalSearch(e.target.value)}
+            InputProps={{
+              startAdornment: <SearchOutlinedIcon fontSize="small" style={{ marginRight: 8, opacity: 0.7 }} />,
+            }}
+          />
+        </Paper>
+        {filteredApprovals.length === 0 && <Alert severity="info">No booking approval requests found.</Alert>}
+        {filteredApprovals.map((approval) => {
           const proofs = getApprovalProofs(approval);
           const receivedAmount = approval.payload?.term_1 || approval.payload?.term_2 || approval.payload?.term_3 || 0;
 
@@ -316,6 +357,7 @@ const BookingApprovals = () => {
                       {approval.payload?.company_name || approval.payload?.contact_person || "BOOKING"}
                     </Typography>
                     <Chip size="small" label={approval.status.replace("_", " ").toUpperCase()} sx={{ borderRadius: "999px", fontWeight: 800 }} />
+                    <Chip size="small" label={getApprovalTermLabel(approval).toUpperCase()} sx={{ borderRadius: "999px", fontWeight: 800, bgcolor: "rgba(59,130,246,0.12)", color: "#2563eb" }} />
                     {getBookingRefundableLabel(approval.payload) && (
                       <Chip
                         size="small"

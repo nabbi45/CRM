@@ -447,7 +447,7 @@ const AddBooking = ({ onClose }) => {
       const receivedAmount = Number(formData.amount);
       const total_amount = Number(formData.totalAmount);
       const buildShareEntries = () =>
-        sharedPersons.filter((p) => p.userId && p.percentage).map((person) => {
+        sharedPersons.filter((p) => p.userId && p.percentage && String(p.userId) !== String(userSession.user_id)).map((person) => {
           const userObj = users.find(u => String(u._id) === String(person.userId));
           return {
             user_id: person.userId,
@@ -465,6 +465,8 @@ const AddBooking = ({ onClose }) => {
             : [];
           const accessUsers = new Map(existingSharedWith.map((sw) => [String(sw.user_id), sw]));
 
+          accessUsers.delete(String(userSession.user_id));
+
           if (String(selectedSourceBooking.user_id) !== String(userSession.user_id)) {
             accessUsers.set(String(userSession.user_id), {
               user_id: userSession.user_id,
@@ -474,7 +476,7 @@ const AddBooking = ({ onClose }) => {
           }
 
           termSharedWith.forEach((sw) => {
-            if (String(sw.user_id) !== String(selectedSourceBooking.user_id)) {
+            if (String(sw.user_id) !== String(selectedSourceBooking.user_id) && String(sw.user_id) !== String(userSession.user_id)) {
               accessUsers.set(String(sw.user_id), sw);
             }
           });
