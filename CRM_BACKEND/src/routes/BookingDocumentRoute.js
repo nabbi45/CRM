@@ -183,14 +183,17 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
         
         if (search) {
             const searchRegex = new RegExp(search, "i");
+            const numericSearch = String(search).replace(/\D/g, "");
             const textConditions = [
                 { company_name: searchRegex },
                 { contact_person: searchRegex },
-                { contact_no: searchRegex },
                 { email: searchRegex },
                 { bdm: searchRegex },
                 { services: searchRegex }
             ];
+            if (numericSearch) {
+                textConditions.push({ contact_no: Number(numericSearch) });
+            }
             if (bookingQuery.$or) {
                 bookingQuery = {
                     ...bookingQuery,

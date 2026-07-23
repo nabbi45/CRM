@@ -787,20 +787,54 @@ const ClientDocuments = () => {
               border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
             }}
           >
+            <Box
+              sx={{
+                gridColumn: '1 / -1',
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'minmax(0,1fr) auto auto' },
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
             <TextField
               size="small"
               label="Search Company / Phone / BDM"
               value={fileActivityFilters.company}
               onChange={(e) => setFileActivityFilters((prev) => ({ ...prev, company: e.target.value }))}
               onKeyDown={(e) => e.key === 'Enter' && handleFileActivitySearch()}
+              fullWidth
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchIcon color="action" />
                   </InputAdornment>
                 ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton aria-label="search company" onClick={handleFileActivitySearch} edge="end">
+                      <SearchIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
               }}
             />
+              <Button
+                variant="contained"
+                startIcon={<SearchIcon />}
+                onClick={handleFileActivitySearch}
+                sx={{ minWidth: { xs: '100%', sm: 132 }, borderRadius: '8px' }}
+              >
+                Search
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={handleFileActivityReset}
+                sx={{ minWidth: { xs: '100%', sm: 120 }, borderRadius: '8px' }}
+              >
+                Reset
+              </Button>
+            </Box>
             {[
               ['agreementSent', 'Agreement Sent', ['Pending', 'In Progress', 'Completed']],
               ['agreementReceived', 'Agreement Received', ['Pending', 'In Progress', 'Completed']],
@@ -825,24 +859,6 @@ const ClientDocuments = () => {
                 </Select>
               </FormControl>
             ))}
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', gridColumn: { xs: '1 / -1', md: '1 / -1' } }}>
-              <Button
-                variant="contained"
-                startIcon={<SearchIcon />}
-                onClick={handleFileActivitySearch}
-                sx={{ minWidth: { xs: '100%', sm: 160 }, borderRadius: '8px' }}
-              >
-                Search
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={handleFileActivityReset}
-                sx={{ minWidth: { xs: '100%', sm: 140 }, borderRadius: '8px' }}
-              >
-                Reset
-              </Button>
-            </Box>
           </Paper>
 
           <Box sx={{ display: 'grid', gap: 1.5 }}>
