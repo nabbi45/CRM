@@ -1448,7 +1448,11 @@ const AddBooking = ({ onClose }) => {
                 hidden
                 accept="image/*,.pdf"
                 multiple
-                onChange={(e) => setPaymentProofs(Array.from(e.target.files || []))}
+                onChange={(e) => {
+                  const nextFiles = Array.from(e.target.files || []);
+                  setPaymentProofs((prev) => [...prev, ...nextFiles]);
+                  e.target.value = "";
+                }}
               />
             </Button>
             {paymentProofs.length > 0 && (

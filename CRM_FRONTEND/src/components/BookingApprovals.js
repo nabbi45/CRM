@@ -31,7 +31,8 @@ import { apiUrl } from "./LoginSignup";
 import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
-const refundControlRoles = ["director", "dev", "srdev", "sr dev"];
+const refundControlRoles = ["director", "dev", "developer", "srdev", "sr dev", "sr developer"];
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -41,10 +42,9 @@ const formatCurrency = (value) =>
   }).format(Number(value || 0));
 
 const formatBookingShareLabel = (booking = {}) => {
-  const terms = ["term_1", "term_2", "term_3"];
   const participants = new Map();
 
-  terms.forEach((termKey) => {
+  TERM_KEYS.forEach((termKey) => {
     const termShare = booking?.term_shares?.[termKey];
     if (!termShare?.creator?.user_id && Number(booking?.[termKey] || 0) <= 0) return;
 
@@ -94,6 +94,7 @@ const BookingApprovals = () => {
   const [proofPreview, setProofPreview] = useState({ open: false, url: "", objectUrl: "", fileName: "", mimeType: "", isImage: false });
   const [approvalSearch, setApprovalSearch] = useState("");
   const [editingRefundId, setEditingRefundId] = useState("");
+  const canControlRefunds = refundControlRoles.includes((userSession.user_role || "").toLowerCase());
 
   const authHeaders = useMemo(() => ({
     authorization: userSession.token || "",
@@ -215,7 +216,7 @@ const BookingApprovals = () => {
       enqueueSnackbar(isEditing ? "Refund adjustment updated." : "Refund adjustment added.", { variant: "success" });
       setRefund({ amount: "", refund_date: new Date().toISOString().split("T")[0], note: "" });
       setEditingRefundId("");
-      setSelectedBooking(null);
+      if (data.booking) setSelectedBooking(data.booking);
       await fetchBookings();
     } catch (err) {
       enqueueSnackbar(err.message, { variant: "error" });
@@ -325,9 +326,8 @@ const BookingApprovals = () => {
 
   const getApprovalTermLabel = (approval) => {
     if (approval?.payload?.continuation_term_label) return approval.payload.continuation_term_label;
-    if (Number(approval?.payload?.term_3 || 0) > 0) return "Term 3";
-    if (Number(approval?.payload?.term_2 || 0) > 0) return "Term 2";
-    return "Term 1";
+    const termKey = TERM_KEYS.find((key) => Number(approval?.payload?.[key] || 0) > 0);
+    return termKey ? `Term ${TERM_KEYS.indexOf(termKey) + 1}` : "Term 1";
   };
 
   const filteredApprovals = useMemo(() => {
@@ -350,6 +350,103 @@ const BookingApprovals = () => {
     });
   }, [approvals, approvalSearch]);
 
+  const selectedRefundRows = Array.isArray(selectedBooking?.refund_adjustments)
+    ? selectedBooking.refund_adjustments
+    : [];
+
+  const refundPanel = isAdmin ? (
+    <Paper variant="outlined" sx={{ ...surfaceSx, p: { xs: 1.4, sm: 1.8, md: 2 }, mb: 2 }}>
+      <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+        Refund Adjustment
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Enter the actual customer refund including GST. Example: for 10000 + GST, enter 11800; non-cash GST is removed internally.
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={5}>
+          <Autocomplete
+            options={bookings}
+            value={selectedBooking}
+            onChange={(_, value) => {
+              setSelectedBooking(value);
+              setEditingRefundId("");
+              setRefund({ amount: "", refund_date: new Date().toISOString().split("T")[0], note: "" });
+            }}
+            getOptionLabel={(booking) => `${booking.company_name || booking.contact_person || "BOOKING"} - ${formatBookingShareLabel(booking)}`}
+            isOptionEqualToValue={(option, value) => option?._id === value?._id}
+            renderInput={(params) => <TextField {...params} label={isMobile ? "Booking" : "Select Booking"} />}
+          />
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <TextField fullWidth label="Refund Amount" type="number" value={refund.amount} onChange={(e) => setRefund((prev) => ({ ...prev, amount: e.target.value }))} />
+        </Grid>
+        <Grid item xs={12} md={2}>
+          <TextField fullWidth label="Refund Date" type="date" value={refund.refund_date} onChange={(e) => setRefund((prev) => ({ ...prev, refund_date: e.target.value }))} InputLabelProps={{ shrink: true }} />
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <TextField fullWidth label="Note" value={refund.note} onChange={(e) => setRefund((prev) => ({ ...prev, note: e.target.value }))} />
+        </Grid>
+        <Grid item xs={12}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button disabled={loading} variant="contained" onClick={submitRefund} sx={{ borderRadius: "8px" }}>
+              {editingRefundId ? "Update Refund Adjustment" : "Add Refund Adjustment"}
+            </Button>
+            {editingRefundId && (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setEditingRefundId("");
+                  setRefund({ amount: "", refund_date: new Date().toISOString().split("T")[0], note: "" });
+                }}
+                sx={{ borderRadius: "8px" }}
+              >
+                Cancel Edit
+              </Button>
+            )}
+          </Stack>
+        </Grid>
+        {selectedRefundRows.length > 0 && (
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Previous Refund Adjustments</Typography>
+            <Paper variant="outlined" sx={{ p: 0, borderRadius: "8px", overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem", minWidth: 680 }}>
+                <thead style={{ backgroundColor: "rgba(0,0,0,0.04)" }}>
+                  <tr>
+                    <th style={{ padding: 8, textAlign: "left" }}>Date</th>
+                    <th style={{ padding: 8, textAlign: "right" }}>Amount</th>
+                    <th style={{ padding: 8, textAlign: "left" }}>Note</th>
+                    <th style={{ padding: 8, textAlign: "left" }}>By</th>
+                    {canControlRefunds && <th style={{ padding: 8, textAlign: "right" }}>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedRefundRows.map((row, index) => (
+                    <tr key={row._id || index}>
+                      <td style={{ padding: 8, borderTop: "1px solid rgba(0,0,0,0.06)" }}>{row.refund_date ? new Date(row.refund_date).toLocaleDateString("en-GB") : "-"}</td>
+                      <td style={{ padding: 8, textAlign: "right", borderTop: "1px solid rgba(0,0,0,0.06)" }}>{formatCurrency(row.amount || 0)}</td>
+                      <td style={{ padding: 8, borderTop: "1px solid rgba(0,0,0,0.06)" }}>{row.note || "-"}</td>
+                      <td style={{ padding: 8, borderTop: "1px solid rgba(0,0,0,0.06)" }}>{row.created_by_name || "Unknown"}</td>
+                      {canControlRefunds && (
+                        <td style={{ padding: 8, borderTop: "1px solid rgba(0,0,0,0.06)", textAlign: "right" }}>
+                          <Button size="small" startIcon={<EditOutlinedIcon fontSize="small" />} onClick={() => beginEditRefund(selectedBooking, row)}>
+                            Edit
+                          </Button>
+                          <Button size="small" color="error" startIcon={<DeleteOutlineIcon fontSize="small" />} onClick={() => handleDeleteRefund(selectedBooking._id, row._id)}>
+                            Delete
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Paper>
+          </Grid>
+        )}
+      </Grid>
+    </Paper>
+  ) : null;
+
   return (
     <Box sx={{ p: { xs: 0.5, sm: 1.5, md: 2 }, width: "100%", maxWidth: 1560, mx: "auto", overflowX: "hidden" }}>
       <Box sx={{ display: isMobile ? "none" : "flex", alignItems: "center", gap: 1, mb: 2 }}>
@@ -358,6 +455,8 @@ const BookingApprovals = () => {
           Booking Approvals
         </Typography>
       </Box>
+
+      {refundPanel}
 
       <Stack spacing={2}>
         <Paper variant="outlined" sx={{ ...surfaceSx, p: { xs: 1, sm: 1.25 } }}>
@@ -375,7 +474,7 @@ const BookingApprovals = () => {
         {filteredApprovals.length === 0 && <Alert severity="info">No booking approval requests found.</Alert>}
         {filteredApprovals.map((approval) => {
           const proofs = getApprovalProofs(approval);
-          const receivedAmount = approval.payload?.term_1 || approval.payload?.term_2 || approval.payload?.term_3 || 0;
+          const receivedAmount = TERM_KEYS.reduce((sum, key) => sum + Number(approval.payload?.[key] || 0), 0);
 
           return (
             <Paper
@@ -573,7 +672,7 @@ const BookingApprovals = () => {
         })}
       </Stack>
 
-      {isAdmin && (
+      {false && isAdmin && (
         <Paper variant="outlined" sx={{ ...surfaceSx, p: { xs: 1.4, sm: 1.8, md: 2 }, mt: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>
             Refund Adjustment

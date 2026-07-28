@@ -238,7 +238,10 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
         payment_proof_url: approval.payment_proof_url,
         payment_proof_file_name: approval.payment_proof_file_name,
         payment_proof_mime_type: approval.payment_proof_mime_type,
-        payment_proofs: Array.isArray(approval.payment_proofs) ? approval.payment_proofs : [],
+        payment_proofs: [
+          ...(Array.isArray(existingBooking.payment_proofs) ? existingBooking.payment_proofs : []),
+          ...(Array.isArray(approval.payment_proofs) ? approval.payment_proofs : []),
+        ],
       };
       if (!mergedBooking.term_shares?.[termKey]?.payment_mode) {
         mergedBooking.term_shares = {

@@ -683,6 +683,9 @@ const FileActivityTable = ({ booking, userSession, isAdmin }) => {
             <CloudUploadIcon sx={{ mr: 1 }} /> Select Files
             <input type="file" hidden multiple onChange={handleFileSelect} />
           </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            Images are compressed automatically before storage. Maximum file size: 100 MB.
+          </Typography>
           {uploadFiles.length > 0 && (
             <Box sx={{ mt: 2 }}>
               {uploadFiles.map((f, i) => (

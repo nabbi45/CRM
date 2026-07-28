@@ -84,7 +84,10 @@ const EditBooking = ({ initialData, onClose }) => {
   useEffect(() => {
     if (initialData) {
       console.log(initialData)
-      const firstActiveTermKey = TERM_KEYS.find((termKey) => Number(initialData?.[termKey] || 0) > 0) || 'term_1';
+      const firstActiveTermKey =
+        initialData.__editTermKey ||
+        TERM_KEYS.find((termKey) => Number(initialData?.[termKey] || 0) > 0) ||
+        'term_1';
       setFormData({
         branch: initialData.branch_name || '',
         companyName: initialData.company_name ? initialData.company_name.toUpperCase() : '',

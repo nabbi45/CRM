@@ -472,8 +472,8 @@ const History = () => {
 
   // chnages End
 
-  const handleEditClick = (booking) => {
-    setEditBooking(booking);
+  const handleEditClick = (booking, termKey = "") => {
+    setEditBooking(termKey ? { ...booking, __editTermKey: termKey } : booking);
     setIsPopupOpen(true);
   };
 
@@ -1195,22 +1195,14 @@ Status: ${booking.status}
 
                     <tr>
                       <td>
-                        <strong>
-                          Term{" "}
-                          <span>
-                            {booking.term_1
-                              ? "1"
-                              : booking.term_2
-                                ? "2"
-                                : booking.term_3
-                                  ? "3"
-                                  : ""}
-                          </span>{" "}
-                        </strong>
+                        <strong>Terms</strong>
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.term_1 || booking.term_2 || booking.term_3} ₹
+                        {TERM_KEYS
+                          .filter((termKey) => Number(booking?.[termKey] || 0) > 0)
+                          .map((termKey) => `Term ${TERM_KEYS.indexOf(termKey) + 1}: ${Number(booking?.[termKey] || 0).toLocaleString("en-IN")}`)
+                          .join(" | ") || "N/A"}
                       </td>
                     </tr>
                     <tr>
@@ -1219,7 +1211,7 @@ Status: ${booking.status}
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.total_amount}₹
+                        INR {Number(booking.total_amount || 0).toLocaleString("en-IN")}
                       </td>
                     </tr>
                     <tr>
@@ -1228,7 +1220,7 @@ Status: ${booking.status}
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.term_1 + booking.term_2 + booking.term_3}₹
+                        INR {Number(receivedAmount || 0).toLocaleString("en-IN")}
                       </td>
                     </tr>
                     <tr>
@@ -1237,9 +1229,7 @@ Status: ${booking.status}
                       </td>
                       <td>
                         <span className="colon-bold">:</span> &nbsp;&nbsp;
-                        {booking.total_amount -
-                          (booking.term_1 + booking.term_2 + booking.term_3)}
-                        ₹
+                        INR {Number(Number(booking.total_amount || 0) - receivedAmount).toLocaleString("en-IN")}
                       </td>
                     </tr>
                     {booking.refund_adjustments?.length > 0 && (
@@ -1596,6 +1586,19 @@ Status: ${booking.status}
                       <Typography variant="body2"><strong>Payment Mode:</strong> {info.paymentMode}</Typography>
                       <Typography variant="body2"><strong>Created By:</strong> {info.creatorName}</Typography>
                       <Typography variant="body2"><strong>Shared With:</strong> {Array.isArray(info.sharedWith) && info.sharedWith.length > 0 ? info.sharedWith.map((sw) => `${upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")} - ${sw.percentage}%`).join(", ") : "Not Shared"}</Typography>
+                      {["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"].includes((userRole || "").toLowerCase()) && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          sx={{ mt: 1, borderRadius: "8px" }}
+                          onClick={() => {
+                            closeBookingDetails();
+                            handleEditClick(selectedBookingDetails, termKey);
+                          }}
+                        >
+                          Edit {termKey.replace("_", " ").toUpperCase()}
+                        </Button>
+                      )}
                     </Paper>
                   );
                 })}
@@ -1978,4 +1981,5 @@ Status: ${booking.status}
 };
 
 export default History;
+
 

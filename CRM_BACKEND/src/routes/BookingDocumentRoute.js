@@ -12,7 +12,7 @@ const BookingDocumentRoutes = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
-    limits: { fileSize: 50 * 1024 * 1024 } // 50 MB limit for documents
+    limits: { fileSize: 100 * 1024 * 1024 } // 100 MB limit; images are compressed before Cloudinary upload.
 });
 
 // Document types mapping
@@ -24,15 +24,14 @@ const DOCUMENT_TYPES = [
 ];
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 const bookingAccessConditions = (userId) => [
     { user_id: userId },
     { "shared_with.user_id": userId },
-    { "term_shares.term_1.creator.user_id": userId },
-    { "term_shares.term_1.shared_with.user_id": userId },
-    { "term_shares.term_2.creator.user_id": userId },
-    { "term_shares.term_2.shared_with.user_id": userId },
-    { "term_shares.term_3.creator.user_id": userId },
-    { "term_shares.term_3.shared_with.user_id": userId },
+    ...TERM_KEYS.flatMap((termKey) => [
+        { [`term_shares.${termKey}.creator.user_id`]: userId },
+        { [`term_shares.${termKey}.shared_with.user_id`]: userId },
+    ]),
 ];
 
 const canAccessBooking = (booking, userId, isAdmin = false) => {
@@ -42,12 +41,14 @@ const canAccessBooking = (booking, userId, isAdmin = false) => {
     if (String(booking.user_id || "") === normalizedUserId) return true;
     if ((booking.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId)) return true;
 
-    return ["term_1", "term_2", "term_3"].some((termKey) => {
+    return TERM_KEYS.some((termKey) => {
         const termShare = booking?.term_shares?.[termKey] || {};
         if (String(termShare?.creator?.user_id || "") === normalizedUserId) return true;
         return (termShare?.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId);
     });
 };
+
+const normalizeStatus = (value = "") => String(value || "").trim().toLowerCase();
 
 /**
  * Upload a document for a booking
@@ -221,7 +222,7 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
         const hasStageFilter = Object.values(stageFilters).some(Boolean);
 
         const allMatchingBookings = await BookingModel.find(bookingQuery)
-            .select("_id company_name contact_person contact_no services bdm date status total_amount term_1 term_2 term_3")
+            .select(`_id company_name contact_person contact_no services bdm date status total_amount ${TERM_KEYS.join(" ")}`)
             .sort({ createdAt: -1 })
             .lean();
 
@@ -241,14 +242,14 @@ BookingDocumentRoutes.get("/all", authenticateUser, async (req, res) => {
                 const applicationStatuses = Array.isArray(activity.application) ? activity.application.map((row) => row?.status).filter(Boolean) : [];
                 const acknowledgementStatuses = Array.isArray(activity.acknowledgement) ? activity.acknowledgement.map((row) => row?.status).filter(Boolean) : [];
 
-                if (agreementSent && (stages.agreementSent?.status || "") !== agreementSent) return false;
-                if (agreementReceived && (stages.agreementReceived?.status || "") !== agreementReceived) return false;
-                if (dprPitchDeckDataCollection && (stages.dprPitchDeckDataCollection?.status || "") !== dprPitchDeckDataCollection) return false;
-                if (dpr && (stages.dpr?.status || "") !== dpr) return false;
-                if (pitchDeck && (stages.pitchDeck?.status || "") !== pitchDeck) return false;
-                if (applicationDetailsCoordination && (stages.applicationDetailsCoordination?.status || "") !== applicationDetailsCoordination) return false;
-                if (application && !applicationStatuses.includes(application)) return false;
-                if (acknowledgement && !acknowledgementStatuses.includes(acknowledgement)) return false;
+                if (agreementSent && normalizeStatus(stages.agreementSent?.status) !== normalizeStatus(agreementSent)) return false;
+                if (agreementReceived && normalizeStatus(stages.agreementReceived?.status) !== normalizeStatus(agreementReceived)) return false;
+                if (dprPitchDeckDataCollection && normalizeStatus(stages.dprPitchDeckDataCollection?.status) !== normalizeStatus(dprPitchDeckDataCollection)) return false;
+                if (dpr && normalizeStatus(stages.dpr?.status) !== normalizeStatus(dpr)) return false;
+                if (pitchDeck && normalizeStatus(stages.pitchDeck?.status) !== normalizeStatus(pitchDeck)) return false;
+                if (applicationDetailsCoordination && normalizeStatus(stages.applicationDetailsCoordination?.status) !== normalizeStatus(applicationDetailsCoordination)) return false;
+                if (application && !applicationStatuses.some((status) => normalizeStatus(status) === normalizeStatus(application))) return false;
+                if (acknowledgement && !acknowledgementStatuses.some((status) => normalizeStatus(status) === normalizeStatus(acknowledgement))) return false;
                 return true;
             });
         }

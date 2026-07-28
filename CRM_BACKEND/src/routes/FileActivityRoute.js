@@ -6,6 +6,7 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 const FileActivityRoutes = express.Router();
 
 const adminRoles = ["admin", "senior admin", "super admin", "dev", "srdev", "director", "hr", "sr dev"];
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 const canAccessBooking = (booking, userId, userRole = "") => {
   const normalizedRole = String(userRole || "").trim().toLowerCase();
   if (adminRoles.includes(normalizedRole)) return true;
@@ -13,7 +14,7 @@ const canAccessBooking = (booking, userId, userRole = "") => {
   if (!booking || !normalizedUserId) return false;
   if (String(booking.user_id || "") === normalizedUserId) return true;
   if ((booking.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId)) return true;
-  return ["term_1", "term_2", "term_3"].some((termKey) => {
+  return TERM_KEYS.some((termKey) => {
     const termShare = booking?.term_shares?.[termKey] || {};
     if (String(termShare?.creator?.user_id || "") === normalizedUserId) return true;
     return (termShare?.shared_with || []).some((item) => String(item?.user_id || "") === normalizedUserId);
