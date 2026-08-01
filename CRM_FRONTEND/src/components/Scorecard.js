@@ -183,6 +183,8 @@ const Scorecard = () => {
               service: row.service || "-",
               amount: row.amount || 0,
               tone: "success",
+              refundableType: row.refundableType || "none",
+              refundablePercentage: row.refundablePercentage || 0,
               note: row.note || "Net credited after GST and deductions",
             });
           });
@@ -216,8 +218,10 @@ const Scorecard = () => {
         const sortedRows = rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         const revenue = sortedRows.filter((row) => row.type === "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const deductions = sortedRows.filter((row) => row.type !== "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+        const serviceDeductions = sortedRows.filter((row) => row.type === "Service Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const refundable = sortedRows.filter((row) => row.type === "Refundable Clause Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
         const manualRefunds = sortedRows.filter((row) => row.type === "Manual Refund Adjustment").reduce((sum, row) => sum + Number(row.amount || 0), 0);
+        const approvalGuaranteeTerms = sortedRows.filter((row) => row.type === "Revenue" && row.refundableType === "approval").length;
         const bookingCount = new Set(sortedRows.map((row) => row.bookingId).filter(Boolean)).size;
 
         return {
@@ -225,9 +229,11 @@ const Scorecard = () => {
           rows: sortedRows,
           revenue,
           deductions,
+          serviceDeductions,
           refundable,
           net: revenue - manualRefunds,
           manualRefunds,
+          approvalGuaranteeTerms,
           bookingCount,
         };
       })
@@ -239,16 +245,21 @@ const Scorecard = () => {
     const totals = employeeCards.reduce((acc, item) => {
       acc.revenue += item.revenue;
       acc.deductions += item.deductions;
+      acc.serviceDeductions += item.serviceDeductions;
       acc.refundable += item.refundable;
+      acc.manualRefunds += item.manualRefunds;
+      acc.approvalGuaranteeTerms += item.approvalGuaranteeTerms;
       acc.net += item.net;
       return acc;
-    }, { revenue: 0, deductions: 0, refundable: 0, net: 0 });
+    }, { revenue: 0, deductions: 0, serviceDeductions: 0, refundable: 0, manualRefunds: 0, approvalGuaranteeTerms: 0, net: 0 });
 
     return [
       { label: "Net Revenue", value: totals.net, sub: "After all cuts", icon: <InsightsOutlinedIcon fontSize="small" />, color: "#0f766e" },
       { label: "Gross Revenue", value: totals.revenue, sub: "Before reversals", icon: <CurrencyRupeeOutlinedIcon fontSize="small" />, color: "#2563eb" },
-      { label: "Total Deductions", value: totals.deductions, sub: "Vendor + refund + refundable", icon: <PaidOutlinedIcon fontSize="small" />, color: "#ea580c" },
-      { label: "Refundable Cuts", value: totals.refundable, sub: "Refundable clause only", icon: <ReceiptLongOutlinedIcon fontSize="small" />, color: "#db2777" },
+      { label: "Service Deductions", value: totals.serviceDeductions, sub: "Vendor costs only", icon: <PaidOutlinedIcon fontSize="small" />, color: "#ea580c" },
+      { label: "Auto Refundable Cuts", value: totals.refundable, sub: "Disbursement guarantee only", icon: <ReceiptLongOutlinedIcon fontSize="small" />, color: "#db2777" },
+      { label: "Refund Adjustments", value: totals.manualRefunds, sub: "Manual refunds only", icon: <ReceiptLongOutlinedIcon fontSize="small" />, color: "#dc2626" },
+      { label: "Approval Guarantee Terms", value: totals.approvalGuaranteeTerms, sub: "No automatic cut", icon: <ReceiptLongOutlinedIcon fontSize="small" />, color: "#7c3aed", format: "count" },
     ];
   }, [employeeCards]);
 
@@ -339,7 +350,7 @@ const Scorecard = () => {
                       {card.label}
                     </Typography>
                     <Typography sx={{ mt: 0.45, fontWeight: 800, color: card.color, fontSize: { xs: "0.95rem", sm: "1.25rem" } }}>
-                      {formatCurrency(card.value)}
+                      {card.format === "count" ? Number(card.value || 0).toLocaleString("en-IN") : formatCurrency(card.value)}
                     </Typography>
                     <Typography variant="caption" sx={{ color: "text.secondary" }}>
                       {card.sub}

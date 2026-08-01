@@ -504,6 +504,8 @@ export const getBookingRevenueRowsForUser = (
       amount: termRevenue,
       termKey,
       date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
+      refundableType: refundableMeta.type,
+      refundablePercentage: refundableMeta.percentage,
       note: `Credited from ${String(termKey || "").replace("_", " ").toUpperCase()}${refundableNote}`,
     });
   });
