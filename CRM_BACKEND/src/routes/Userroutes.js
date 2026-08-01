@@ -121,15 +121,15 @@ const getDefaultFeaturePermissionsForRole = (role) => {
   return ['dashboard_overview', 'timecard', 'communication', 'employee_profile'];
 };
 
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
+
 const bookingAccessConditions = (userId) => [
   { user_id: userId },
   { "shared_with.user_id": userId },
-  { "term_shares.term_1.creator.user_id": userId },
-  { "term_shares.term_1.shared_with.user_id": userId },
-  { "term_shares.term_2.creator.user_id": userId },
-  { "term_shares.term_2.shared_with.user_id": userId },
-  { "term_shares.term_3.creator.user_id": userId },
-  { "term_shares.term_3.shared_with.user_id": userId },
+  ...TERM_KEYS.flatMap((termKey) => [
+    { [`term_shares.${termKey}.creator.user_id`]: userId },
+    { [`term_shares.${termKey}.shared_with.user_id`]: userId },
+  ]),
 ];
 
 const withResolvedProfilePictures = async (users = []) => {

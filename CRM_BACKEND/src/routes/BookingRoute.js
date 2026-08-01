@@ -486,6 +486,62 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
 });
 
 
+// Remove a received continuation term without deleting the booking contract itself.
+// The newest term must be removed first so the payment history remains sequential.
+BookingRoutes.delete("/editbooking/:id/terms/:termKey", authenticateUser, async (req, res) => {
+  const requesterRole = String(req.user?.user_role || req.headers["user-role"] || "").trim().toLowerCase();
+  const allowedRoles = ["director", "dev", "developer", "srdev", "sr dev", "sr developer"];
+  const { termKey } = req.params;
+
+  if (!allowedRoles.includes(requesterRole)) {
+    return res.status(403).send({ message: "Only director and dev roles can delete a booking term." });
+  }
+
+  if (!TERM_KEYS.slice(1).includes(termKey)) {
+    return res.status(400).send({ message: "Only continuation terms can be deleted. Term 1 belongs to the booking itself." });
+  }
+
+  try {
+    const booking = await BookingModel.findById(req.params.id);
+    if (!booking || booking.isDeleted) {
+      return res.status(404).send({ message: "Booking not found." });
+    }
+
+    if (Number(booking[termKey] || 0) <= 0) {
+      return res.status(404).send({ message: `${termKey.replace("_", " ").toUpperCase()} does not exist for this booking.` });
+    }
+
+    const termIndex = TERM_KEYS.indexOf(termKey);
+    if (TERM_KEYS.slice(termIndex + 1).some((key) => Number(booking[key] || 0) > 0)) {
+      return res.status(400).send({
+        message: "Delete the latest continuation term first. Later terms cannot remain after an earlier term is removed.",
+      });
+    }
+
+    const oldAmount = Number(booking[termKey] || 0);
+    booking[termKey] = 0;
+    if (booking.term_shares) {
+      booking.term_shares[termKey] = undefined;
+      booking.markModified("term_shares");
+    }
+    Object.assign(booking, buildGstMetadata(booking.toObject()));
+    booking.updatedhistory.push({
+      updatedBy: await resolveEditorName(req),
+      updatedAt: new Date(),
+      note: `${termKey.replace("_", " ").toUpperCase()} deleted`,
+      changes: {
+        [termKey]: { old: oldAmount, new: 0 },
+        [`term_shares.${termKey}`]: { old: "Payment term removed", new: "" },
+      },
+    });
+
+    await booking.save();
+    return res.status(200).send({ message: `${termKey.replace("_", " ").toUpperCase()} deleted successfully.`, booking });
+  } catch (err) {
+    return res.status(500).send({ message: err.message });
+  }
+});
+
 //trash
 BookingRoutes.patch("/trash/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;

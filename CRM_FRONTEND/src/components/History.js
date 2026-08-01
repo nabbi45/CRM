@@ -128,6 +128,9 @@ const History = () => {
   const canDownloadBookings = ["dev", "srdev", "sr dev", "director"].includes(
     (userSession?.user_role || "").toLowerCase()
   );
+  const canDeleteContinuationTerms = ["dev", "developer", "srdev", "sr dev", "sr developer", "director"].includes(
+    (userRole || userSession?.user_role || "").toLowerCase()
+  );
 
   // NEW State for Shared Bookings Toggle
   const [shareFilter, setShareFilter] = useState("All"); // "All" | "SharedByMe" | "SharedWithMe"
@@ -475,6 +478,43 @@ const History = () => {
   const handleEditClick = (booking, termKey = "") => {
     setEditBooking(termKey ? { ...booking, __editTermKey: termKey } : booking);
     setIsPopupOpen(true);
+  };
+
+  const handleDeleteTerm = async (booking, termKey) => {
+    const termIndex = TERM_KEYS.indexOf(termKey);
+    const laterTermExists = TERM_KEYS.slice(termIndex + 1).some(
+      (key) => Number(booking?.[key] || 0) > 0
+    );
+
+    if (laterTermExists) {
+      enqueueSnackbar("Delete the latest continuation term first.", { variant: "warning" });
+      return;
+    }
+
+    const termLabel = termKey.replace("_", " ").toUpperCase();
+    if (!window.confirm(`Delete ${termLabel}? Its received amount and term sharing will be removed. The booking itself will remain.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/booking/editbooking/${booking._id}/terms/${termKey}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "user-role": userSession?.user_role || "",
+          "user-name": userSession?.name || "",
+          authorization: userSession?.token || "",
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `Unable to delete ${termLabel}`);
+
+      closeBookingDetails();
+      await fetchAllBookings(userSession);
+      enqueueSnackbar(data.message || `${termLabel} deleted successfully.`, { variant: "success" });
+    } catch (error) {
+      enqueueSnackbar(error.message || "Unable to delete the term.", { variant: "error" });
+    }
   };
 
   const closePopup = () => {
@@ -1586,19 +1626,32 @@ Status: ${booking.status}
                       <Typography variant="body2"><strong>Payment Mode:</strong> {info.paymentMode}</Typography>
                       <Typography variant="body2"><strong>Created By:</strong> {info.creatorName}</Typography>
                       <Typography variant="body2"><strong>Shared With:</strong> {Array.isArray(info.sharedWith) && info.sharedWith.length > 0 ? info.sharedWith.map((sw) => `${upperText(sw.user_name || usersMap[sw.user_id] || "Coworker")} - ${sw.percentage}%`).join(", ") : "Not Shared"}</Typography>
-                      {["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"].includes((userRole || "").toLowerCase()) && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          sx={{ mt: 1, borderRadius: "8px" }}
-                          onClick={() => {
-                            closeBookingDetails();
-                            handleEditClick(selectedBookingDetails, termKey);
-                          }}
-                        >
-                          Edit {termKey.replace("_", " ").toUpperCase()}
-                        </Button>
-                      )}
+                      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mt: 1 }}>
+                        {["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"].includes((userRole || "").toLowerCase()) && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={{ borderRadius: "8px" }}
+                            onClick={() => {
+                              closeBookingDetails();
+                              handleEditClick(selectedBookingDetails, termKey);
+                            }}
+                          >
+                            Edit {termKey.replace("_", " ").toUpperCase()}
+                          </Button>
+                        )}
+                        {termKey !== "term_1" && canDeleteContinuationTerms && (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            sx={{ borderRadius: "8px" }}
+                            onClick={() => handleDeleteTerm(selectedBookingDetails, termKey)}
+                          >
+                            Delete {termKey.replace("_", " ").toUpperCase()}
+                          </Button>
+                        )}
+                      </Box>
                     </Paper>
                   );
                 })}

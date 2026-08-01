@@ -543,14 +543,34 @@ const DashboardContent = () => {
       const serviceRevenueMap = {};
       const currentMonthDeductions = [];
 
+      const getTransactionDate = (entry = {}) => {
+        const candidates = [
+          entry?.payment_date,
+          entry?.refund_date,
+          entry?.created_at,
+          entry?.date,
+          entry?.createdAt,
+        ];
+        for (const candidate of candidates) {
+          if (!candidate) continue;
+          const date = new Date(candidate);
+          if (!Number.isNaN(date.getTime())) return date;
+        }
+        return null;
+      };
+
       const isCurrentMonthTerm = (termShare) => {
-        const termDate = new Date(termShare?.payment_date || termShare?.date || "");
+        const termDate = getTransactionDate(termShare);
+        if (!termDate) return false;
         return !Number.isNaN(termDate.getTime()) &&
           termDate.getMonth() === currentMonth &&
           termDate.getFullYear() === currentYear;
       };
 
-      const isTodayTerm = (termShare) => getDateKey(termShare?.payment_date) === today;
+      const isTodayTerm = (termShare) => {
+        const termDate = getTransactionDate(termShare);
+        return termDate ? getDateKey(termDate) === today : false;
+      };
 
       for (const booking of bookings) {
         bookingCount += 1;
