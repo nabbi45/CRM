@@ -487,6 +487,12 @@ export const getBookingRevenueRowsForUser = (
 
     const termRevenue = roundMoney(getTermNetBeforeSharing(booking, termKey) * participantShare);
     if (!termRevenue) return;
+    const refundableMeta = getRefundableMeta(booking);
+    const refundableNote = refundableMeta.type === "approval"
+      ? ` | Approval Guarantee Refundable ${refundableMeta.percentage}% (no automatic cut)`
+      : refundableMeta.type === "disbursement"
+        ? ` | Disbursement Guarantee Refundable ${refundableMeta.percentage}% (automatic cut applied)`
+        : "";
 
     rows.push({
       type: "Revenue",
@@ -498,7 +504,7 @@ export const getBookingRevenueRowsForUser = (
       amount: termRevenue,
       termKey,
       date: termShare?.payment_date || booking?.payment_date || booking?.date || booking?.createdAt,
-      note: `Credited from ${String(termKey || "").replace("_", " ").toUpperCase()}`,
+      note: `Credited from ${String(termKey || "").replace("_", " ").toUpperCase()}${refundableNote}`,
     });
   });
 
