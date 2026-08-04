@@ -4,15 +4,16 @@ import { v2 as cloudinary } from "cloudinary";
 import { BookingDocumentModel } from "../models/BookingDocumentModel.js";
 import { BookingModel } from "../models/bookingModel.js";
 import { authenticateUser, authorizeFeature } from "../middlewares/authMiddleware.js";
-import { getCloudinaryPublicExtension, prepareUploadFile, toDataUri } from "../utils/uploadCompression.js";
+import { getCloudinaryPublicExtension, prepareUploadFile } from "../utils/uploadCompression.js";
 
 const BookingDocumentRoutes = express.Router();
 
 // Memory storage for multer
 const storage = multer.memoryStorage();
+const MAX_DOCUMENT_FILE_SIZE = 100 * 1024 * 1024;
 const upload = multer({
     storage,
-    limits: { fileSize: 100 * 1024 * 1024 } // 100 MB limit; images are compressed before Cloudinary upload.
+    limits: { fileSize: MAX_DOCUMENT_FILE_SIZE } // Images are compressed before Cloudinary upload.
 });
 
 // Document types mapping
@@ -50,6 +51,15 @@ const canAccessBooking = (booking, userId, isAdmin = false) => {
 
 const normalizeStatus = (value = "") => String(value || "").trim().toLowerCase();
 
+const uploadBookingDocument = (file, options) =>
+    new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+        });
+        stream.end(file.buffer);
+    });
+
 /**
  * Upload a document for a booking
  * POST /api/booking-documents/upload
@@ -84,10 +94,10 @@ BookingDocumentRoutes.post("/upload", authenticateUser, upload.single("file"), a
         }
 
         const uploadFile = await prepareUploadFile(req.file);
-        const dataURI = toDataUri(uploadFile);
         const extension = getCloudinaryPublicExtension(uploadFile);
 
-        const result = await cloudinary.uploader.upload(dataURI, {
+        // Stream the compressed buffer so larger PDFs/documents are not expanded into a base64 request.
+        const result = await uploadBookingDocument(uploadFile, {
             resource_type: uploadFile.resourceType === "image" ? "image" : "raw",
             folder: "booking_documents",
             public_id: `booking_${bookingId}_${documentType}_${Date.now()}${uploadFile.resourceType !== "image" && extension ? `.${extension}` : ""}`
