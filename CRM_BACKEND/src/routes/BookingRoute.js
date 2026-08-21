@@ -15,6 +15,7 @@ import {
   isCashPayment,
   isAdminRole,
   prepareBookingFinancials,
+  reconcileServiceDeductionSnapshot,
   TERM_KEYS,
 } from "../utils/revenueRules.js";
 
@@ -332,7 +333,16 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       };
     }
 
-    delete updates.service_deductions_snapshot;
+    // Keep the original deduction rate for retained services, remove deleted services,
+    // and snapshot only services newly added through this edit.
+    if (Object.prototype.hasOwnProperty.call(updates, "services")) {
+      updates.service_deductions_snapshot = await reconcileServiceDeductionSnapshot(
+        updates.services,
+        oldBooking.service_deductions_snapshot || []
+      );
+    } else {
+      delete updates.service_deductions_snapshot;
+    }
     delete updates.refund_adjustments;
     updates.is_refundable = oldBooking.is_refundable;
     updates.refundable_percentage = oldBooking.refundable_percentage || 0;

@@ -93,6 +93,36 @@ export const snapshotServiceDeductions = async (services = []) => {
     .filter((item) => item.service_name && item.deduction > 0);
 };
 
+// Service deductions are financial snapshots. Editing a booking's services must remove
+// deleted services without rewriting the historical rate of services that remain.
+export const reconcileServiceDeductionSnapshot = async (services = [], existingSnapshot = []) => {
+  const normalizedServices = [...new Map(
+    (Array.isArray(services) ? services : [])
+      .map((service) => String(service || "").trim())
+      .filter(Boolean)
+      .map((service) => [service.toLowerCase(), service])
+  ).values()];
+
+  const existingByName = new Map(
+    (Array.isArray(existingSnapshot) ? existingSnapshot : [])
+      .filter((item) => String(item?.service_name || "").trim())
+      .map((item) => [String(item.service_name).trim().toLowerCase(), {
+        service_name: String(item.service_name).trim(),
+        deduction: roundMoney(item.deduction || 0),
+      }])
+  );
+
+  const missingServices = normalizedServices.filter((service) => !existingByName.has(service.toLowerCase()));
+  const newSnapshots = await snapshotServiceDeductions(missingServices);
+  const newByName = new Map(
+    newSnapshots.map((item) => [String(item.service_name).trim().toLowerCase(), item])
+  );
+
+  return normalizedServices
+    .map((service) => existingByName.get(service.toLowerCase()) || newByName.get(service.toLowerCase()))
+    .filter((item) => item && item.deduction > 0);
+};
+
 export const prepareBookingFinancials = async (booking = {}, { snapshotDeductions = true } = {}) => {
   const gstMetadata = buildGstMetadata(booking);
   const refundable = sanitizeRefundable(booking);
