@@ -39,6 +39,7 @@ import { canAccessFeature, isHigherAuthority } from "../utils/featureAccess";
 import { jsonToCSV, downloadCSV } from "./exelData";
 import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 import { useColorMode } from "../context/AppThemeProvider"; // Import for theming
+import { ALL_PAYMENT_METHODS } from "../utils/paymentMethods";
 
 const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 
@@ -1031,13 +1032,9 @@ Status: ${booking.status}
             <span>Payment Method</span>
             <select className="history-filter-input" value={paymentmode} onChange={(e) => setPaymentmode(e.target.value)}>
               <option value="">Any method</option>
-              <option value="Axis Bank">Axis Bank</option>
-              <option value="IDFC BANK">IDFC Bank</option>
-              <option value="Razor Pay">Razor Pay</option>
-              <option value="Cashfree">Cashfree</option>
-              <option value="Cheque IDFC Bank">Cheque IDFC Bank</option>
-              <option value="Cheque Axis Bank">Cheque Axis Bank</option>
-              <option value="Cash">Cash</option>
+              {ALL_PAYMENT_METHODS.map((paymentMethod) => (
+                <option key={paymentMethod} value={paymentMethod}>{paymentMethod}</option>
+              ))}
             </select>
           </label>
 

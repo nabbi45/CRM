@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
+import { UserModel } from '../models/UserModel.js';
 
 // Authentication Middleware to check if the user is authenticated
 export const authenticateUser = async (req, res, next) => {
@@ -16,6 +17,18 @@ export const authenticateUser = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace with your JWT secret
+    // Validate the current account state on every request so disabling an employee
+    // immediately invalidates already-issued sessions as well as future logins.
+    const currentUser = await UserModel.findById(decoded.userId).select('isDisabled').lean();
+    if (!currentUser) {
+      return res.status(401).send({ message: 'User account no longer exists' });
+    }
+    if (currentUser.isDisabled) {
+      return res.status(403).send({
+        message: 'This user account has been disabled. Please contact an administrator.',
+        code: 'ACCOUNT_DISABLED',
+      });
+    }
     req.user = decoded; // Attach user data (including role) to request object
 
     if (!canManageSecurity(decoded)) {

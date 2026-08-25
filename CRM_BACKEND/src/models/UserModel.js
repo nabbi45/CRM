@@ -9,6 +9,9 @@ const userSchema = mongoose.Schema(
     feature_permissions: { type: [String], default: [] },
     profilePicture: { type: String, default: "" }, // Add profile picture field
     isActive: { type: Boolean, default: false },
+    isDisabled: { type: Boolean, default: false, index: true },
+    disabledAt: { type: Date, default: null },
+    disabledBy: { type: String, default: "" },
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date }
   },

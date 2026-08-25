@@ -35,6 +35,7 @@ import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 
 import Mailer from "./mail";
+import { BOOKING_PAYMENT_METHODS } from "../utils/paymentMethods";
 
 const getCurrentDateInput = () => new Date().toISOString().split("T")[0];
 const TERM_NUMBERS = Array.from({ length: 10 }, (_, index) => index + 1);
@@ -1335,13 +1336,9 @@ const AddBooking = ({ onClose }) => {
                 variant="outlined"
               >
                 <MenuItem value="">Select Payment Mode</MenuItem>
-                <MenuItem value="Axis Bank">Axis Bank</MenuItem>
-                <MenuItem value="IDFC BANK">IDFC Bank</MenuItem>
-                <MenuItem value="Razor Pay">Razor Pay</MenuItem>
-                <MenuItem value="Cashfree">Cashfree</MenuItem>
-                <MenuItem value="Cheque IDFC Bank">Cheque IDFC Bank</MenuItem>
-                <MenuItem value="Cheque Axis Bank">Cheque Axis Bank</MenuItem>
-                <MenuItem value="Cash">Cash</MenuItem>
+                {BOOKING_PAYMENT_METHODS.map((paymentMethod) => (
+                  <MenuItem key={paymentMethod} value={paymentMethod}>{paymentMethod}</MenuItem>
+                ))}
               </Select>
               {errors.bank && <Typography color="error" variant="caption">{errors.bank}</Typography>}
             </FormControl>

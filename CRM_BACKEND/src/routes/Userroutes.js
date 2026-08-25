@@ -363,23 +363,57 @@ UserRoutes.delete('/profile-picture', authenticateUser, async (req, res) => {
 });
 
 
-// Deleting User (requires manage_users permission)
+// Legacy delete endpoint is intentionally converted to a safe disable operation.
+// Keeping it prevents older deployed clients from ever hard-deleting employee history.
 UserRoutes.delete("/deleteuser/:id", authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
-    const { id } = req.params; // Assuming you are using a unique ID for the user
+    const { id } = req.params;
 
-    // Check if the user exists
     const existingUser = await UserModel.findById(id);
     if (!existingUser) {
       return res.status(404).send({ message: "User not found" });
     }
+    if (String(existingUser._id) === String(req.user.userId)) {
+      return res.status(400).send({ message: "You cannot disable your own account." });
+    }
 
-    // Delete the user
-    await UserModel.findByIdAndDelete(id);
+    existingUser.isDisabled = true;
+    existingUser.isActive = false;
+    existingUser.disabledAt = new Date();
+    existingUser.disabledBy = String(req.user.userId || "");
+    await existingUser.save();
 
-    return res.status(200).send({ message: "User deleted successfully" });
+    return res.status(200).send({ message: "User disabled successfully. Historical data has been retained.", user: existingUser });
   } catch (error) {
     console.log(error.message);
+    return res.status(500).send({ message: error.message });
+  }
+});
+
+UserRoutes.patch('/account-status/:id', authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { disabled } = req.body;
+    if (typeof disabled !== 'boolean') {
+      return res.status(400).send({ message: 'A boolean disabled value is required.' });
+    }
+    if (String(id) === String(req.user.userId)) {
+      return res.status(400).send({ message: 'You cannot change your own account status.' });
+    }
+
+    const user = await UserModel.findById(id);
+    if (!user) return res.status(404).send({ message: 'User not found' });
+
+    user.isDisabled = disabled;
+    user.isActive = disabled ? false : user.isActive;
+    user.disabledAt = disabled ? new Date() : null;
+    user.disabledBy = disabled ? String(req.user.userId || '') : '';
+    await user.save();
+    return res.status(200).send({
+      message: disabled ? 'User disabled successfully. Historical data has been retained.' : 'User enabled successfully.',
+      user,
+    });
+  } catch (error) {
     return res.status(500).send({ message: error.message });
   }
 });
@@ -406,7 +440,7 @@ UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async
 // Sanitized user list for dropdowns/share selectors
 UserRoutes.get('/options', authenticateUser, async (req, res) => {
   try {
-    const userDocs = await UserModel.find({}, 'name user_role profilePicture').sort({ name: 1 }).lean();
+    const userDocs = await UserModel.find({ isDisabled: { $ne: true } }, 'name user_role profilePicture').sort({ name: 1 }).lean();
     const users = await withResolvedProfilePictures(userDocs);
     return res.status(200).send({ users });
   } catch (error) {
@@ -468,6 +502,13 @@ UserRoutes.post('/login', async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).send({
         message: "Invalid email or password.",
+      });
+    }
+
+    if (user.isDisabled) {
+      return res.status(403).send({
+        message: 'This user account has been disabled. Please contact an administrator.',
+        code: 'ACCOUNT_DISABLED',
       });
     }
 

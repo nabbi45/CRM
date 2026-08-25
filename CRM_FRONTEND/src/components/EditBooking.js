@@ -23,6 +23,7 @@ import SelectMUI from 'react-select';
 import { enqueueSnackbar } from 'notistack';
 import servicesList from '../Data/ServicesData';
 import ServiceDropdown from './Servicesdropdown'
+import { getPaymentMethodsForEdit } from "../utils/paymentMethods";
 const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 const updatedBy = userSession.name || 'Unknown';
 const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
@@ -508,13 +509,9 @@ const EditBooking = ({ initialData, onClose }) => {
                   onChange={handleChange}
                 >
                   <MenuItem value="">Select Bank</MenuItem>
-                  <MenuItem value="Axis Bank">Axis Bank</MenuItem>
-                  <MenuItem value="IDFC BANK">IDFC Bank</MenuItem>
-                  <MenuItem value="Razor Pay">Razor Pay</MenuItem>
-                  <MenuItem value="Cashfree">Cashfree</MenuItem>
-                  <MenuItem value="Cheque IDFC Bank">Cheque IDFC Bank</MenuItem>
-                  <MenuItem value="Cheque Axis Bank">Cheque Axis Bank</MenuItem>
-                  <MenuItem value="Cash">Cash</MenuItem>
+                  {getPaymentMethodsForEdit(formData.bank).map((paymentMethod) => (
+                    <MenuItem key={paymentMethod} value={paymentMethod}>{paymentMethod}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>

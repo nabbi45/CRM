@@ -23,7 +23,7 @@ import {
   Avatar,
   Stack,
 } from "@mui/material";
-import { Edit, Delete } from "@mui/icons-material";
+import { Edit, PersonOff, PersonAdd } from "@mui/icons-material";
 import { enqueueSnackbar } from "notistack";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -147,27 +147,29 @@ const RemoveUser = () => {
     if (!userToDelete) return;
 
     try {
-      await axios.delete(`${apiUrl}/user/deleteuser/${userToDelete}`, {
+      const shouldDisable = !userToDelete.isDisabled;
+      const response = await axios.patch(`${apiUrl}/user/account-status/${userToDelete._id}`, {
+        disabled: shouldDisable,
+      }, {
         headers: {
           Authorization: `${Token}`,
           "Content-Type": "application/json",
         },
       });
 
-      const response = await axios.get(`${apiUrl}/user/all`, {
-        headers: { authorization: Token },
-      });
-      setUsers(response.data.Users);
-      enqueueSnackbar("User Deleted successfully!", { variant: "success" });
+      setUsers((previousUsers) => previousUsers.map((user) =>
+        String(user._id) === String(userToDelete._id) ? response.data.user : user
+      ));
+      enqueueSnackbar(shouldDisable ? "User disabled. Historical data remains intact." : "User enabled successfully.", { variant: "success" });
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
     } catch (error) {
-      enqueueSnackbar(`${error.response?.data?.message || 'Error deleting user'}`, { variant: "error" });
+      enqueueSnackbar(`${error.response?.data?.message || 'Error changing user status'}`, { variant: "error" });
     }
   };
 
   const handleDeleteClick = (user) => {
-    setUserToDelete(user._id);
+    setUserToDelete(user);
     setIsDeleteModalOpen(true);
   };
 
@@ -256,8 +258,13 @@ const RemoveUser = () => {
                 >
                   <Edit />
                 </IconButton>
-                <IconButton color="error" onClick={() => handleDeleteClick(user)} size="small">
-                  <Delete />
+                <IconButton
+                  color={user.isDisabled ? "success" : "warning"}
+                  onClick={() => handleDeleteClick(user)}
+                  size="small"
+                  aria-label={user.isDisabled ? "Enable user" : "Disable user"}
+                >
+                  {user.isDisabled ? <PersonAdd /> : <PersonOff />}
                 </IconButton>
               </Box>
             </Paper>
@@ -294,17 +301,20 @@ const RemoveUser = () => {
                   </TableCell>
                   {!isMobileOrTablet && <TableCell>{user.email?.toLowerCase()}</TableCell>}
                   <TableCell>
-                    <Chip
-                      size="small"
-                      label={user.user_role}
-                      sx={{
-                        borderRadius: "8px",
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.10)",
-                        color: theme.palette.mode === "dark" ? "#e2e8f0" : "#2563eb",
-                      }}
-                    />
+                    <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap>
+                      <Chip
+                        size="small"
+                        label={user.user_role}
+                        sx={{
+                          borderRadius: "8px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(59,130,246,0.10)",
+                          color: theme.palette.mode === "dark" ? "#e2e8f0" : "#2563eb",
+                        }}
+                      />
+                      {user.isDisabled && <Chip size="small" label="Disabled" color="warning" sx={{ fontWeight: 700 }} />}
+                    </Stack>
                   </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
@@ -322,11 +332,12 @@ const RemoveUser = () => {
                             <Edit />
                           </IconButton>
                           <IconButton
-                            color="error"
+                            color={user.isDisabled ? "success" : "warning"}
                             onClick={() => handleDeleteClick(user)}
                             size="small"
+                            aria-label={user.isDisabled ? "Enable user" : "Disable user"}
                           >
-                            <Delete />
+                            {user.isDisabled ? <PersonAdd /> : <PersonOff />}
                           </IconButton>
                         </>
                       ) : (
@@ -345,11 +356,11 @@ const RemoveUser = () => {
                           </Button>
                           <Button
                             variant="contained"
-                            color="error"
+                            color={user.isDisabled ? "success" : "warning"}
                             size="small"
                             onClick={() => handleDeleteClick(user)}
                           >
-                            Delete
+                            {user.isDisabled ? "Enable" : "Disable"}
                           </Button>
                         </>
                       )}
@@ -490,18 +501,19 @@ const RemoveUser = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
+      {/* Account status confirmation modal */}
       <Dialog open={isDeleteModalOpen} onClose={closeDeleteModal}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogTitle>{userToDelete?.isDisabled ? "Enable User" : "Disable User"}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete this user? This action cannot be
-            undone.
+            {userToDelete?.isDisabled
+              ? `Enable ${userToDelete?.name || "this user"} and restore login access?`
+              : `Disable ${userToDelete?.name || "this user"}? They will be signed out immediately and cannot log in, while all bookings and historical data remain intact.`}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Delete
+          <Button onClick={confirmDelete} color={userToDelete?.isDisabled ? "success" : "warning"} variant="contained">
+            {userToDelete?.isDisabled ? "Enable" : "Disable"}
           </Button>
           <Button
             onClick={closeDeleteModal}
