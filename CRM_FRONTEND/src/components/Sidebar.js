@@ -190,6 +190,9 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'client_documents')) {
       items.push({ text: 'File Activity', icon: <FolderCopyOutlinedIcon />, path: '/dashboard/process-documents', color: '#8b5cf6' });
     }
+    if (canAccessFeature(userSession, 'meeting_updates')) {
+      items.push({ text: 'Meeting Updates', icon: <EventNoteOutlinedIcon />, path: '/dashboard/meeting-updates', color: '#0f766e' });
+    }
     if (canAccessFeature(userSession, 'manage_users')) {
       items.push({ text: 'Manage User', icon: <PeopleAltOutlinedIcon />, path: '/dashboard/removeuser', color: '#f97316' });
     }

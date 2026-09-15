@@ -93,7 +93,9 @@ const Scorecard = () => {
         const bookingsUrl = isAdmin ? `${apiUrl}/booking/all` : `${apiUrl}/user/bookings/${session.user_id}`;
         const [bookingsRes, usersRes] = await Promise.all([
           fetch(bookingsUrl, { headers }),
-          isAdmin ? fetch(`${apiUrl}/user/options`, { headers }) : Promise.resolve(null),
+          // Historical employee revenue must remain visible after an account is disabled.
+          // This opt-in is restricted server-side to higher reporting roles.
+          isAdmin ? fetch(`${apiUrl}/user/options?includeDisabled=true`, { headers }) : Promise.resolve(null),
         ]);
 
         const bookingsData = await bookingsRes.json().catch(() => ({}));
@@ -413,6 +415,14 @@ const Scorecard = () => {
                     <Typography variant="body2" color="text.secondary" noWrap>
                       {(employee.role || "").toUpperCase() || "TEAM MEMBER"}
                     </Typography>
+                    {employee.isDisabled && (
+                      <Chip
+                        size="small"
+                        label="Disabled"
+                        color="warning"
+                        sx={{ mt: 0.55, height: 20, fontWeight: 800 }}
+                      />
+                    )}
                   </Box>
                   <Box
                     sx={{

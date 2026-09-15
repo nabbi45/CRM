@@ -54,6 +54,8 @@ const RemoveUser = () => {
 
   const theme = useTheme();
   const isMobileOrTablet = useMediaQuery(theme.breakpoints.down("md"));
+  const currentRole = String(JSON.parse(localStorage.getItem("userSession"))?.user_role || "").trim().toLowerCase();
+  const canGrantMeetingEdit = ["dev", "srdev", "sr dev"].includes(currentRole);
 
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem("userSession"));
@@ -466,7 +468,7 @@ const RemoveUser = () => {
               >
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Tab permissions</Typography>
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-                  {FEATURE_KEYS.map((featureKey) => (
+                  {FEATURE_KEYS.filter((featureKey) => canGrantMeetingEdit || featureKey !== "meeting_updates_edit").map((featureKey) => (
                     <label
                       key={featureKey}
                       style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem" }}

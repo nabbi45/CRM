@@ -10,6 +10,8 @@ export const FEATURE_KEYS = [
   'agreements_generator',
   'generated_documents',
   'client_documents',
+  'meeting_updates',
+  'meeting_updates_edit',
   'manage_users',
   'manage_services',
   'company_profile',
@@ -35,6 +37,8 @@ export const FEATURE_LABELS = {
   agreements_generator: 'Agreements Generator',
   generated_documents: 'Generated Documents',
   client_documents: 'File Activity',
+  meeting_updates: 'Meeting Updates',
+  meeting_updates_edit: 'Edit Meeting Updates',
   manage_users: 'Manage User',
   manage_services: 'Manage Services',
   company_profile: 'Company Profile',
@@ -63,7 +67,7 @@ const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
 const DEFAULT_ROLE_PERMISSIONS = {
   dev: FEATURE_KEYS,
   srdev: FEATURE_KEYS,
-  'super admin': FEATURE_KEYS,
+  'super admin': FEATURE_KEYS.filter((key) => key !== 'meeting_updates_edit'),
   admin: [
     'dashboard_overview',
     'scorecard',
@@ -76,6 +80,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'agreements_generator',
     'generated_documents',
     'client_documents',
+    'meeting_updates',
     'manage_documents',
     'edit_documents',
     'manage_users',
@@ -99,6 +104,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'agreements_generator',
     'generated_documents',
     'client_documents',
+    'meeting_updates',
     'manage_documents',
     'edit_documents',
     'manage_users',
@@ -118,6 +124,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'booking_approvals',
     'projection_leads',
     'all_bookings',
+    'meeting_updates',
     'proforma_invoice',
     'generated_documents',
     'timecard',
@@ -165,6 +172,7 @@ export const resolveFeaturePermissions = (userSession = {}) => {
   if (!final.includes('dashboard_overview')) final.push('dashboard_overview');
   if (!final.includes('scorecard')) final.push('scorecard');
   if (!final.includes('employee_profile')) final.push('employee_profile');
+  if (!final.includes('meeting_updates')) final.push('meeting_updates');
   if (!final.includes('booking_approvals') && ['bdm', 'employee', 'sales'].includes(normalizeRole(userSession?.user_role))) final.push('booking_approvals');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) final.push('security');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('booking_approvals')) {

@@ -16,6 +16,7 @@ const AddUser = () => {
   const [userRole, setUserRole] = useState("");
   const [userId, setUserId] = useState(""); // Store the logged-in user's ID
   const [Token, setToken] = useState(""); // Store the logged-in user's ID
+  const canGrantMeetingEdit = ["dev", "srdev", "sr dev"].includes(String(userRole || "").trim().toLowerCase());
 
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem("userSession"));
@@ -298,7 +299,7 @@ const AddUser = () => {
       >
         <div style={{ fontWeight: 700, marginBottom: "10px", color: isDark ? "#f8fafc" : "#0f172a", fontSize: "0.95rem" }}>Role tab permissions</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "8px 12px" }}>
-          {FEATURE_KEYS.map((featureKey) => (
+          {FEATURE_KEYS.filter((featureKey) => canGrantMeetingEdit || featureKey !== "meeting_updates_edit").map((featureKey) => (
             <label key={featureKey} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", color: isDark ? "#e2e8f0" : "#0f172a", padding: "6px 8px", borderRadius: 8, background: isDark ? "rgba(255,255,255,0.03)" : "#ffffff" }}>
               <input
                 type="checkbox"

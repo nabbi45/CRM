@@ -33,6 +33,7 @@ import ClientDocuments from '../components/ClientDocuments';
 import { canAccessFeature } from '../utils/featureAccess';
 import SecuritySettings from '../components/SecuritySettings';
 import BookingApprovals from '../components/BookingApprovals';
+import MeetingUpdates from '../components/MeetingUpdates';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
   if (canAccessFeature(userSession, feature)) return children;
@@ -183,6 +184,7 @@ const Dashboard = () => {
     '/dashboard/security': 'Security',
     '/dashboard/generated-documents': 'Generated Documents',
     '/dashboard/process-documents': 'File Activity',
+    '/dashboard/meeting-updates': 'Meeting Updates',
     '/dashboard/timecard': 'Timecard & Leave',
     '/dashboard/communication': 'Communication',
   };
@@ -275,6 +277,7 @@ const Dashboard = () => {
           <Route path="security" element={<FeatureGuard userSession={userSession} feature="security"><SecuritySettings /></FeatureGuard>} />
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
           <Route path="process-documents" element={<FeatureGuard userSession={userSession} feature="client_documents"><ClientDocuments /></FeatureGuard>} />
+          <Route path="meeting-updates" element={<FeatureGuard userSession={userSession} feature="meeting_updates"><MeetingUpdates /></FeatureGuard>} />
           <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="timecard"><Timecard /></FeatureGuard>} />
           <Route path="communication" element={<FeatureGuard userSession={userSession} feature="communication"><TeamInbox /></FeatureGuard>} />
         </Routes>

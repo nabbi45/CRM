@@ -28,6 +28,8 @@ const FEATURE_KEYS = [
   'agreements_generator',
   'generated_documents',
   'client_documents',
+  'meeting_updates',
+  'meeting_updates_edit',
   'manage_users',
   'manage_services',
   'company_profile',
@@ -42,11 +44,12 @@ const FEATURE_KEYS = [
 ];
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
+const canManageMeetingUpdateEditors = (role = '') => ['dev', 'srdev', 'sr dev'].includes(normalizeRole(role));
 
 const DEFAULT_ROLE_PERMISSIONS = {
   dev: FEATURE_KEYS,
   srdev: FEATURE_KEYS,
-  'super admin': FEATURE_KEYS,
+  'super admin': FEATURE_KEYS.filter((key) => key !== 'meeting_updates_edit'),
   admin: [
     'dashboard_overview',
     'new_booking',
@@ -57,6 +60,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'agreements_generator',
     'generated_documents',
     'client_documents',
+    'meeting_updates',
     'manage_documents',
     'edit_documents',
     'manage_users',
@@ -78,6 +82,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'agreements_generator',
     'generated_documents',
     'client_documents',
+    'meeting_updates',
     'manage_documents',
     'edit_documents',
     'manage_users',
@@ -95,6 +100,7 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'new_booking',
     'projection_leads',
     'all_bookings',
+    'meeting_updates',
     'proforma_invoice',
     'generated_documents',
     'timecard',
@@ -166,12 +172,17 @@ const UserRoutes = express.Router();
 UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
     const { name, email, password, user_role, feature_permissions } = req.body;
+    const sanitizedPermissions = sanitizeFeaturePermissions(feature_permissions);
 
     // Check if all required fields are provided
     if (!name || !email || !password) {
       return res.status(400).send({
         message: "send all required fields: name, email, password",
       });
+    }
+
+    if (sanitizedPermissions.includes('meeting_updates_edit') && !canManageMeetingUpdateEditors(req.user?.user_role)) {
+      return res.status(403).send({ message: 'Only Dev or Sr Dev can grant Edit Meeting Updates permission.' });
     }
 
     // Convert email to lowercase
@@ -192,8 +203,8 @@ UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), 
       email: normalizedEmail,
       password: hashedPassword,
       user_role,
-      feature_permissions: sanitizeFeaturePermissions(feature_permissions).length
-        ? sanitizeFeaturePermissions(feature_permissions)
+      feature_permissions: sanitizedPermissions.length
+        ? sanitizedPermissions
         : getDefaultFeaturePermissionsForRole(user_role),
     };
 
@@ -211,6 +222,11 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeFeature('manage_use
   try {
     const { id } = req.params;
     const updates = req.body;
+    const targetUser = await UserModel.findById(id).select('feature_permissions');
+
+    if (!targetUser) {
+      return res.status(404).send({ message: 'User not found' });
+    }
 
     // Ensure there are fields to update
     if (!updates || Object.keys(updates).length === 0) {
@@ -219,6 +235,11 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeFeature('manage_use
 
     if (Object.prototype.hasOwnProperty.call(updates, 'feature_permissions')) {
       updates.feature_permissions = sanitizeFeaturePermissions(updates.feature_permissions);
+      const targetHasEditPermission = (targetUser.feature_permissions || []).includes('meeting_updates_edit');
+      const nextHasEditPermission = updates.feature_permissions.includes('meeting_updates_edit');
+      if (targetHasEditPermission !== nextHasEditPermission && !canManageMeetingUpdateEditors(req.user?.user_role)) {
+        return res.status(403).send({ message: 'Only Dev or Sr Dev can grant or revoke Edit Meeting Updates permission.' });
+      }
     }
 
     if (updates.name) {
@@ -440,7 +461,16 @@ UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async
 // Sanitized user list for dropdowns/share selectors
 UserRoutes.get('/options', authenticateUser, async (req, res) => {
   try {
-    const userDocs = await UserModel.find({ isDisabled: { $ne: true } }, 'name user_role profilePicture').sort({ name: 1 }).lean();
+    const requestedHistoricalUsers = String(req.query.includeDisabled || '').toLowerCase() === 'true';
+    const reportingRoles = ['admin', 'senior admin', 'super admin', 'director', 'dev', 'srdev', 'sr dev'];
+    const canViewHistoricalUsers = reportingRoles.includes(normalizeRole(req.user?.user_role));
+
+    // Standard selectors must never offer disabled employees for new booking/sharing work.
+    // Historical reporting may explicitly include them, preserving their scorecard trail.
+    const userQuery = requestedHistoricalUsers && canViewHistoricalUsers
+      ? {}
+      : { isDisabled: { $ne: true } };
+    const userDocs = await UserModel.find(userQuery, 'name user_role profilePicture isDisabled').sort({ name: 1 }).lean();
     const users = await withResolvedProfilePictures(userDocs);
     return res.status(200).send({ users });
   } catch (error) {
