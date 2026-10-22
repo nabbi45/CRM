@@ -67,6 +67,7 @@ const STATUS_STYLE = {
   unqualified: { bg: "rgba(100,116,139,.13)", color: "#475569" },
   junk: { bg: "rgba(239,68,68,.12)", color: "#b91c1c" },
 };
+const INITIAL_LEAD_LIMIT = 500;
 
 const emptyLead = {
   name: "",
@@ -92,6 +93,7 @@ const LeadsManagement = () => {
   const [canManage, setCanManage] = useState(false);
   const [limited, setLimited] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [working, setWorking] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -134,20 +136,13 @@ const LeadsManagement = () => {
     async (quiet = false) => {
       if (!quiet) setLoading(true);
       try {
-        const [leadData, columnData] = await Promise.all([
-          request("/?limit=5000"),
-          request("/columns"),
-        ]);
-        setLeads(leadData.leads || []);
-        setCanManage(Boolean(leadData.canManage));
-        setLimited(Boolean(leadData.limited));
-        setColumns(columnData.columns || []);
-        if (leadData.canManage) {
-          const userData = await request("/users");
-          setUsers(userData.users || []);
-        } else {
-          setUsers([]);
-        }
+        // One compact request instead of three authenticated round trips.
+        const data = await request(`/bootstrap?limit=${INITIAL_LEAD_LIMIT}`);
+        setLeads(data.leads || []);
+        setCanManage(Boolean(data.canManage));
+        setLimited(Boolean(data.limited));
+        setColumns(data.columns || []);
+        setUsers(data.users || []);
       } catch (error) {
         enqueueSnackbar(error.message, { variant: "error" });
       } finally {
@@ -160,6 +155,31 @@ const LeadsManagement = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  const refreshInBackground = () => {
+    void load(true);
+  };
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const data = await request(
+        `/?limit=${INITIAL_LEAD_LIMIT}&offset=${leads.length}`,
+      );
+      setLeads((previous) => {
+        const known = new Set(previous.map((lead) => lead._id));
+        return [
+          ...previous,
+          ...(data.leads || []).filter((lead) => !known.has(lead._id)),
+        ];
+      });
+      setLimited(Boolean(data.limited));
+    } catch (error) {
+      enqueueSnackbar(error.message, { variant: "error" });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const customColumns = useMemo(
     () => columns.filter((column) => column.active),
@@ -248,7 +268,7 @@ const LeadsManagement = () => {
       else replaceLead(result.lead);
       setLeadEditor(null);
       enqueueSnackbar(result.message, { variant: "success" });
-      await load(true);
+      refreshInBackground();
     } catch (error) {
       enqueueSnackbar(error.message, { variant: "error" });
     } finally {
@@ -292,7 +312,7 @@ const LeadsManagement = () => {
           `${result.rejected.length} row(s) were skipped. Check the file format and retry those rows.`,
           { variant: "warning" },
         );
-      await load(true);
+      refreshInBackground();
     } catch (error) {
       enqueueSnackbar(error.message, { variant: "error" });
     } finally {
@@ -342,15 +362,30 @@ const LeadsManagement = () => {
       );
     setWorking(true);
     try {
+      const assignedLeadIds = new Set(selected);
+      const recipient = users.find((user) => user.userId === assignee);
       const result = await request("/assign", {
         method: "POST",
         body: JSON.stringify({ leadIds: [...selected], userId: assignee }),
       });
+      const assignedAt = new Date().toISOString();
+      setLeads((previous) =>
+        previous.map((lead) =>
+          assignedLeadIds.has(lead._id)
+            ? {
+                ...lead,
+                assignedTo: assignee,
+                assignedToName: recipient?.name || lead.assignedToName,
+                assignedAt,
+              }
+            : lead,
+        ),
+      );
       setAssignOpen(false);
       setAssignee("");
       setSelected(new Set());
       enqueueSnackbar(result.message, { variant: "success" });
-      await load(true);
+      refreshInBackground();
     } catch (error) {
       enqueueSnackbar(error.message, { variant: "error" });
     } finally {
@@ -455,54 +490,28 @@ const LeadsManagement = () => {
 
   return (
     <Box sx={{ width: "100%", maxWidth: 1640, mx: "auto", pb: 4 }}>
-      <Box
-        sx={{
-          borderRadius: 4,
-          overflow: "hidden",
-          position: "relative",
-          p: { xs: 2.25, sm: 3.25 },
-          mb: 2.5,
-          color: "#fff",
-          background:
-            "linear-gradient(122deg,#0f766e 0%,#115e59 52%,#134e4a 100%)",
-          boxShadow: "0 18px 42px rgba(13,148,136,.21)",
-        }}
-      >
-        <Box
-          sx={{
-            position: "absolute",
-            width: 390,
-            height: 390,
-            borderRadius: "50%",
-            right: -150,
-            top: -235,
-            bgcolor: "rgba(255,255,255,.08)",
-          }}
-        />
+      <Box sx={{ mb: 2.5 }}>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
           alignItems={{ md: "center" }}
           justifyContent="space-between"
-          sx={{ position: "relative" }}
         >
           <Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <PeopleAltOutlinedIcon />
-              <Typography
-                variant="overline"
-                sx={{ letterSpacing: 1.4, fontWeight: 800, opacity: 0.82 }}
-              >
-                CRM PIPELINE
-              </Typography>
-            </Stack>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ letterSpacing: 1.2, fontWeight: 800 }}
+            >
+              CRM PIPELINE
+            </Typography>
             <Typography
               variant="h4"
-              sx={{ mt: 0.4, fontWeight: 850, letterSpacing: -0.7 }}
+              sx={{ mt: 0.25, fontWeight: 800, letterSpacing: -0.5 }}
             >
               Leads Management
             </Typography>
-            <Typography sx={{ mt: 0.6, opacity: 0.82, maxWidth: 640 }}>
+            <Typography color="text.secondary" sx={{ mt: 0.6, maxWidth: 640 }}>
               Assign leads, keep five call notes, and see exactly where every
               conversation stands.
             </Typography>
@@ -513,14 +522,6 @@ const LeadsManagement = () => {
                 variant="outlined"
                 startIcon={<ManageAccountsOutlinedIcon />}
                 onClick={() => setColumnsOpen(true)}
-                sx={{
-                  color: "#fff",
-                  borderColor: "rgba(255,255,255,.55)",
-                  "&:hover": {
-                    borderColor: "#fff",
-                    bgcolor: "rgba(255,255,255,.1)",
-                  },
-                }}
               >
                 Columns
               </Button>
@@ -528,12 +529,6 @@ const LeadsManagement = () => {
                 variant="contained"
                 startIcon={<UploadFileOutlinedIcon />}
                 onClick={() => setImportOpen(true)}
-                sx={{
-                  bgcolor: "#fff",
-                  color: "#0f766e",
-                  fontWeight: 800,
-                  "&:hover": { bgcolor: "#f0fdfa" },
-                }}
               >
                 Import leads
               </Button>
@@ -541,12 +536,6 @@ const LeadsManagement = () => {
                 variant="contained"
                 startIcon={<AddOutlinedIcon />}
                 onClick={openCreate}
-                sx={{
-                  bgcolor: "#fbbf24",
-                  color: "#422006",
-                  fontWeight: 800,
-                  "&:hover": { bgcolor: "#fcd34d" },
-                }}
               >
                 Add lead
               </Button>
@@ -599,9 +588,22 @@ const LeadsManagement = () => {
       </Grid>
 
       {limited && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Showing the latest 5,000 leads. Narrow the pipeline or split future
-          imports if you need to work with more at once.
+        <Alert
+          severity="info"
+          sx={{ mb: 2 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              disabled={loadingMore}
+              onClick={loadMore}
+            >
+              {loadingMore ? "Loading..." : `Load next ${INITIAL_LEAD_LIMIT}`}
+            </Button>
+          }
+        >
+          Showing the latest {INITIAL_LEAD_LIMIT} leads for a faster workspace.
+          Narrow the pipeline before working through older records.
         </Alert>
       )}
       {!canManage && (

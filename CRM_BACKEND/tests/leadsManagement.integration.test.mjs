@@ -142,6 +142,23 @@ test("only management roles can create/import leads and required headings are ch
     .expect(200);
   assert(columns.body.columns.some((column) => column.key === "city"));
   assert(columns.body.columns.some((column) => column.key === "budget"));
+
+  const bootstrap = await request(app)
+    .get("/leads-management/bootstrap")
+    .set("Authorization", tokenFor(admin))
+    .expect(200);
+  assert.equal(bootstrap.body.leads.length, 3);
+  assert.equal(bootstrap.body.canManage, true);
+  assert(bootstrap.body.users.some((user) => user.name === "Lead Owner"));
+  assert.equal(bootstrap.body.leads[0].assignmentHistory, undefined);
+  assert.equal(bootstrap.body.leads[0].statusHistory, undefined);
+
+  const secondPage = await request(app)
+    .get("/leads-management?limit=2&offset=2")
+    .set("Authorization", tokenFor(admin))
+    .expect(200);
+  assert.equal(secondPage.body.leads.length, 1);
+  assert.equal(secondPage.body.limited, false);
 });
 
 test("assignment notifies the owner and owners can update their own leads and five call notes", async () => {

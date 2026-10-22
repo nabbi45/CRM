@@ -86,6 +86,8 @@ const leadManagementSchema = new mongoose.Schema(
 
 leadManagementSchema.index({ assignedTo: 1, status: 1, updatedAt: -1 });
 leadManagementSchema.index({ createdBy: 1, updatedAt: -1 });
+// Keeps the default manager view fast even after the lead collection grows.
+leadManagementSchema.index({ updatedAt: -1 });
 
 const leadColumnSchema = new mongoose.Schema(
   {

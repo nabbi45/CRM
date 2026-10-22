@@ -19,7 +19,7 @@ export const authenticateUser = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace with your JWT secret
     // Validate the current account state on every request so disabling an employee
     // immediately invalidates already-issued sessions as well as future logins.
-    const currentUser = await UserModel.findById(decoded.userId).select('isDisabled').lean();
+    const currentUser = await UserModel.findById(decoded.userId).select('isDisabled name').lean();
     if (!currentUser) {
       return res.status(401).send({ message: 'User account no longer exists' });
     }
@@ -29,7 +29,9 @@ export const authenticateUser = async (req, res, next) => {
         code: 'ACCOUNT_DISABLED',
       });
     }
-    req.user = decoded; // Attach user data (including role) to request object
+    // Reuse the account lookup already made above for the actor name. This avoids a
+    // second database round trip for audited actions (such as lead notes/assignment).
+    req.user = { ...decoded, name: decoded.name || currentUser.name || '' };
 
     if (!canManageSecurity(decoded)) {
       const clientIp = getClientIp(req);

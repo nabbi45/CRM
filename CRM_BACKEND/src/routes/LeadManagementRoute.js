@@ -166,6 +166,63 @@ const ensureColumns = async (entries, currentActor) => {
 const canAccessLead = (req, lead) =>
   isManager(req.user) || lead.assignedTo === String(req.user.userId);
 
+const listColumns = () =>
+  LeadColumnModel.find().sort({ active: -1, label: 1 }).lean();
+
+const listAssignableUsers = async () => {
+  const users = await UserModel.find({ isDisabled: { $ne: true } })
+    .select("name email user_role profilePicture")
+    .sort({ name: 1 })
+    .lean();
+  return users.map((user) => ({
+    userId: String(user._id),
+    name: user.name,
+    email: user.email,
+    role: user.user_role,
+    profilePicture: user.profilePicture || "",
+  }));
+};
+
+const listLeads = async (req) => {
+  const query = isManager(req.user)
+    ? {}
+    : { assignedTo: String(req.user.userId) };
+  const status = cleanText(req.query.status, 30).toLowerCase();
+  const search = cleanText(req.query.search, 120);
+  if (STATUSES.includes(status)) query.status = status;
+  if (search) {
+    const regex = new RegExp(
+      search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      "i",
+    );
+    query.$or = [
+      { name: regex },
+      { mobileNumber: regex },
+      { email: regex },
+      { companyName: regex },
+      { serviceRequirement: regex },
+    ];
+  }
+  // The portal starts with a deliberately quick working set. A manager can
+  // still request up to 5,000 rows from the list endpoint when needed.
+  const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 5000);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const leads = await LeadManagementModel.find(query)
+    .select("-assignmentHistory -statusHistory")
+    .sort({ updatedAt: -1 })
+    .skip(offset)
+    .limit(limit)
+    .lean();
+  return { leads, limited: leads.length === limit };
+};
+
+const leadForResponse = (lead) => {
+  const plain = lead?.toObject ? lead.toObject() : { ...lead };
+  delete plain.assignmentHistory;
+  delete plain.statusHistory;
+  return plain;
+};
+
 router.use(authenticateUser);
 
 router.get("/template", managerOnly, (_req, res) => {
@@ -176,9 +233,7 @@ router.get("/template", managerOnly, (_req, res) => {
 
 router.get("/columns", async (_req, res) => {
   try {
-    const columns = await LeadColumnModel.find()
-      .sort({ active: -1, label: 1 })
-      .lean();
+    const columns = await listColumns();
     res.json({ columns });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -205,14 +260,12 @@ router.post("/columns", managerOnly, async (req, res) => {
     });
     res.status(201).json({ message: "Custom column added.", column });
   } catch (error) {
-    res
-      .status(error.code === 11000 ? 409 : 400)
-      .json({
-        message:
-          error.code === 11000
-            ? "A column with that name already exists."
-            : error.message,
-      });
+    res.status(error.code === 11000 ? 409 : 400).json({
+      message:
+        error.code === 11000
+          ? "A column with that name already exists."
+          : error.message,
+    });
   }
 });
 
@@ -241,18 +294,25 @@ router.patch("/columns/:id", managerOnly, async (req, res) => {
 
 router.get("/users", managerOnly, async (_req, res) => {
   try {
-    const users = await UserModel.find({ isDisabled: { $ne: true } })
-      .select("name email user_role profilePicture")
-      .sort({ name: 1 })
-      .lean();
+    res.json({ users: await listAssignableUsers() });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get("/bootstrap", async (req, res) => {
+  try {
+    const manager = isManager(req.user);
+    const [leadData, columns, users] = await Promise.all([
+      listLeads(req),
+      listColumns(),
+      manager ? listAssignableUsers() : Promise.resolve([]),
+    ]);
     res.json({
-      users: users.map((user) => ({
-        userId: String(user._id),
-        name: user.name,
-        email: user.email,
-        role: user.user_role,
-        profilePicture: user.profilePicture || "",
-      })),
+      ...leadData,
+      columns,
+      users,
+      canManage: manager,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -261,35 +321,8 @@ router.get("/users", managerOnly, async (_req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const query = isManager(req.user)
-      ? {}
-      : { assignedTo: String(req.user.userId) };
-    const status = cleanText(req.query.status, 30).toLowerCase();
-    const search = cleanText(req.query.search, 120);
-    if (STATUSES.includes(status)) query.status = status;
-    if (search) {
-      const regex = new RegExp(
-        search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-        "i",
-      );
-      query.$or = [
-        { name: regex },
-        { mobileNumber: regex },
-        { email: regex },
-        { companyName: regex },
-        { serviceRequirement: regex },
-      ];
-    }
-    const limit = Math.min(Math.max(Number(req.query.limit) || 2000, 1), 5000);
-    const leads = await LeadManagementModel.find(query)
-      .sort({ updatedAt: -1 })
-      .limit(limit)
-      .lean();
-    res.json({
-      leads,
-      canManage: isManager(req.user),
-      limited: leads.length === limit,
-    });
+    const leadData = await listLeads(req);
+    res.json({ ...leadData, canManage: isManager(req.user) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -314,7 +347,9 @@ router.post("/", managerOnly, async (req, res) => {
       lastUpdatedBy: currentActor.id,
       lastUpdatedByName: currentActor.name,
     });
-    res.status(201).json({ message: "Lead added.", lead });
+    res
+      .status(201)
+      .json({ message: "Lead added.", lead: leadForResponse(lead) });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -350,12 +385,10 @@ router.post("/import", managerOnly, upload.single("file"), async (req, res) => {
     const hasName = indexed.some((item) => item.canonical === "name");
     const hasMobile = indexed.some((item) => item.canonical === "mobileNumber");
     if (!hasName || !hasMobile)
-      return res
-        .status(400)
-        .json({
-          message:
-            "The first row must include Name and Mobile Number. Optional standard columns: Email, Service Requirement, Company Name. Download the template if needed.",
-        });
+      return res.status(400).json({
+        message:
+          "The first row must include Name and Mobile Number. Optional standard columns: Email, Service Requirement, Company Name. Download the template if needed.",
+      });
     const rows = grid
       .slice(1)
       .filter((row) => row.some((cell) => cleanText(cell)));
@@ -409,24 +442,20 @@ router.post("/import", managerOnly, upload.single("file"), async (req, res) => {
       }
     });
     if (!valid.length)
-      return res
-        .status(400)
-        .json({
-          message:
-            "No rows could be imported. Fix the required Name and Mobile Number values.",
-          rejected,
-        });
+      return res.status(400).json({
+        message:
+          "No rows could be imported. Fix the required Name and Mobile Number values.",
+        rejected,
+      });
     const inserted = await LeadManagementModel.insertMany(valid, {
       ordered: false,
     });
-    res
-      .status(201)
-      .json({
-        message: `${inserted.length} lead${inserted.length === 1 ? "" : "s"} imported.`,
-        imported: inserted.length,
-        rejected,
-        columns: customColumns,
-      });
+    res.status(201).json({
+      message: `${inserted.length} lead${inserted.length === 1 ? "" : "s"} imported.`,
+      imported: inserted.length,
+      rejected,
+      columns: customColumns,
+    });
   } catch (error) {
     res
       .status(400)
@@ -561,7 +590,7 @@ router.patch("/:id", async (req, res) => {
     }
     Object.assign(lead, updates);
     await lead.save();
-    res.json({ message: "Lead updated.", lead });
+    res.json({ message: "Lead updated.", lead: leadForResponse(lead) });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -591,12 +620,10 @@ router.post("/:id/notes", async (req, res) => {
       !isManager(req.user) &&
       existing.createdBy !== currentActor.id
     )
-      return res
-        .status(403)
-        .json({
-          message:
-            "Only the original author or an administrator can edit this note.",
-        });
+      return res.status(403).json({
+        message:
+          "Only the original author or an administrator can edit this note.",
+      });
     if (existing) {
       existing.content = content;
       existing.updatedAt = new Date();
@@ -611,21 +638,19 @@ router.post("/:id/notes", async (req, res) => {
     lead.lastUpdatedBy = currentActor.id;
     lead.lastUpdatedByName = currentActor.name;
     await lead.save();
-    res.json({ message: `Note ${number} saved.`, lead });
+    res.json({ message: `Note ${number} saved.`, lead: leadForResponse(lead) });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
 router.use((error, _req, res, _next) =>
-  res
-    .status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400)
-    .json({
-      message:
-        error.code === "LIMIT_FILE_SIZE"
-          ? "Lead file must be 12 MB or smaller."
-          : error.message || "Unable to process the lead request.",
-    }),
+  res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : 400).json({
+    message:
+      error.code === "LIMIT_FILE_SIZE"
+        ? "Lead file must be 12 MB or smaller."
+        : error.message || "Unable to process the lead request.",
+  }),
 );
 
 export default router;
