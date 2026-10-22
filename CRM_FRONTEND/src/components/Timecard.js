@@ -429,7 +429,7 @@ const Timecard = () => {
     };
 
     const tabsToRender = [
-        { label: "My Timecard", show: true },
+        { label: "My Attendance", show: true },
         { label: "Apply for Leave", show: true },
         { label: "My Leave History", show: true },
         { label: "Organization Holidays", show: true },
@@ -473,9 +473,9 @@ const Timecard = () => {
             <Box sx={{ display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'space-between' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <EventNoteOutlinedIcon sx={{ color: ACCENT }} />
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>Timecard & Leave</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>HRM Portal</Typography>
               </Box>
-              {activeTabLabel === 'My Timecard' && (
+              {activeTabLabel === 'My Attendance' && (
                 <TextField 
                     label="Month" 
                     type="month" 
@@ -515,7 +515,7 @@ const Timecard = () => {
             )}
 
             {/* TAB: MY TIMECARD */}
-            {activeTabLabel === 'My Timecard' && (
+            {activeTabLabel === 'My Attendance' && (
                 <Box>
                     <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Attendance Summary</Typography>
                     

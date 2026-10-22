@@ -7,7 +7,7 @@ import {
   Box,
   Typography,
 } from '@mui/material';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import DashboardContent from '../components/DashboardContent';
 import AddBooking from '../components/NewBooking';
@@ -23,7 +23,6 @@ import { apiUrl } from '../components/LoginSignup';
 import { CreateProfile } from '../components/EmployeeProfileForm';
 import CompanyProfile from '../components/CompanyProfile';
 import DocumentsPage from '../components/DocumentsPage';
-import Timecard from '../components/Timecard';
 import NotificationBell from '../components/NotificationBell';
 import DynamicHead from '../components/DynamicHead';
 import TeamInbox from '../components/TeamInbox';
@@ -185,7 +184,7 @@ const Dashboard = () => {
     '/dashboard/generated-documents': 'Generated Documents',
     '/dashboard/process-documents': 'File Activity',
     '/dashboard/meeting-updates': 'Meeting Updates',
-    '/dashboard/timecard': 'Timecard & Leave',
+    '/dashboard/timecard': 'HRM Portal',
     '/dashboard/communication': 'Communication',
   };
 
@@ -278,7 +277,7 @@ const Dashboard = () => {
           <Route path="generated-documents" element={<FeatureGuard userSession={userSession} feature="generated_documents"><DocumentsPage /></FeatureGuard>} />
           <Route path="process-documents" element={<FeatureGuard userSession={userSession} feature="client_documents"><ClientDocuments /></FeatureGuard>} />
           <Route path="meeting-updates" element={<FeatureGuard userSession={userSession} feature="meeting_updates"><MeetingUpdates /></FeatureGuard>} />
-          <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="timecard"><Timecard /></FeatureGuard>} />
+          <Route path="timecard" element={<FeatureGuard userSession={userSession} feature="timecard"><Navigate to="/hrm" replace /></FeatureGuard>} />
           <Route path="communication" element={<FeatureGuard userSession={userSession} feature="communication"><TeamInbox /></FeatureGuard>} />
         </Routes>
       </Box>

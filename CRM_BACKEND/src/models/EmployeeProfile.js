@@ -199,8 +199,7 @@ employeeProfileSchema.pre('save', async function(next) {
 });
 
 // Index for better query performance
-employeeProfileSchema.index({ userId: 1 });
-employeeProfileSchema.index({ employeeId: 1 });
+// userId and employeeId already declare unique indexes in their field definitions.
 employeeProfileSchema.index({ department: 1 });
 employeeProfileSchema.index({ branch: 1 });
 employeeProfileSchema.index({ profileCompletionStatus: 1 });

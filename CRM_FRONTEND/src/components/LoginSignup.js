@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 // Static logo imports removed to prevent cross-company branding leakage
 import { useColorMode } from "../context/AppThemeProvider";
 export const apiUrl =
@@ -59,6 +59,7 @@ const TypewriterText = ({ words }) => {
 };
 
 const LoginSignup = ({ onLoginSuccess }) => {
+  const location = useLocation();
   const [isActive, setIsActive] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -230,7 +231,9 @@ const LoginSignup = ({ onLoginSuccess }) => {
           severity: "success",
         });
         onLoginSuccess();
-        navigate("/dashboard");
+        const returnTo = location.state?.from;
+        const destination = returnTo?.pathname || '/dashboard';
+        navigate(destination.startsWith('/') && !destination.startsWith('//') ? `${destination}${returnTo?.search || ''}` : '/dashboard', { replace: true });
       }
     } catch (error) {
       setSnackbar({

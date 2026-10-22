@@ -7,6 +7,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import { SnackbarProvider } from 'notistack';
 import './App.css';
 import { apiUrl } from './components/LoginSignup';
+const HRMPortal = React.lazy(() => import('./hrm/HRMPortal'));
 
 const LOGIN_DURATION = 20 * 60 * 60 * 1000; // 20 hours in milliseconds
 
@@ -17,7 +18,8 @@ const validateToken = async () => {
 
   try {
     // Try to validate token by making a request to a protected endpoint
-    const res = await fetch(`${apiUrl}/booking/all`, {
+    const isHRMRoute = window.location.pathname.startsWith('/hrm') || window.location.pathname === '/dashboard/timecard';
+    const res = await fetch(`${apiUrl}${isHRMRoute ? '/hrm/session' : '/booking/all'}`, {
       method: 'GET',
       headers: {
         'Authorization': session.token,
@@ -115,6 +117,7 @@ function App() {
     const handleStorageChange = (e) => {
       if (e.key === 'isAuthenticated' || e.key === 'userSession') {
         setIsAuthenticated(checkAuth());
+        if (!checkAuth()) window.location.assign('/login');
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -163,6 +166,7 @@ function App() {
   return (
     <SnackbarProvider>
       <Routes>
+        <Route path="/hrm/*" element={<ProtectedRoute><React.Suspense fallback={<div style={{ padding: 40 }}>Opening HRM Portal…</div>}><HRMPortal /></React.Suspense></ProtectedRoute>} />
         {/* Public routes - Login and Signup (redirect to dashboard if already logged in) */}
         <Route
           path="/login"

@@ -10,6 +10,10 @@ const holidaySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  department: { type: String, default: '' },
+  location: { type: String, default: '' },
+  holidayType: { type: String, default: 'Company' },
+  description: { type: String, default: '' },
   addedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User"

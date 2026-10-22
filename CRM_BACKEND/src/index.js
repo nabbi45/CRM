@@ -12,6 +12,9 @@ import DocumentMailRoute from "./routes/DocumentMailRoute.js";
 import BroadcastRoutes from "./routes/BroadcastRoute.js";
 import LeaveRoutes from "./routes/LeaveRoute.js";
 import TimecardRoutes from "./routes/TimecardRoute.js";
+import HRMRoutes from "./hrm/routes.js";
+import { timecardBridge, leaveBridge } from "./hrm/legacy.js";
+import { runAutomation } from "./hrm/service.js";
 import ChatRoutes from "./routes/ChatRoute.js"; // New Chat Route
 import ChatUploadRoutes from "./routes/ChatUploadRoute.js"; // New Chat Upload Route
 import ContactSalesRoute from "./routes/ContactSalesRoute.js"; // Inbound Sales Route
@@ -105,8 +108,9 @@ app.use("/documents", DocumentRoutes);
 app.use("/generate-agreement", AgreementRoute);
 app.use("/document-mail", DocumentMailRoute);
 app.use("/broadcasts", BroadcastRoutes);
-app.use("/leaves", LeaveRoutes);
-app.use("/timecard", TimecardRoutes);
+app.use("/hrm", HRMRoutes);
+app.use("/leaves", leaveBridge, LeaveRoutes);
+app.use("/timecard", timecardBridge, TimecardRoutes);
 app.use("/chat", ChatRoutes);
 app.use("/chat-upload", ChatUploadRoutes);
 app.use("/sales", ContactSalesRoute);
@@ -237,6 +241,9 @@ app.get("/", (req, res) => {
 connection()
   .then(() => {
     console.log("connected to db");
+    const processHRM = () => runAutomation().catch(error => console.error('HRM automation:', error.message));
+    processHRM();
+    setInterval(processHRM, 60 * 1000).unref();
     // VERY IMPORTANT: Use server.listen, not app.listen to start Socket.IO
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server (HTTP + WS) is running at http://0.0.0.0:${PORT}`);

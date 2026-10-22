@@ -5,6 +5,7 @@ const NotificationSchema = new mongoose.Schema({
     type: {
         type: String,
         enum: [
+            "hrm_update",
             "leave_submitted",
             "leave_approved",
             "leave_rejected",

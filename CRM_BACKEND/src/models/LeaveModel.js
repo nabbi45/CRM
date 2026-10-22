@@ -13,7 +13,7 @@ const LeaveSchema = new mongoose.Schema({
     reason: { type: String, required: true },
     status: {
         type: String,
-        enum: ["pending", "approved", "rejected"],
+        enum: ["pending", "approved", "rejected", "cancelled"],
         default: "pending"
     },
     approved_by: { type: String, default: "" },

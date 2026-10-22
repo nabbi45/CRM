@@ -206,7 +206,7 @@ const Sidebar = () => {
       items.push({ text: 'Security', icon: <SecurityOutlinedIcon />, path: '/dashboard/security', color: '#0ea5e9' });
     }
     if (canAccessFeature(userSession, 'timecard')) {
-      items.push({ text: 'Timecard', icon: <EventNoteOutlinedIcon />, path: '/dashboard/timecard', color: '#14b8a6' });
+      items.push({ text: 'HRM Portal', icon: <EventNoteOutlinedIcon />, path: '/hrm', color: '#14b8a6', newTab: true });
     }
     if (canAccessFeature(userSession, 'communication')) {
       items.push({
@@ -395,6 +395,8 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
         {menuItems.map((item) => (
           <NavLink
             to={item.path}
+            target={item.newTab ? '_blank' : undefined}
+            rel={item.newTab ? 'noopener noreferrer' : undefined}
             key={item.text}
             end={item.path === '/dashboard'}
             style={{ textDecoration: 'none' }}
