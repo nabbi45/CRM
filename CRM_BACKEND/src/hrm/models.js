@@ -24,6 +24,10 @@ export const HRMEmployee = model("HRMEmployee", {
   eligible: Boolean,
   exitDate: String,
   setupConfirmed: Boolean,
+  eligibilityProfile: mixed,
+  tourVersion: Number,
+  adminTourVersion: Number,
+  tourCompletedAt: Date,
 });
 export const HRMAttendance = model(
   "HRMAttendance",

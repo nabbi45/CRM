@@ -6,13 +6,29 @@ The CRM sidebar opens it in a new tab. `/dashboard/timecard` redirects to it.
 
 ## First activation
 
-1. Deploy the backend and frontend together. Use a MongoDB replica set (including
-   Atlas) so requests, ledgers, audits and locks commit atomically. No additional
-   production environment variables are required.
-2. Open **HRM Portal → Employee setup** as HR or a system administrator. Complete
+Read the plain-language [HR guide](../../../docs/HRM_HR_GUIDE.md) for opening
+balance examples, activation dates and daily workflows. An administrator should
+confirm the [backup and recovery checkpoint](../../../docs/DATABASE_BACKUP_AND_RECOVERY.md)
+before setup. Timestamps, version counters and replica sets are not undo backups.
+
+1. Deploy the backend and frontend together. HRM uses the **existing CRM MongoDB**,
+   not a second database. The configured database was checked on 22 October 2026:
+   it already supports transactions (replica set), so no database reconfiguration
+   or employee reseeding is needed. Transactions keep balances, requests and audits
+   consistent. A different standalone deployment would need transaction support.
+2. Open **HRM Portal**. Every employee receives a one-time walkthrough; authorised
+   HR/admin accounts receive additional setup and management guidance. Completion
+   is saved per account in MongoDB, including across devices. **Help & tours** replays
+   it. **Continue guided setup** opens the resumable setup assistant. Complete
    existing employee profiles first: joining date, department, branch and gender.
    Confirm each enabled employee's manager, WFH group and eligibility. Reporting
    manager names are retained for reference; assignments use explicit user IDs.
+   Existing profiles are prefilled and the assistant can update their eligibility
+   fields. For accounts without a full employee profile, the assistant collects
+   the minimum HR eligibility fields against the existing account. It does not
+   invent bank/personal details or create incomplete CRM profiles. Later CRM
+   profile fields take precedence. No duplicate accounts, sample employees or
+   invented balances are seeded. Confirmed reviews and policies persist on exit.
 3. Confirm opening EL, WFH and ML balances. These represent balances on the
    activation date **including that month's credits**, after reconciling historical
    usage. Values default to zero and are recorded as opening ledger transactions.
@@ -69,7 +85,7 @@ The HRM suite starts a disposable local MongoDB replica set and never reads
 
 ```text
 cd CRM_FRONTEND
-npm test -- --watchAll=false --runInBand --runTestsByPath src/hrm/HRMPortal.test.js
+npm test -- --watchAll=false --runInBand --runTestsByPath src/hrm/HRMPortal.test.js src/hrm/HRMOnboarding.test.js
 npx react-scripts build
 ```
 

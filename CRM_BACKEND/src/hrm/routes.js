@@ -5,7 +5,13 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
 import DailyActivityModel from "../models/DailyActivityModel.js";
 import { prepareUploadFile, toDataUri } from "../utils/uploadCompression.js";
-import { HRMAudit, HRMAttendance, HRMRequest, HRMLock } from "./models.js";
+import {
+  HRMAudit,
+  HRMAttendance,
+  HRMRequest,
+  HRMLock,
+  HRMEmployee,
+} from "./models.js";
 import * as service from "./service.js";
 import { todayIST, dateKey } from "./rules.js";
 
@@ -58,8 +64,25 @@ router.use((req, res, next) =>
 router.get(
   "/bootstrap",
   wrap(async (req, res) => {
-    await service.runAutomation();
     res.json(await service.bootstrap(req.actor, req.query.month));
+  }),
+);
+// A single-document, account-scoped preference; never modifies HR eligibility.
+router.post(
+  "/tour/complete",
+  wrap(async (req, res) => {
+    await HRMEmployee.updateOne(
+      { userId: req.actor.userId },
+      {
+        $set: {
+          tourVersion: 1,
+          tourCompletedAt: new Date(),
+          ...(service.isHR(req.actor) ? { adminTourVersion: 1 } : {}),
+        },
+      },
+      { upsert: true },
+    );
+    res.json({ tourVersion: 1 });
   }),
 );
 router.get(

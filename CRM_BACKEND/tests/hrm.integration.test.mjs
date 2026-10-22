@@ -42,6 +42,81 @@ const today = todayIST(),
   first = `${month}-01`;
 const previous = addDays(first, -1).slice(0, 7),
   activation = `${previous}-01`;
+test("setup can review an existing account without fabricating a full CRM profile", async () => {
+  const account = await UserModel.create({
+    name: "Unprofiled",
+    email: "unprofiled@example.test",
+    password: "test-only",
+    user_role: "employee",
+    isDisabled: true,
+  });
+  const userId = String(account._id);
+  try {
+    const payload = {
+      userId,
+      group: "Operations",
+      eligible: false,
+      profile: {
+        department: "Admin",
+        branch: "Delhi",
+        gender: "Other",
+        dateOfJoining: "2026-10-01",
+      },
+    };
+    await assert.rejects(hrm.setup(employee, payload), /HR access/);
+    await hrm.setup(hr, payload);
+    const reviewed = (await hrm.employees()).find((e) => e.userId === userId);
+    assert.equal(reviewed.dateOfJoining, "2026-10-01");
+    assert.equal(reviewed.department, "Admin");
+    assert.equal(reviewed.setupConfirmed, true);
+    assert.equal(await EmployeeModel.countDocuments({ userId }), 0);
+    assert.equal(await UserModel.countDocuments({ _id: account._id }), 1);
+    await assert.rejects(
+      hrm.setup(hr, {
+        ...payload,
+        profile: { ...payload.profile, gender: "Unknown" },
+      }),
+      /Confirm department/,
+    );
+  } finally {
+    await UserModel.deleteOne({ _id: account._id });
+    await models.HRMEmployee.deleteOne({ userId });
+  }
+});
+test("tour completion is account-scoped and cannot grant HR settings", async () => {
+  const before = await models.HRMEmployee.findOne({
+    userId: employee.userId,
+  }).lean();
+  await request(app)
+    .post("/hrm/tour/complete")
+    .set("Authorization", token(employee))
+    .send({ userId: hr.userId, eligible: false, adminTourVersion: 1 })
+    .expect(200);
+  const saved = await models.HRMEmployee.findOne({
+    userId: employee.userId,
+  }).lean();
+  assert.equal(saved.tourVersion, 1);
+  assert.equal(saved.adminTourVersion, undefined);
+  assert.equal(saved.eligible, before.eligible);
+  assert.equal(
+    (await models.HRMEmployee.findOne({ userId: hr.userId }).lean())
+      .tourVersion,
+    undefined,
+  );
+  await request(app)
+    .post("/hrm/tour/complete")
+    .set("Authorization", token(hr))
+    .send({})
+    .expect(200);
+  assert.equal(
+    (await models.HRMEmployee.findOne({ userId: hr.userId }).lean())
+      .adminTourVersion,
+    1,
+  );
+  const bootstrap = await hrm.bootstrap(hr, month);
+  assert.equal(bootstrap.onboarding.database.transactionsSupported, true);
+  assert.equal(bootstrap.onboarding.adminTourVersion, 1);
+});
 before(
   async () => {
     repl = await MongoMemoryReplSet.create({

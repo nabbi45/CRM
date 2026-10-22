@@ -124,7 +124,7 @@ export const mutate = async (actor, callback) => {
   } catch (e) {
     if (/Transaction numbers|replica set|mongos/.test(e.message))
       fail(
-        "HRM requires a MongoDB replica set for atomic attendance and balance updates. Configure it before activation.",
+        "Your connected MongoDB does not support transactions. HRM balance changes require transaction support on this same database (Atlas already provides it). No second database or employee reseeding is required. Ask your database administrator to review the current deployment; existing CRM records are unchanged.",
         503,
       );
     throw e;
@@ -197,15 +197,19 @@ export const employees = async (s) => {
       user_role: u.user_role,
       profilePicture: u.profilePicture,
       disabled: u.isDisabled,
+      hasProfile: Boolean(p._id),
       employeeId: p.employeeId,
-      department: p.department || "",
-      branch: p.branch || "",
-      gender: p.gender,
+      department: p.department || h.eligibilityProfile?.department || "",
+      branch: p.branch || h.eligibilityProfile?.branch || "",
+      gender: p.gender || h.eligibilityProfile?.gender,
       dateOfJoining: p.dateOfJoining
         ? p.dateOfJoining.toISOString().slice(0, 10)
-        : "",
+        : h.eligibilityProfile?.dateOfJoining || "",
       reportingManager: p.reportingManager || "",
-      group: p.department === "Sales" ? "Sales" : "Operations",
+      group:
+        (p.department || h.eligibilityProfile?.department) === "Sales"
+          ? "Sales"
+          : "Operations",
       eligible: p.isActive !== false && !u.isDisabled,
       ...h,
       userId: id,
@@ -388,6 +392,62 @@ export const setup = async (actor, body) =>
     if (!isHR(actor)) fail("HR access required", 403);
     const userId = String(body.userId || "");
     await employeeFor(userId, s);
+    if (body.profile) {
+      const profile = body.profile;
+      if (
+        !["Sales", "Digital", "Admin", "Legal", "Finance"].includes(
+          profile.department,
+        ) ||
+        !["Male", "Female", "Other"].includes(profile.gender) ||
+        !String(profile.branch || "").trim()
+      )
+        fail("Confirm department, branch and gender");
+      const joiningDate = dateKey(profile.dateOfJoining);
+      const beforeProfile = await EmployeeModel.findOne({ userId })
+        .session(s)
+        .lean();
+      const fields = {
+        department: profile.department,
+        gender: profile.gender,
+        branch: String(profile.branch).trim(),
+        dateOfJoining: new Date(`${joiningDate}T00:00:00Z`),
+        updatedBy: actorId(actor),
+      };
+      if (beforeProfile) {
+        await EmployeeModel.updateOne(
+          { userId },
+          { $set: fields },
+          { session: s, runValidators: true },
+        );
+      } else {
+        // Keep minimal eligibility on the existing account, not a fabricated full profile.
+        await HRMEmployee.updateOne(
+          { userId },
+          {
+            $set: {
+              eligibilityProfile: {
+                department: fields.department,
+                branch: fields.branch,
+                gender: fields.gender,
+                dateOfJoining: joiningDate,
+              },
+            },
+          },
+          { upsert: true, session: s },
+        );
+      }
+      await audit(
+        s,
+        actor,
+        "Employee profile",
+        "setup review",
+        userId,
+        Object.fromEntries(
+          Object.keys(fields).map((k) => [k, beforeProfile?.[k]]),
+        ),
+        fields,
+      );
+    }
     const before = await HRMEmployee.findOne({ userId }).session(s).lean();
     const settings = {
       managerId: body.managerId || "",
@@ -1880,6 +1940,23 @@ export const bootstrap = async (actor, month = todayIST().slice(0, 7)) => {
     .sort({ createdAt: -1 })
     .lean();
   const own = actorId(actor);
+  const preference = await HRMEmployee.findOne({ userId: own }).lean();
+  let database = null;
+  if (isHR(actor)) {
+    try {
+      const hello = await mongoose.connection.db
+        .admin()
+        .command({ hello: 1 }, { maxTimeMS: 3000 });
+      database = {
+        connected: true,
+        transactionsSupported: Boolean(
+          hello.setName || hello.msg === "isdbgrid",
+        ),
+      };
+    } catch {
+      database = { connected: true, transactionsSupported: null };
+    }
+  }
   const ledgerRows = await HRMLedger.find({ userId: { $in: ids } })
     .sort({ date: -1 })
     .lean();
@@ -1930,6 +2007,11 @@ export const bootstrap = async (actor, month = todayIST().slice(0, 7)) => {
   }
   return {
     today: todayIST(),
+    onboarding: {
+      tourVersion: preference?.tourVersion || 0,
+      adminTourVersion: preference?.adminTourVersion || 0,
+      database,
+    },
     activationDate: c?.activationDate || "",
     isHR: isHR(actor),
     isSystem: isSystem(actor),

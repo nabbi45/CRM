@@ -37,6 +37,7 @@ import { apiUrl } from "../components/LoginSignup";
 import NotificationBell from "../components/NotificationBell";
 import Timecard from "../components/Timecard";
 import "./hrm.css";
+import HRMOnboarding from "./HRMOnboarding";
 
 const NAV = [
   ["Overview", "Dashboard", "", DashboardOutlined],
@@ -276,7 +277,7 @@ function HRMWorkspace() {
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [mobileNav, setMobileNav] = useState(false);
-  const [branding, setBranding] = useState({ company_name: "Farsight" });
+  const [branding, setBranding] = useState({ company_name: "CRM" });
   useEffect(() => {
     let active = true;
     fetch(`${apiUrl}/company/public`)
@@ -751,6 +752,7 @@ function HRMWorkspace() {
           </div>
         </header>
         <div className="hrm-content">
+          <HRMOnboarding data={data} api={api} reload={load} navigate={navigate} />
           <div className="hrm-page-heading">
             <div>
               <span className="hrm-eyebrow">
