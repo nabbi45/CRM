@@ -32,6 +32,7 @@ const MANAGEMENT_ROLES = [
   "srdev",
   "sr dev",
 ];
+const SENIOR_DELETE_ROLES = ["senior admin", "super admin", "director"];
 const STATUSES = [
   "new",
   "contacted",
@@ -52,12 +53,21 @@ const RESERVED_KEYS = new Set([
 const normalizeRole = (role = "") => String(role).trim().toLowerCase();
 const isManager = (user) =>
   MANAGEMENT_ROLES.includes(normalizeRole(user?.user_role));
+const canDeleteLeads = (user) =>
+  SENIOR_DELETE_ROLES.includes(normalizeRole(user?.user_role));
 const managerOnly = (req, res, next) =>
   isManager(req.user)
     ? next()
     : res
         .status(403)
         .json({ message: "Only admin or development roles can manage leads." });
+const seniorManagementOnly = (req, res, next) =>
+  canDeleteLeads(req.user)
+    ? next()
+    : res.status(403).json({
+        message:
+          "Only Senior Admin, Super Admin, or Director can delete leads.",
+      });
 const cleanText = (value, max = 1000) =>
   String(value ?? "")
     .trim()
@@ -203,17 +213,31 @@ const listLeads = async (req) => {
       { serviceRequirement: regex },
     ];
   }
-  // The portal starts with a deliberately quick working set. A manager can
-  // still request up to 5,000 rows from the list endpoint when needed.
-  const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 5000);
-  const offset = Math.max(Number(req.query.offset) || 0, 0);
-  const leads = await LeadManagementModel.find(query)
-    .select("-assignmentHistory -statusHistory")
-    .sort({ updatedAt: -1 })
-    .skip(offset)
-    .limit(limit)
-    .lean();
-  return { leads, limited: leads.length === limit };
+  // The UI deliberately pages at 100 records so an old import cannot block the
+  // dashboard. Keep this server-side: filters always apply before paging.
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 100);
+  const page = Math.max(Math.floor(Number(req.query.page) || 1), 1);
+  const [leads, total] = await Promise.all([
+    LeadManagementModel.find(query)
+      .select("-assignmentHistory -statusHistory")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    LeadManagementModel.countDocuments(query),
+  ]);
+  const totalPages = Math.max(Math.ceil(total / limit), 1);
+  return {
+    leads,
+    pagination: {
+      page: Math.min(page, totalPages),
+      pageSize: limit,
+      total,
+      totalPages,
+      hasPrevious: page > 1,
+      hasNext: page < totalPages,
+    },
+  };
 };
 
 const leadForResponse = (lead) => {
@@ -313,6 +337,7 @@ router.get("/bootstrap", async (req, res) => {
       columns,
       users,
       canManage: manager,
+      canDelete: canDeleteLeads(req.user),
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -322,7 +347,11 @@ router.get("/bootstrap", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const leadData = await listLeads(req);
-    res.json({ ...leadData, canManage: isManager(req.user) });
+    res.json({
+      ...leadData,
+      canManage: isManager(req.user),
+      canDelete: canDeleteLeads(req.user),
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -533,6 +562,34 @@ router.post("/assign", managerOnly, async (req, res) => {
     res.json({
       message: `${leads.length} lead${leads.length === 1 ? "" : "s"} assigned to ${recipient.name}.`,
       assigned: leads.length,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.delete("/selected", seniorManagementOnly, async (req, res) => {
+  try {
+    const ids = [
+      ...new Set(
+        Array.isArray(req.body?.leadIds) ? req.body.leadIds.map(String) : [],
+      ),
+    ].filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (!ids.length)
+      return res
+        .status(400)
+        .json({ message: "Select at least one lead to delete." });
+    if (ids.length > 100)
+      return res
+        .status(400)
+        .json({ message: "Delete up to 100 leads at once." });
+    const deletion = await LeadManagementModel.deleteMany({
+      _id: { $in: ids },
+    });
+    res.json({
+      message: `${deletion.deletedCount} lead${deletion.deletedCount === 1 ? "" : "s"} deleted.`,
+      deletedIds: ids,
+      deleted: deletion.deletedCount,
     });
   } catch (error) {
     res.status(400).json({ message: error.message });

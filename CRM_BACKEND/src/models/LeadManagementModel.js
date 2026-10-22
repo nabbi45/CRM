@@ -84,10 +84,13 @@ const leadManagementSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-leadManagementSchema.index({ assignedTo: 1, status: 1, updatedAt: -1 });
+// Newest imports stay first. These indexes make the 100-row lead pages quick
+// without changing their order when an agent records a call or a note.
+leadManagementSchema.index({ createdAt: -1 });
+leadManagementSchema.index({ status: 1, createdAt: -1 });
+leadManagementSchema.index({ assignedTo: 1, createdAt: -1 });
+leadManagementSchema.index({ assignedTo: 1, status: 1, createdAt: -1 });
 leadManagementSchema.index({ createdBy: 1, updatedAt: -1 });
-// Keeps the default manager view fast even after the lead collection grows.
-leadManagementSchema.index({ updatedAt: -1 });
 
 const leadColumnSchema = new mongoose.Schema(
   {

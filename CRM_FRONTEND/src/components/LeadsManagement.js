@@ -38,6 +38,7 @@ import AssignmentIndOutlinedIcon from "@mui/icons-material/AssignmentIndOutlined
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
@@ -67,7 +68,7 @@ const STATUS_STYLE = {
   unqualified: { bg: "rgba(100,116,139,.13)", color: "#475569" },
   junk: { bg: "rgba(239,68,68,.12)", color: "#b91c1c" },
 };
-const INITIAL_LEAD_LIMIT = 500;
+const LEADS_PER_PAGE = 100;
 
 const emptyLead = {
   name: "",
@@ -91,12 +92,21 @@ const LeadsManagement = () => {
   const [columns, setColumns] = useState([]);
   const [users, setUsers] = useState([]);
   const [canManage, setCanManage] = useState(false);
-  const [limited, setLimited] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: LEADS_PER_PAGE,
+    total: 0,
+    totalPages: 1,
+    hasPrevious: false,
+    hasNext: false,
+  });
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [working, setWorking] = useState(false);
   const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(new Set());
   const [leadEditor, setLeadEditor] = useState(null);
   const [leadForm, setLeadForm] = useState(emptyLead);
@@ -104,6 +114,7 @@ const LeadsManagement = () => {
   const [file, setFile] = useState(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignee, setAssignee] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [notesLead, setNotesLead] = useState(null);
   const [noteDrafts, setNoteDrafts] = useState({});
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -133,79 +144,59 @@ const LeadsManagement = () => {
   );
 
   const load = useCallback(
-    async (quiet = false) => {
+    async (requestedPage = page, quiet = false) => {
       if (!quiet) setLoading(true);
       try {
+        const params = new URLSearchParams({
+          limit: String(LEADS_PER_PAGE),
+          page: String(requestedPage),
+        });
+        if (status !== "all") params.set("status", status);
+        if (appliedSearch) params.set("search", appliedSearch);
         // One compact request instead of three authenticated round trips.
-        const data = await request(`/bootstrap?limit=${INITIAL_LEAD_LIMIT}`);
+        const data = await request(`/bootstrap?${params}`);
         setLeads(data.leads || []);
         setCanManage(Boolean(data.canManage));
-        setLimited(Boolean(data.limited));
+        setCanDelete(Boolean(data.canDelete));
+        setPagination(data.pagination || {});
         setColumns(data.columns || []);
         setUsers(data.users || []);
+        setSelected(new Set());
+        if (data.pagination?.page && data.pagination.page !== requestedPage)
+          setPage(data.pagination.page);
       } catch (error) {
         enqueueSnackbar(error.message, { variant: "error" });
       } finally {
         if (!quiet) setLoading(false);
       }
     },
-    [request],
+    [request, page, status, appliedSearch],
   );
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(page);
+    // `load` captures the current server-side status/search filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, page]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setAppliedSearch(search.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const refreshInBackground = () => {
-    void load(true);
-  };
-
-  const loadMore = async () => {
-    setLoadingMore(true);
-    try {
-      const data = await request(
-        `/?limit=${INITIAL_LEAD_LIMIT}&offset=${leads.length}`,
-      );
-      setLeads((previous) => {
-        const known = new Set(previous.map((lead) => lead._id));
-        return [
-          ...previous,
-          ...(data.leads || []).filter((lead) => !known.has(lead._id)),
-        ];
-      });
-      setLimited(Boolean(data.limited));
-    } catch (error) {
-      enqueueSnackbar(error.message, { variant: "error" });
-    } finally {
-      setLoadingMore(false);
-    }
+    void load(page, true);
   };
 
   const customColumns = useMemo(
     () => columns.filter((column) => column.active),
     [columns],
   );
-  const filteredLeads = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return leads.filter((lead) => {
-      if (status !== "all" && lead.status !== status) return false;
-      if (!query) return true;
-      return [
-        lead.name,
-        lead.mobileNumber,
-        lead.email,
-        lead.companyName,
-        lead.serviceRequirement,
-        lead.assignedToName,
-      ]
-        .concat(Object.values(customObject(lead.customFields)))
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
-  }, [leads, search, status]);
-  const selectedVisible = filteredLeads.filter((lead) =>
-    selected.has(lead._id),
-  );
+  // `leads` is exactly the current server-filtered page.
+  const selectedVisible = leads.filter((lead) => selected.has(lead._id));
   const statusCounts = useMemo(
     () =>
       Object.fromEntries(
@@ -343,15 +334,12 @@ const LeadsManagement = () => {
       return next;
     });
   const selectFirst = (count) =>
-    setSelected(new Set(filteredLeads.slice(0, count).map((lead) => lead._id)));
+    setSelected(new Set(leads.slice(0, count).map((lead) => lead._id)));
   const toggleVisible = () =>
     setSelected((previous) => {
       const allSelected =
-        filteredLeads.length &&
-        filteredLeads.every((lead) => previous.has(lead._id));
-      return allSelected
-        ? new Set()
-        : new Set(filteredLeads.map((lead) => lead._id));
+        leads.length && leads.every((lead) => previous.has(lead._id));
+      return allSelected ? new Set() : new Set(leads.map((lead) => lead._id));
     });
 
   const assignLeads = async () => {
@@ -386,6 +374,28 @@ const LeadsManagement = () => {
       setSelected(new Set());
       enqueueSnackbar(result.message, { variant: "success" });
       refreshInBackground();
+    } catch (error) {
+      enqueueSnackbar(error.message, { variant: "error" });
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const deleteSelectedLeads = async () => {
+    setWorking(true);
+    try {
+      const deletedLeadIds = [...selected];
+      const result = await request("/selected", {
+        method: "DELETE",
+        body: JSON.stringify({ leadIds: deletedLeadIds }),
+      });
+      const removed = new Set(result.deletedIds || deletedLeadIds);
+      setLeads((previous) => previous.filter((lead) => !removed.has(lead._id)));
+      setSelected(new Set());
+      setDeleteOpen(false);
+      enqueueSnackbar(result.message, { variant: "success" });
+      if (leads.length === removed.size && page > 1) setPage(page - 1);
+      else refreshInBackground();
     } catch (error) {
       enqueueSnackbar(error.message, { variant: "error" });
     } finally {
@@ -478,7 +488,7 @@ const LeadsManagement = () => {
   const leadNoteCount = (lead) =>
     (lead.noteEntries || []).filter((note) => note.content).length;
 
-  if (loading)
+  if (loading && !leads.length)
     return (
       <Box sx={{ minHeight: 360, display: "grid", placeItems: "center" }}>
         <Stack alignItems="center" spacing={2}>
@@ -547,15 +557,15 @@ const LeadsManagement = () => {
       <Grid container spacing={1.4} sx={{ mb: 2.5 }}>
         <Grid item xs={6} sm={4} md={2.4}>
           <Metric
-            label="Total in view"
-            value={leads.length}
+            label="Total matching"
+            value={pagination.total || 0}
             icon={<PeopleAltOutlinedIcon />}
             color="#0f766e"
           />
         </Grid>
         <Grid item xs={6} sm={4} md={2.4}>
           <Metric
-            label="New"
+            label="New on page"
             value={statusCounts.new || 0}
             icon={<PhoneOutlinedIcon />}
             color="#0369a1"
@@ -563,7 +573,7 @@ const LeadsManagement = () => {
         </Grid>
         <Grid item xs={6} sm={4} md={2.4}>
           <Metric
-            label="Contacted"
+            label="Contacted on page"
             value={statusCounts.contacted || 0}
             icon={<CheckCircleOutlineOutlinedIcon />}
             color="#6d28d9"
@@ -571,7 +581,7 @@ const LeadsManagement = () => {
         </Grid>
         <Grid item xs={6} sm={4} md={2.4}>
           <Metric
-            label="Qualified"
+            label="Qualified on page"
             value={statusCounts.qualified || 0}
             icon={<CheckCircleOutlineOutlinedIcon />}
             color="#047857"
@@ -579,7 +589,7 @@ const LeadsManagement = () => {
         </Grid>
         <Grid item xs={12} sm={4} md={2.4}>
           <Metric
-            label="Prospects"
+            label="Prospects on page"
             value={statusCounts.prospect || 0}
             icon={<AssignmentIndOutlinedIcon />}
             color="#b45309"
@@ -587,25 +597,6 @@ const LeadsManagement = () => {
         </Grid>
       </Grid>
 
-      {limited && (
-        <Alert
-          severity="info"
-          sx={{ mb: 2 }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              disabled={loadingMore}
-              onClick={loadMore}
-            >
-              {loadingMore ? "Loading..." : `Load next ${INITIAL_LEAD_LIMIT}`}
-            </Button>
-          }
-        >
-          Showing the latest {INITIAL_LEAD_LIMIT} leads for a faster workspace.
-          Narrow the pipeline before working through older records.
-        </Alert>
-      )}
       {!canManage && (
         <Alert severity="info" sx={{ mb: 2 }}>
           This is your assigned work queue. Update the status and call notes
@@ -647,7 +638,11 @@ const LeadsManagement = () => {
             size="small"
             label="Status"
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+              setSelected(new Set());
+            }}
             sx={{ minWidth: { lg: 180 } }}
             InputProps={{
               startAdornment: (
@@ -667,17 +662,16 @@ const LeadsManagement = () => {
           {canManage && (
             <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
               <Button size="small" onClick={toggleVisible}>
-                {filteredLeads.length &&
-                filteredLeads.every((lead) => selected.has(lead._id))
+                {leads.length && leads.every((lead) => selected.has(lead._id))
                   ? "Clear selection"
-                  : `Select all (${filteredLeads.length})`}
+                  : `Select page (${leads.length})`}
               </Button>
               <ButtonGroup size="small" variant="outlined">
-                {[10, 25, 50, 100, 500].map((count) => (
+                {[10, 25, 50, 100].map((count) => (
                   <Button
                     key={count}
                     onClick={() => selectFirst(count)}
-                    disabled={!filteredLeads.length}
+                    disabled={!leads.length}
                   >
                     First {count}
                   </Button>
@@ -702,20 +696,32 @@ const LeadsManagement = () => {
             <Typography variant="body2" sx={{ fontWeight: 700 }}>
               {selected.size} lead{selected.size === 1 ? "" : "s"} selected
             </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AssignmentIndOutlinedIcon />}
-              onClick={() => setAssignOpen(true)}
-            >
-              Assign selected
-            </Button>
+            <Stack direction="row" spacing={1}>
+              {canDelete && (
+                <Button
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteOutlineOutlinedIcon />}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Delete selected
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                startIcon={<AssignmentIndOutlinedIcon />}
+                onClick={() => setAssignOpen(true)}
+              >
+                Assign selected
+              </Button>
+            </Stack>
           </Stack>
         )}
       </Paper>
 
       {compact ? (
         <Stack spacing={1.25}>
-          {filteredLeads.map((lead) => (
+          {leads.map((lead) => (
             <LeadCard
               key={lead._id}
               lead={lead}
@@ -729,7 +735,7 @@ const LeadsManagement = () => {
               detail={detailText(lead)}
             />
           ))}
-          {!filteredLeads.length && (
+          {!leads.length && (
             <EmptyLeads canManage={canManage} onAdd={openCreate} />
           )}
         </Stack>
@@ -751,12 +757,12 @@ const LeadsManagement = () => {
                   <TableCell padding="checkbox">
                     <Checkbox
                       checked={
-                        Boolean(filteredLeads.length) &&
-                        filteredLeads.every((lead) => selected.has(lead._id))
+                        Boolean(leads.length) &&
+                        leads.every((lead) => selected.has(lead._id))
                       }
                       indeterminate={
                         selectedVisible.length > 0 &&
-                        selectedVisible.length < filteredLeads.length
+                        selectedVisible.length < leads.length
                       }
                       onChange={toggleVisible}
                     />
@@ -771,7 +777,7 @@ const LeadsManagement = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredLeads.map((lead) => (
+              {leads.map((lead) => (
                 <TableRow key={lead._id} hover>
                   {canManage && (
                     <TableCell padding="checkbox">
@@ -881,7 +887,7 @@ const LeadsManagement = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {!filteredLeads.length && (
+              {!leads.length && (
                 <TableRow>
                   <TableCell colSpan={canManage ? 7 : 6}>
                     <EmptyLeads canManage={canManage} onAdd={openCreate} />
@@ -891,6 +897,46 @@ const LeadsManagement = () => {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {pagination.total > 0 && (
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ sm: "center" }}
+          spacing={1}
+          sx={{ mt: 2, px: 0.5 }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Showing {(pagination.page - 1) * pagination.pageSize + 1}-
+            {Math.min(pagination.page * pagination.pageSize, pagination.total)}{" "}
+            of {pagination.total} matching leads
+          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={!pagination.hasPrevious || loading}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Previous
+            </Button>
+            <Typography
+              variant="body2"
+              sx={{ minWidth: 68, textAlign: "center" }}
+            >
+              Page {pagination.page} / {pagination.totalPages}
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={!pagination.hasNext || loading}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              Next
+            </Button>
+          </Stack>
+        </Stack>
       )}
 
       <Dialog
@@ -1068,6 +1114,35 @@ const LeadsManagement = () => {
             onClick={assignLeads}
           >
             Assign leads
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteOpen}
+        onClose={() => !working && setDeleteOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete selected leads?</DialogTitle>
+        <DialogContent dividers>
+          <Alert severity="warning">
+            This permanently deletes {selected.size} selected lead
+            {selected.size === 1 ? "" : "s"}. This cannot be undone.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOpen(false)} disabled={working}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={working || selected.size === 0}
+            startIcon={<DeleteOutlineOutlinedIcon />}
+            onClick={deleteSelectedLeads}
+          >
+            {working ? "Deleting..." : "Delete leads"}
           </Button>
         </DialogActions>
       </Dialog>

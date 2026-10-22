@@ -26,6 +26,7 @@ app.use("/leads-management", LeadManagementRoutes);
 
 let mongo;
 let admin;
+let senior;
 let owner;
 let anotherOwner;
 
@@ -66,12 +67,19 @@ before(
         (model) => model.init(),
       ),
     );
-    [admin, owner, anotherOwner] = await UserModel.create([
+    [admin, senior, owner, anotherOwner] = await UserModel.create([
       {
         name: "CRM Admin",
         email: "leads-admin@example.test",
         password: "test-only",
         user_role: "admin",
+        feature_permissions: ["lead_management"],
+      },
+      {
+        name: "Senior Admin",
+        email: "leads-senior@example.test",
+        password: "test-only",
+        user_role: "senior admin",
         feature_permissions: ["lead_management"],
       },
       {
@@ -154,11 +162,12 @@ test("only management roles can create/import leads and required headings are ch
   assert.equal(bootstrap.body.leads[0].statusHistory, undefined);
 
   const secondPage = await request(app)
-    .get("/leads-management?limit=2&offset=2")
+    .get("/leads-management?limit=2&page=2")
     .set("Authorization", tokenFor(admin))
     .expect(200);
   assert.equal(secondPage.body.leads.length, 1);
-  assert.equal(secondPage.body.limited, false);
+  assert.equal(secondPage.body.pagination.page, 2);
+  assert.equal(secondPage.body.pagination.totalPages, 2);
 });
 
 test("assignment notifies the owner and owners can update their own leads and five call notes", async () => {
@@ -230,7 +239,7 @@ test("assignment notifies the owner and owners can update their own leads and fi
     .expect(403);
 });
 
-test("administrators can rename custom columns and see owner status across the CRM", async () => {
+test("administrators can rename columns, while only senior management can delete leads", async () => {
   const columns = await LeadColumnModel.find({ key: "city" }).lean();
   assert.equal(columns.length, 1);
 
@@ -249,4 +258,21 @@ test("administrators can rename custom columns and see owner status across the C
     .expect(200);
   assert.equal(all.body.leads.length, 1);
   assert.equal(all.body.leads[0].assignedToName, "Lead Owner");
+
+  await request(app)
+    .delete("/leads-management/selected")
+    .set("Authorization", tokenFor(admin))
+    .send({ leadIds: [all.body.leads[0]._id] })
+    .expect(403);
+
+  await request(app)
+    .delete("/leads-management/selected")
+    .set("Authorization", tokenFor(senior))
+    .send({ leadIds: [all.body.leads[0]._id] })
+    .expect(200)
+    .expect((response) => assert.equal(response.body.deleted, 1));
+  assert.equal(
+    await LeadManagementModel.countDocuments({ status: "qualified" }),
+    0,
+  );
 });
