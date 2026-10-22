@@ -19,6 +19,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import ContactPhoneOutlinedIcon from '@mui/icons-material/ContactPhoneOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
@@ -174,6 +175,9 @@ const Sidebar = () => {
     }
     if (canAccessFeature(userSession, 'projection_leads')) {
       items.push({ text: 'Projection Lead', icon: <TrendingUpOutlinedIcon />, path: '/dashboard/projection-leads', color: '#22c55e' });
+    }
+    if (canAccessFeature(userSession, 'lead_management')) {
+      items.push({ text: 'Leads Management', icon: <ContactPhoneOutlinedIcon />, path: '/dashboard/leads-management', color: '#0f766e' });
     }
     if (canAccessFeature(userSession, 'all_bookings')) {
       items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history', color: '#f59e0b' });

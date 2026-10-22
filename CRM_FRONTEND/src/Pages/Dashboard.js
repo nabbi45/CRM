@@ -33,6 +33,7 @@ import { canAccessFeature } from '../utils/featureAccess';
 import SecuritySettings from '../components/SecuritySettings';
 import BookingApprovals from '../components/BookingApprovals';
 import MeetingUpdates from '../components/MeetingUpdates';
+import LeadsManagement from '../components/LeadsManagement';
 
 const FeatureGuard = ({ userSession, feature, children }) => {
   if (canAccessFeature(userSession, feature)) return children;
@@ -170,6 +171,7 @@ const Dashboard = () => {
     '/dashboard/new-booking': 'New Booking',
     '/dashboard/booking-approvals': 'Booking Approvals',
     '/dashboard/projection-leads': 'Projection Leads',
+    '/dashboard/leads-management': 'Leads Management',
     '/dashboard/history': 'All Bookings',
     '/dashboard/adduser': 'Manage Users',
     '/dashboard/removeuser': 'Manage Users',
@@ -263,6 +265,7 @@ const Dashboard = () => {
           <Route path="new-booking" element={<FeatureGuard userSession={userSession} feature="new_booking"><AddBooking /></FeatureGuard>} />
           <Route path="booking-approvals" element={<FeatureGuard userSession={userSession} feature="booking_approvals"><BookingApprovals /></FeatureGuard>} />
           <Route path="projection-leads" element={<FeatureGuard userSession={userSession} feature="projection_leads"><ProjectionLeads /></FeatureGuard>} />
+          <Route path="leads-management" element={<FeatureGuard userSession={userSession} feature="lead_management"><LeadsManagement /></FeatureGuard>} />
           <Route path="history" element={<FeatureGuard userSession={userSession} feature="all_bookings"><History /></FeatureGuard>} />
           <Route path="adduser" element={<FeatureGuard userSession={userSession} feature="manage_users"><AddUser /></FeatureGuard>} />
           <Route path="removeuser" element={<FeatureGuard userSession={userSession} feature="manage_users"><RemoveUser /></FeatureGuard>} />

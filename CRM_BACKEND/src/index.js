@@ -24,6 +24,7 @@ import FileActivityRoutes from "./routes/FileActivityRoute.js";
 import SecurityRoutes from "./routes/SecurityRoute.js";
 import BookingApprovalRoutes from "./routes/BookingApprovalRoute.js";
 import MeetingUpdateRoutes from "./routes/MeetingUpdateRoute.js";
+import LeadManagementRoutes from "./routes/LeadManagementRoute.js";
 
 import cors from "cors";
 import path from "path";
@@ -115,6 +116,7 @@ app.use("/chat", ChatRoutes);
 app.use("/chat-upload", ChatUploadRoutes);
 app.use("/sales", ContactSalesRoute);
 app.use("/projection-leads", ProjectionLeadRoutes);
+app.use("/leads-management", LeadManagementRoutes);
 app.use("/booking-documents", BookingDocumentRoutes);
 app.use("/file-activity", FileActivityRoutes);
 app.use("/security", SecurityRoutes);

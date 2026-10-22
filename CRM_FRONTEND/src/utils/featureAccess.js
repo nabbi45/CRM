@@ -5,6 +5,7 @@ export const FEATURE_KEYS = [
   'booking_approvals',
   'projection_leads',
   'projection_leads_all',
+  'lead_management',
   'all_bookings',
   'proforma_invoice',
   'agreements_generator',
@@ -32,6 +33,7 @@ export const FEATURE_LABELS = {
   booking_approvals: 'Booking Approvals',
   projection_leads: 'Projection Lead',
   projection_leads_all: 'View All Projection Leads',
+  lead_management: 'Leads Management',
   all_bookings: 'All Booking',
   proforma_invoice: 'Proforma Invoice',
   agreements_generator: 'Agreements Generator',
@@ -179,6 +181,9 @@ export const resolveFeaturePermissions = (userSession = {}) => {
     final.push('booking_approvals');
   }
 
+  // A user only sees leads explicitly assigned to them. This keeps the work queue
+  // available the moment an admin assigns a lead, without exposing other leads.
+  if (!final.includes('lead_management')) final.push('lead_management');
   return [...new Set(final.filter(k => FEATURE_KEYS.includes(k)))];
 };
 

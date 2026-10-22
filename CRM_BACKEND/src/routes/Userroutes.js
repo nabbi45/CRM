@@ -23,6 +23,7 @@ const FEATURE_KEYS = [
   'new_booking',
   'projection_leads',
   'projection_leads_all',
+  'lead_management',
   'all_bookings',
   'proforma_invoice',
   'agreements_generator',
@@ -123,8 +124,8 @@ const sanitizeFeaturePermissions = (permissions = []) => {
 const getDefaultFeaturePermissionsForRole = (role) => {
   const normalized = normalizeRole(role);
   const defaults = DEFAULT_ROLE_PERMISSIONS[normalized];
-  if (defaults?.length) return defaults;
-  return ['dashboard_overview', 'timecard', 'communication', 'employee_profile'];
+  if (defaults?.length) return [...new Set([...defaults, 'lead_management'])];
+  return ['dashboard_overview', 'timecard', 'communication', 'employee_profile', 'lead_management'];
 };
 
 const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
