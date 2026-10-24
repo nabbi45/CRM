@@ -192,4 +192,7 @@ const bookingSchema = mongoose.Schema(
     timestamps: true
   }
 );
+bookingSchema.index({ isDeleted: 1, createdAt: -1 });
+bookingSchema.index({ user_id: 1, isDeleted: 1 });
+bookingSchema.index({ "shared_with.user_id": 1, isDeleted: 1 });
 export const BookingModel = mongoose.model("booking", bookingSchema);

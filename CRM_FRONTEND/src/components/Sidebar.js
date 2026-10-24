@@ -44,7 +44,6 @@ import { apiUrl } from './LoginSignup';
 import { useColorMode } from '../context/AppThemeProvider';
 import { canAccessFeature } from '../utils/featureAccess';
 import UserEditModal from './UserEditModal';
-import axios from 'axios';
 
 /* ──────────────────── colour tokens ──────────────────── */
 const SIDEBAR_HEADER = '#0b1120';
@@ -54,7 +53,6 @@ const ACCENT = '#ff3b1f';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [hasProfile, setHasProfile] = useState(false);
   const [companyLogo, setCompanyLogo] = useState(null);
   const [unreads, setUnreads] = useState(0);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -126,20 +124,6 @@ const Sidebar = () => {
   };
 
   useEffect(() => {
-    const fetchProfileStatus = async () => {
-      try {
-        const res = await axios.get(
-          `${apiUrl}/employee/profile/${userSession?.user_id}`,
-          { headers: { authorization: userSession?.token } }
-        );
-        if (res.data?.profile) setHasProfile(true);
-      } catch {
-        setHasProfile(false);
-      }
-    };
-
-    if (userSession?.user_id) fetchProfileStatus();
-
     // Fetch company logo
     const fetchLogo = async () => {
       try {
@@ -233,7 +217,7 @@ const Sidebar = () => {
     }
 
     return items;
-  }, [userSession, hasProfile, unreads]);
+  }, [userSession, unreads]);
 
   const drawerPaperSx = {
     width: 250,

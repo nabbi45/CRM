@@ -24,4 +24,6 @@ const LeaveSchema = new mongoose.Schema({
     supporting_document_mime_type: { type: String, default: "" },
 }, { timestamps: true });
 
+LeaveSchema.index({ user_id: 1, status: 1, start_date: 1, end_date: 1 });
+LeaveSchema.index({ user_id: 1, createdAt: -1 });
 export const LeaveModel = mongoose.model("Leave", LeaveSchema);

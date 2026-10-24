@@ -44,18 +44,30 @@ export const HRMRequest = model(
     status: String,
     data: mixed,
   },
-  [[{ userId: 1, from: 1, to: 1 }, {}]],
+  [
+    [{ userId: 1, from: 1, to: 1 }, {}],
+    [{ userId: 1, status: 1, from: 1 }, {}],
+    [{ userId: 1, kind: 1, createdAt: -1 }, {}],
+  ],
 );
-export const HRMLedger = model("HRMLedger", {
-  key: { type: String, unique: true },
-  userId: String,
-  kind: String,
-  date: String,
-  amount: Number,
-  category: String,
-  reference: String,
-  reason: String,
-});
+export const HRMLedger = model(
+  "HRMLedger",
+  {
+    key: { type: String, unique: true },
+    userId: String,
+    kind: String,
+    date: String,
+    amount: Number,
+    category: String,
+    reference: String,
+    reason: String,
+  },
+  [
+    [{ userId: 1, kind: 1, date: 1 }, {}],
+    [{ userId: 1, date: -1 }, {}],
+    [{ userId: 1, category: 1 }, {}],
+  ],
+);
 export const HRMAudit = model("HRMAudit", {
   userId: String,
   module: String,

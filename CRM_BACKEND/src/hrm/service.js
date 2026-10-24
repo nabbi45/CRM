@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { randomUUID } from "crypto";
+import { profileThumbnail } from "../utils/profileThumbnail.js";
 import { UserModel } from "../models/UserModel.js";
 import { EmployeeModel } from "../models/EmployeeProfile.js";
 import AttendanceModel from "../models/AttendanceModel.js";
@@ -186,35 +187,37 @@ export const employees = async (s) => {
     s,
   );
   const settings = await sessionQuery(HRMEmployee.find().lean(), s);
-  return users.map((u) => {
-    const id = String(u._id),
-      p = profiles.find((p) => p.userId === id) || {},
-      h = settings.find((h) => h.userId === id) || {};
-    return {
-      userId: id,
-      name: u.name,
-      email: u.email,
-      user_role: u.user_role,
-      profilePicture: u.profilePicture,
-      disabled: u.isDisabled,
-      hasProfile: Boolean(p._id),
-      employeeId: p.employeeId,
-      department: p.department || h.eligibilityProfile?.department || "",
-      branch: p.branch || h.eligibilityProfile?.branch || "",
-      gender: p.gender || h.eligibilityProfile?.gender,
-      dateOfJoining: p.dateOfJoining
-        ? p.dateOfJoining.toISOString().slice(0, 10)
-        : h.eligibilityProfile?.dateOfJoining || "",
-      reportingManager: p.reportingManager || "",
-      group:
-        (p.department || h.eligibilityProfile?.department) === "Sales"
-          ? "Sales"
-          : "Operations",
-      eligible: p.isActive !== false && !u.isDisabled,
-      ...h,
-      userId: id,
-    };
-  });
+  return Promise.all(
+    users.map(async (u) => {
+      const id = String(u._id),
+        p = profiles.find((p) => p.userId === id) || {},
+        h = settings.find((h) => h.userId === id) || {};
+      return {
+        userId: id,
+        name: u.name,
+        email: u.email,
+        user_role: u.user_role,
+        profilePicture: await profileThumbnail(u.profilePicture),
+        disabled: u.isDisabled,
+        hasProfile: Boolean(p._id),
+        employeeId: p.employeeId,
+        department: p.department || h.eligibilityProfile?.department || "",
+        branch: p.branch || h.eligibilityProfile?.branch || "",
+        gender: p.gender || h.eligibilityProfile?.gender,
+        dateOfJoining: p.dateOfJoining
+          ? p.dateOfJoining.toISOString().slice(0, 10)
+          : h.eligibilityProfile?.dateOfJoining || "",
+        reportingManager: p.reportingManager || "",
+        group:
+          (p.department || h.eligibilityProfile?.department) === "Sales"
+            ? "Sales"
+            : "Operations",
+        eligible: p.isActive !== false && !u.isDisabled,
+        ...h,
+        userId: id,
+      };
+    }),
+  );
 };
 const employeeFor = async (userId, s) => {
   const e = (await employees(s)).find((e) => e.userId === userId);
@@ -563,15 +566,21 @@ const requestsFor = (userId, from, to, s) =>
   );
 // Team reads share month data; do not reload the employee directory and policies
 // for each person. Authorization is applied once before constructing this batch.
-export const attendanceTeam = async (actor, month) => {
+export const attendanceTeam = async (actor, month, options = {}) => {
   const dates = monthDates(month);
   const list = await employees();
-  const visible = list.filter(
+  let visible = list.filter(
     (e) =>
       isHR(actor) ||
       e.userId === actorId(actor) ||
       e.managerId === actorId(actor),
   );
+  if (options.department)
+    visible = visible.filter((e) => e.department === options.department);
+  let total = visible.length;
+  const page = Math.max(1, Math.floor(Number(options.page) || 1));
+  if (options.page && !options.search)
+    visible = visible.slice((page - 1) * 100, page * 100);
   const ids = visible.map((e) => e.userId);
   const range = { $gte: dates[0], $lte: dates[dates.length - 1] };
   const [
@@ -607,7 +616,7 @@ export const attendanceTeam = async (actor, month) => {
       .lean(),
     HRMMonthPolicy.findOne({ month }).lean(),
   ]);
-  return Promise.all(
+  let team = await Promise.all(
     visible.map(async (employee) => ({
       employee,
       records: await attendanceMonth(employee.userId, month, undefined, {
@@ -619,11 +628,37 @@ export const attendanceTeam = async (actor, month) => {
         recalculation,
         records: records.filter((r) => r.userId === employee.userId),
         requests: requests.filter((r) => r.userId === employee.userId),
-        legacy: legacy.filter((r) => r.userId === employee.userId),
+        legacy: legacy.filter((r) => String(r.userId) === employee.userId),
         oldLeaves: oldLeaves.filter((r) => r.user_id === employee.userId),
       }),
     })),
   );
+  if (options.search) {
+    const search = String(options.search).toLowerCase();
+    team = team.filter((t) =>
+      `${t.employee.name} ${t.employee.department} ${t.records.map((r) => `${r.status} ${r.requestSource || ""} ${r.earlyGoingMinutes ? "Early Going" : ""}`).join(" ")}`
+        .toLowerCase()
+        .includes(search),
+    );
+    total = team.length;
+    if (options.page) team = team.slice((page - 1) * 100, page * 100);
+  }
+  if (options.date)
+    return team.map((entry) => ({
+      ...entry,
+      records: entry.records.filter((r) => r.date === options.date),
+    }));
+  return options.page
+    ? {
+        team,
+        pagination: {
+          page,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / 100)),
+          pageSize: 100,
+        },
+      }
+    : team;
 };
 export const attendanceMonth = async (userId, month, s, shared) => {
   const dates = monthDates(month),

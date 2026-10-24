@@ -16,6 +16,7 @@ import { LeaveModel } from "../src/models/LeaveModel.js";
 import { NotificationModel } from "../src/models/NotificationModel.js";
 import * as models from "../src/hrm/models.js";
 import * as hrm from "../src/hrm/service.js";
+import { workspace } from "../src/hrm/workspace.js";
 import { todayIST, addDays, monthDates } from "../src/hrm/rules.js";
 const require = createRequire(import.meta.url);
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
@@ -371,7 +372,72 @@ test("explicit unlocked-month recalculation is audited and can restore original 
   );
 });
 
+test("paged balances preserve future reservations and quarter/month boundaries", async () => {
+  const inserted = await models.HRMLedger.insertMany([
+    { key: "test-future-el", userId: employee.userId, kind: "EL", category: "Usage", date: "2027-01-01", amount: -0.5 },
+    { key: "test-future-wfh", userId: employee.userId, kind: "WFH", category: "Usage", date: "2026-11-01", amount: -0.5 },
+    { key: "test-next-quarter", userId: employee.userId, kind: "WFH", category: "Usage", date: "2027-01-01", amount: -2 },
+    { key: "test-next-month-ml", userId: employee.userId, kind: "ML", category: "Usage", date: "2026-11-01", amount: -0.5 },
+  ]);
+  try {
+    assert.deepEqual((await workspace(employee, { month, section: "dashboard" })).balances, (await hrm.bootstrap(employee, month)).balances);
+  } finally { await models.HRMLedger.deleteMany({ _id: { $in: inserted.map((r) => r._id) } }); }
+});
 test("HTTP routes enforce authentication, team boundaries and HR-only attendance writes", async () => {
+  const summary = await workspace(employee, { month, section: "dashboard" });
+  const previous = await hrm.bootstrap(employee, month);
+  assert.deepEqual(summary.balances, previous.balances);
+  assert.deepEqual(summary.attendance, previous.attendance);
+  assert.equal(summary.ledger.length, 0);
+  assert.equal(summary.legacyLeaves.length, 0);
+  await assert.rejects(
+    workspace(manager, { month, section: "ledger", userId: sales.userId }),
+    /outside your team/,
+  );
+  const fixtures = Array.from({ length: 105 }, (_, i) => ({
+    userId: employee.userId,
+    kind: "LEAVE",
+    from: today,
+    to: today,
+    status: "pending",
+    data: { reason: `Pagination ${i}` },
+  }));
+  const inserted = await models.HRMRequest.insertMany(fixtures);
+  try {
+    const first = await workspace(employee, {
+      month,
+      section: "leave",
+      page: 1,
+    });
+    const second = await workspace(employee, {
+      month,
+      section: "leave",
+      page: 2,
+    });
+    assert.equal(first.requests.length, 100);
+    assert(second.requests.length >= 5);
+    assert(
+      !second.requests.some((r) =>
+        first.requests.some((f) => String(f._id) === String(r._id)),
+      ),
+    );
+    assert.deepEqual(first.balances, second.balances);
+    const ledger = await workspace(employee, { month, section: "ledger" });
+    const actualTotal = previous.ledger
+      .filter(
+        (r) =>
+          r.userId === employee.userId && r.date <= monthDates(month).at(-1),
+      )
+      .reduce((sum, r) => sum + r.amount, 0);
+    assert.equal(
+      ledger.ledgerSummary.reduce((sum, r) => sum + r.amount, 0),
+      actualTotal,
+    );
+  } finally {
+    await models.HRMRequest.deleteMany({
+      _id: { $in: inserted.map((r) => r._id) },
+    });
+  }
   const batch = await request(app)
     .get(`/hrm/attendance/team?month=${month}`)
     .set("Authorization", token(manager))

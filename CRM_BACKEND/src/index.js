@@ -25,6 +25,8 @@ import SecurityRoutes from "./routes/SecurityRoute.js";
 import BookingApprovalRoutes from "./routes/BookingApprovalRoute.js";
 import MeetingUpdateRoutes from "./routes/MeetingUpdateRoute.js";
 import LeadManagementRoutes from "./routes/LeadManagementRoute.js";
+import DashboardRoutes from "./routes/DashboardRoute.js";
+import { requestTiming } from "./middlewares/requestTiming.js";
 
 import cors from "cors";
 import path from "path";
@@ -94,6 +96,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(requestTiming);
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -117,6 +120,7 @@ app.use("/chat-upload", ChatUploadRoutes);
 app.use("/sales", ContactSalesRoute);
 app.use("/projection-leads", ProjectionLeadRoutes);
 app.use("/leads-management", LeadManagementRoutes);
+app.use("/dashboard", DashboardRoutes);
 app.use("/booking-documents", BookingDocumentRoutes);
 app.use("/file-activity", FileActivityRoutes);
 app.use("/security", SecurityRoutes);

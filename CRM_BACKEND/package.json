@@ -12,7 +12,8 @@
     "nodemon": "nodemon --exec node src/index.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:hrm": "node --test tests/hrmRules.test.mjs tests/hrm.integration.test.mjs",
-    "test:leads": "node --test tests/leadsManagement.integration.test.mjs"
+    "test:leads": "node --test tests/leadsManagement.integration.test.mjs",
+    "test:dashboard": "node --test tests/dashboard.integration.test.mjs"
   },
   "proxy": "https://crm-jeig.onrender.com",
   "keywords": [],

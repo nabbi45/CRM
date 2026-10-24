@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { requestJson } from "../utils/requestJson";
 import { apiUrl } from "./LoginSignup";
 import {
   Avatar,
@@ -39,18 +39,8 @@ import PaymentReminders from "./PaymentReminders";
 import Popup from "./Popup";
 import EditBooking from "./EditBooking";
 import { enqueueSnackbar } from "notistack";
-import {
-  addBookingRevenueToLeaderboard,
-  buildServiceDeductionMap,
-  getBookingDeductionRowsForUser,
-  getBookingDeductionRowsForStats,
-  getBookingRevenueForUser,
-  getBookingRevenueRowsForUser,
-} from "../utils/bookingRevenue";
-
-const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
-
 const ACCENT = "#ff3b1f";
+const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 const ACCENT_DARK = "#e03118";
 const ACCENT_LIGHT = "rgba(255,59,31,0.14)";
 
@@ -72,17 +62,6 @@ const formatCurrency = (value) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
-
-const parseDateValue = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const getDateKey = (value) => {
-  const date = parseDateValue(value);
-  return date ? date.toISOString().split("T")[0] : "";
-};
 
 const getInitials = (name = "") =>
   name
@@ -148,7 +127,6 @@ const DashboardContent = () => {
     (userSession?.user_role || "").toLowerCase()
   );
 
-  const getTodayDate = () => new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     if (userSession?.user_id) {
@@ -425,393 +403,39 @@ const DashboardContent = () => {
 
   const fetchDashboardData = async (session) => {
     try {
-      const bookingUrl = isAdmin ? `${apiUrl}/booking/all` : `${apiUrl}/user/bookings/${session.user_id}`;
-
-      const fetches = [
-        fetchWithTimeout(bookingUrl, {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: session.token,
-          },
-        }),
-        fetchWithTimeout(`${apiUrl}/user/options`, {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: session.token,
-          },
-        }),
-        fetchWithTimeout(`${apiUrl}/services/api/services`, {
-          headers: {
-            "Content-Type": "application/json",
-            authorization: session.token,
-          },
-        }),
-      ];
-
-      if (!isAdmin) {
-        fetches.push(
-          fetchWithTimeout(`${apiUrl}/booking/all`, {
-            headers: {
-              "Content-Type": "application/json",
-              authorization: session.token,
-            },
-          })
-        );
-      }
-
-      if (isAdmin) {
-        fetches.push(
-          fetchWithTimeout(`${apiUrl}/user/all`, {
-            headers: {
-              "Content-Type": "application/json",
-              authorization: session.token,
-            },
-          })
-        );
-      }
-
-      const results = await Promise.all(fetches);
-      const bookingsRes = results[0];
-      const usersOptionsRes = results[1];
-      const servicesRes = results[2];
-      let resultIndex = 3;
-      const companyBookingsRes = !isAdmin ? results[resultIndex++] : null;
-      const allUsersRes = isAdmin ? results[resultIndex++] : null;
-
-      if (!bookingsRes.ok) throw new Error("Failed API call");
-
-      const bookingsData = await bookingsRes.json();
-      const bookings = bookingsData.Allbookings || bookingsData;
-
-      let serviceDeductionMap = {};
-      let serviceDeductionCatalogRows = [];
-      if (servicesRes?.ok) {
-        const servicesData = await servicesRes.json();
-        const normalizedServices = Array.isArray(servicesData) ? servicesData : [];
-        serviceDeductionMap = buildServiceDeductionMap(normalizedServices);
-        serviceDeductionCatalogRows = normalizedServices
-          .map((service) => ({
-            id: service._id || service.name,
-            service: service.name || service.value || "SERVICE",
-            deduction: Number(service.deduction || 0),
-            status: service.status,
-          }))
-          .sort((a, b) => b.deduction - a.deduction || a.service.localeCompare(b.service));
-      }
-
-      const activeUsersMap = {};
-      const userDirectoryByName = {};
-      if (usersOptionsRes.ok) {
-        const usersOptData = await usersOptionsRes.json();
-        if (usersOptData?.users) {
-          usersOptData.users.forEach((user) => {
-            activeUsersMap[user._id] = user.name;
-            userDirectoryByName[(user.name || "").trim().toUpperCase()] = {
-              name: user.name,
-              role: user.user_role,
-              profilePicture: user.profilePicture || "",
-            };
-          });
-        }
-      }
-
-      const allCompanyBookings = !isAdmin && companyBookingsRes?.ok
-        ? ((await companyBookingsRes.json()).Allbookings || [])
-        : bookings;
-
-      if (isAdmin && allUsersRes?.ok) {
-        const usersData = await allUsersRes.json();
-        setTotalUsers(usersData.Users?.length || 0);
-      } else {
-        setTotalUsers(0);
-      }
-      const today = getTodayDate();
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      threeMonthsAgo.setHours(0, 0, 0, 0);
-
-      let bookingCount = 0;
-      let bookingCountThisMonth = 0;
-      let currentMonthRevenue = 0;
-      let todayRevenueAmt = 0;
-      const sortedBookings = [];
-      const bdmRevMap = {};
-      const monthlyMap = {};
-      const serviceSoldMap = {};
-      const serviceRevenueMap = {};
-      const currentMonthDeductions = [];
-
-      const getTransactionDate = (entry = {}) => {
-        const candidates = [
-          entry?.payment_date,
-          entry?.refund_date,
-          entry?.created_at,
-          entry?.date,
-          entry?.createdAt,
-        ];
-        for (const candidate of candidates) {
-          if (!candidate) continue;
-          const date = new Date(candidate);
-          if (!Number.isNaN(date.getTime())) return date;
-        }
-        return null;
-      };
-
-      const isCurrentMonthTerm = (termShare) => {
-        const termDate = getTransactionDate(termShare);
-        if (!termDate) return false;
-        return !Number.isNaN(termDate.getTime()) &&
-          termDate.getMonth() === currentMonth &&
-          termDate.getFullYear() === currentYear;
-      };
-
-      const isTodayTerm = (termShare) => {
-        const termDate = getTransactionDate(termShare);
-        return termDate ? getDateKey(termDate) === today : false;
-      };
-
-      for (const booking of bookings) {
-        bookingCount += 1;
-
-        const currentMonthParticipationRows = getBookingRevenueRowsForUser(
-          booking,
-          session.user_id,
-          isAdmin,
-          (termShare, termKey) => termKey !== "refund" && isCurrentMonthTerm(termShare)
-        );
-        if (currentMonthParticipationRows.length > 0) {
-          bookingCountThisMonth += 1;
-        }
-
-        const revenueForAccess = getBookingRevenueForUser(booking, session.user_id, isAdmin, () => true, serviceDeductionMap);
-        const currentMonthRev = isAdmin
-          ? getBookingRevenueForUser(booking, session.user_id, true, isCurrentMonthTerm, serviceDeductionMap)
-          : getBookingRevenueForUser(booking, session.user_id, false, isCurrentMonthTerm, serviceDeductionMap);
-
-        currentMonthRevenue += currentMonthRev;
-
-        todayRevenueAmt += isAdmin
-          ? getBookingRevenueForUser(booking, session.user_id, true, isTodayTerm, serviceDeductionMap)
-          : getBookingRevenueForUser(booking, session.user_id, false, isTodayTerm, serviceDeductionMap);
-
-        addBookingRevenueToLeaderboard(booking, bdmRevMap, activeUsersMap, isCurrentMonthTerm, serviceDeductionMap);
-
-        currentMonthDeductions.push(
-          ...(isAdmin
-            ? getBookingDeductionRowsForStats(
-                booking,
-                isCurrentMonthTerm,
-                activeUsersMap
-              )
-            : getBookingDeductionRowsForUser(
-                booking,
-                session.user_id,
-                false,
-                isCurrentMonthTerm,
-                serviceDeductionMap,
-                activeUsersMap
-              ))
-        );
-
-        const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
-        if (!Number.isNaN(paymentDate.getTime()) && paymentDate >= threeMonthsAgo) {
-          const services = Array.isArray(booking.services)
-            ? booking.services.filter((service) => typeof service === "string" && service.trim())
-            : [];
-
-          if (services.length > 0) {
-            const splitBaseRevenue = Math.max(
-              0,
-              isAdmin
-                ? getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap)
-                : revenueForAccess
-            );
-            const splitRevenue = splitBaseRevenue / services.length;
-
-            services.forEach((serviceNameRaw) => {
-              const serviceName = serviceNameRaw.trim();
-              serviceSoldMap[serviceName] = (serviceSoldMap[serviceName] || 0) + 1;
-              serviceRevenueMap[serviceName] = (serviceRevenueMap[serviceName] || 0) + splitRevenue;
-            });
-          }
-        }
-
-        TERM_KEYS.forEach((termKey) => {
-          const termAmount = getBookingRevenueForUser(
-            booking,
-            session.user_id,
-            isAdmin,
-            (_, key) => key === termKey,
-            serviceDeductionMap
-          );
-          if (!termAmount) return;
-
-          const termDate = new Date(
-            booking.term_shares?.[termKey]?.payment_date || booking.payment_date || booking.date || booking.createdAt
-          );
-          if (Number.isNaN(termDate.getTime())) return;
-
-          const monthKey = `${termDate.getFullYear()}-${String(termDate.getMonth() + 1).padStart(2, "0")}`;
-          if (!monthlyMap[monthKey]) monthlyMap[monthKey] = 0;
-          monthlyMap[monthKey] += termAmount;
-        });
-
-        (booking.refund_adjustments || []).forEach((refund) => {
-          const refundDate = new Date(refund.refund_date || refund.created_at);
-          if (Number.isNaN(refundDate.getTime())) return;
-          const monthKey = `${refundDate.getFullYear()}-${String(refundDate.getMonth() + 1).padStart(2, "0")}`;
-          if (!monthlyMap[monthKey]) monthlyMap[monthKey] = 0;
-          monthlyMap[monthKey] += getBookingRevenueForUser(
-            booking,
-            session.user_id,
-            isAdmin,
-            (_, termKey) => termKey === "refund",
-            serviceDeductionMap
-          );
-        });
-
-        sortedBookings.push(booking);
-      }
-
-      const board = Object.entries(bdmRevMap)
-        .map(([name, data]) => {
-          const profile = userDirectoryByName[(name || "").trim().toUpperCase()] || {};
-          return {
-            name,
-            ...data,
-            profilePicture: profile.profilePicture || "",
-            role: profile.role || "",
-          };
-        })
-        .sort((a, b) => b.revenue - a.revenue);
-      setLeaderboard(board);
-
-      const monthBuckets = [];
-      for (let i = 5; i >= 0; i -= 1) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-        monthBuckets.push({
-          label: date.toLocaleString("default", { month: "short" }),
-          value: monthlyMap[monthKey] || 0,
-        });
-      }
-      setMonthlyRevData({
-        labels: monthBuckets.map((month) => month.label),
-        values: monthBuckets.map((month) => month.value),
-      });
-
-      if (!isAdmin) {
-        const companySoldMap = {};
-        const companyRevenueMap = {};
-
-        for (const booking of allCompanyBookings) {
-          const paymentDate = new Date(booking.payment_date || booking.date || booking.createdAt);
-          if (Number.isNaN(paymentDate.getTime()) || paymentDate < threeMonthsAgo) continue;
-
-          const services = Array.isArray(booking.services)
-            ? booking.services.filter((service) => typeof service === "string" && service.trim())
-            : [];
-          if (!services.length) continue;
-
-          const revenue = Math.max(
-            0,
-            getBookingRevenueForUser(booking, session.user_id, true, () => true, serviceDeductionMap)
-          );
-          const splitRevenue = revenue / services.length;
-
-          services.forEach((serviceNameRaw) => {
-            const serviceName = serviceNameRaw.trim();
-            companySoldMap[serviceName] = (companySoldMap[serviceName] || 0) + 1;
-            companyRevenueMap[serviceName] = (companyRevenueMap[serviceName] || 0) + splitRevenue;
-          });
-        }
-
-        const personalSoldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
-        const personalRevenueEntries = Object.entries(companySoldMap).sort((a, b) => b[1] - a[1]);
-        const personalSoldTop = personalSoldEntries[0] || ["-", 0];
-        const personalRevenueTop = personalRevenueEntries[0] || ["-", 0];
-        setPersonalMostSoldService({ name: personalSoldTop[0], count: personalSoldTop[1] });
-        setPersonalMostRevenueService({ name: personalRevenueTop[0], revenue: Number(personalRevenueTop[1] || 0) });
-
-        Object.keys(serviceSoldMap).forEach((key) => delete serviceSoldMap[key]);
-        Object.assign(serviceSoldMap, companySoldMap);
-        Object.keys(serviceRevenueMap).forEach((key) => delete serviceRevenueMap[key]);
-        Object.assign(serviceRevenueMap, companyRevenueMap);
-      } else {
-        setPersonalMostSoldService({ name: "-", count: 0 });
-        setPersonalMostRevenueService({ name: "-", revenue: 0 });
-      }
-
-      const soldEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
-      const activityEntries = Object.entries(serviceSoldMap).sort((a, b) => b[1] - a[1]);
-
-      const soldTop = soldEntries[0] || ["-", 0];
-      const activityTop = activityEntries[0] || ["-", 0];
-
-      setMostSoldService({ name: soldTop[0], count: soldTop[1] });
-      setMostRevenueService({ name: activityTop[0], revenue: Number(activityTop[1] || 0) });
-
-      setServiceSoldData({
-        labels: soldEntries.slice(0, 6).map(([service]) => service),
-        values: soldEntries.slice(0, 6).map(([, count]) => count),
-      });
-
-      setServiceRevenueData({
-        labels: activityEntries.slice(0, 6).map(([service]) => service),
-        values: activityEntries.slice(0, 6).map(([, count]) => Math.round(count)),
-      });
-
-      setServiceDeductionCatalog(serviceDeductionCatalogRows);
-      const serviceDeductionRows = currentMonthDeductions.filter((row) => row.type === "Service Deduction");
-      const manualRefundRows = currentMonthDeductions.filter((row) => row.type === "Manual Refund Adjustment");
-      const refundableDeductionRows = currentMonthDeductions.filter((row) => row.type === "Refundable Clause Deduction");
-      setDeductionTransactions(serviceDeductionRows);
-      setManualRefundTransactions(manualRefundRows);
-      setRefundableTransactions(refundableDeductionRows);
-      setTotalServiceDeductions(
-        serviceDeductionRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
-      );
-      setTotalManualRefunds(
-        manualRefundRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
-      );
-      setTotalRefundableCuts(
-        refundableDeductionRows.reduce((sum, row) => sum + Number(row.deduction || 0), 0)
-      );
-
-      const recent = sortedBookings
-        .sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
-        .slice(0, 6);
-
-      setTotalBookings(bookingCount);
-      setTotalRevenue(currentMonthRevenue);
-      setTodayRevenue(todayRevenueAmt);
-      setBookingsThisMonth(bookingCountThisMonth);
-      setRecentBookings(recent);
+      const response = await requestJson("/dashboard/summary", session.token);
+      const summary = response.summary;
+      setLeaderboard(summary.leaderboard);
+      setMonthlyRevData(summary.monthlyRevData);
+      setPersonalMostSoldService(summary.personalMostSoldService);
+      setPersonalMostRevenueService(summary.personalMostRevenueService);
+      setMostSoldService(summary.mostSoldService);
+      setMostRevenueService(summary.mostRevenueService);
+      setServiceSoldData(summary.serviceSoldData);
+      setServiceRevenueData(summary.serviceRevenueData);
+      setServiceDeductionCatalog(summary.serviceDeductionCatalog);
+      setDeductionTransactions(summary.deductionTransactions);
+      setManualRefundTransactions(summary.manualRefundTransactions);
+      setRefundableTransactions(summary.refundableTransactions);
+      setTotalServiceDeductions(summary.totalServiceDeductions);
+      setTotalManualRefunds(summary.totalManualRefunds);
+      setTotalRefundableCuts(summary.totalRefundableCuts);
+      setTotalBookings(summary.totalBookings);
+      setTotalRevenue(summary.totalRevenue);
+      setTodayRevenue(summary.todayRevenue);
+      setBookingsThisMonth(summary.bookingsThisMonth);
+      setRecentBookings(summary.recentBookings);
+      setTotalUsers(summary.totalUsers);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      enqueueSnackbar("Dashboard data could not load. The server may be busy; please refresh to retry.", { variant: "error" });
-    } finally {
-      setLoading(false);
-    }
+      enqueueSnackbar(error.message || "Dashboard data could not load. Please retry.", { variant: "error" });
+    } finally { setLoading(false); }
   };
 
   const handleOpenBooking = async (bookingId) => {
     try {
-      const res = await fetch(`${apiUrl}/booking/all`, {
-        headers: { authorization: userSession?.token },
-      });
-
-      if (!res.ok) {
-        enqueueSnackbar("Error opening booking details", { variant: "error" });
-        return;
-      }
-
-      const data = await res.json();
-      const bookings = data.Allbookings || data.bookings || [];
-      const booking = bookings.find((item) => item._id === bookingId);
+      const data = await requestJson(`/dashboard/booking/${bookingId}`, userSession?.token);
+      const booking = data.booking;
 
       if (!booking) {
         enqueueSnackbar("Booking not found", { variant: "error" });

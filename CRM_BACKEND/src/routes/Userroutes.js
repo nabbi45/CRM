@@ -14,6 +14,7 @@ import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
 import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
 import { EmployeeModel } from '../models/EmployeeProfile.js';
 import { prepareUploadFile, toDataUri } from '../utils/uploadCompression.js';
+import { profileThumbnail } from '../utils/profileThumbnail.js';
 dotenv.config()
 const saltRounds = 5;
 const memoryUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -472,7 +473,7 @@ UserRoutes.get('/options', authenticateUser, async (req, res) => {
       ? {}
       : { isDisabled: { $ne: true } };
     const userDocs = await UserModel.find(userQuery, 'name user_role profilePicture isDisabled').sort({ name: 1 }).lean();
-    const users = await withResolvedProfilePictures(userDocs);
+    const users = await Promise.all((await withResolvedProfilePictures(userDocs)).map(async (user) => ({ ...user, profilePicture: await profileThumbnail(user.profilePicture) })));
     return res.status(200).send({ users });
   } catch (error) {
     console.log(error.message);

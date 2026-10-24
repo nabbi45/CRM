@@ -13,6 +13,7 @@ import {
   HRMEmployee,
 } from "./models.js";
 import * as service from "./service.js";
+import { workspace } from "./workspace.js";
 import { todayIST, dateKey } from "./rules.js";
 
 const router = express.Router();
@@ -64,7 +65,11 @@ router.use((req, res, next) =>
 router.get(
   "/bootstrap",
   wrap(async (req, res) => {
-    res.json(await service.bootstrap(req.actor, req.query.month));
+    res.json(
+      req.query.section
+        ? await workspace(req.actor, req.query)
+        : await service.bootstrap(req.actor, req.query.month),
+    );
   }),
 );
 // A single-document, account-scoped preference; never modifies HR eligibility.
@@ -88,12 +93,12 @@ router.post(
 router.get(
   "/attendance/team",
   wrap(async (req, res) => {
-    res.json({
-      team: await service.attendanceTeam(
-        req.actor,
-        req.query.month || todayIST().slice(0, 7),
-      ),
-    });
+    const result = await service.attendanceTeam(
+      req.actor,
+      req.query.month || todayIST().slice(0, 7),
+      req.query,
+    );
+    res.json(Array.isArray(result) ? { team: result } : result);
   }),
 );
 router.get(

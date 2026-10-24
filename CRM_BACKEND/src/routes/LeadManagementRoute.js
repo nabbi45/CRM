@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import mongoose from "mongoose";
+import { profileThumbnail } from "../utils/profileThumbnail.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
 import { NotificationModel } from "../models/NotificationModel.js";
@@ -184,13 +185,13 @@ const listAssignableUsers = async () => {
     .select("name email user_role profilePicture")
     .sort({ name: 1 })
     .lean();
-  return users.map((user) => ({
+  return Promise.all(users.map(async (user) => ({
     userId: String(user._id),
     name: user.name,
     email: user.email,
     role: user.user_role,
-    profilePicture: user.profilePicture || "",
-  }));
+    profilePicture: await profileThumbnail(user.profilePicture),
+  })));
 };
 
 const listLeads = async (req) => {

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { requestJson } from "../utils/requestJson";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -309,6 +310,16 @@ function HRMWorkspace() {
     [filter, setFilter] = useState(""),
     [department, setDepartment] = useState(""),
     [date, setDate] = useState("");
+  const [pager, setPager] = useState({ key: "", page: 1 });
+  const [filterQuery, setFilterQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setFilterQuery(filter.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [filter]);
+  const [teamPagination, setTeamPagination] = useState(null);
+  const pagerKey = `${page}:${employeeId}:${month}:${filterQuery}:${department}`;
+  const listPage = pager.key === pagerKey ? pager.page : 1;
+  const bootstrapPath = `/bootstrap?month=${month}&section=${page || "dashboard"}&page=${listPage}&userId=${page === "ledger" ? employeeId || session.user_id : session.user_id}&search=${encodeURIComponent(filterQuery)}`;
   const [request, setRequest] = useState(initialRequest),
     [proof, setProof] = useState(null),
     [detail, setDetail] = useState(null),
@@ -357,6 +368,7 @@ function HRMWorkspace() {
 
   const api = useCallback(
     async (path, method = "GET", body) => {
+      if (method === "GET") return requestJson(`/hrm${path}`, session.token);
       const form = typeof FormData !== "undefined" && body instanceof FormData;
       const response = await fetchWithTimeout(`${apiUrl}/hrm${path}`, {
         method,
@@ -366,11 +378,9 @@ function HRMWorkspace() {
         },
         body: body ? (form ? body : JSON.stringify(body)) : undefined,
       });
-      const result = await response
-        .json()
-        .catch(() => ({
-          message: "The server returned an invalid response. Please retry.",
-        }));
+      const result = await response.json().catch(() => ({
+        message: "The server returned an invalid response. Please retry.",
+      }));
       if (!response.ok)
         throw new Error(result.message || "Unable to complete request");
       return result;
@@ -378,17 +388,17 @@ function HRMWorkspace() {
     [session.token],
   );
   const load = useCallback(async () => {
-    const result = await api(`/bootstrap?month=${month}`);
+    const result = await api(bootstrapPath);
     setData(result);
     setDate((d) => d || result.today);
     setPolicy((p) => (Object.keys(p).length ? p : result.policy));
     setActivationDate((d) => d || result.today);
     setEffectiveDate((d) => d || result.today);
-  }, [api, month]);
+  }, [api, bootstrapPath]);
   useEffect(() => {
     let active = true;
     setError("");
-    api(`/bootstrap?month=${month}`)
+    api(bootstrapPath)
       .then((result) => {
         if (active) {
           setData(result);
@@ -402,7 +412,7 @@ function HRMWorkspace() {
     return () => {
       active = false;
     };
-  }, [api, month]);
+  }, [api, bootstrapPath]);
   useEffect(() => {
     let active = true;
     if (data && ["attendance", "team", "entry", "monthly", ""].includes(page)) {
@@ -418,15 +428,31 @@ function HRMWorkspace() {
         (data.isHR || data.employees.length > 1)
       )
         api(
-          `/attendance/team?month=${page === "entry" ? date.slice(0, 7) || month : month}`,
+          `/attendance/team?month=${page === "entry" ? date.slice(0, 7) || month : month}${page === "" ? `&date=${data.today}` : `&page=${listPage}&search=${encodeURIComponent(filterQuery)}&department=${encodeURIComponent(department)}`}`,
         )
-          .then((r) => active && setTeam(r.team || []))
+          .then((r) => {
+            if (active) {
+              setTeam(r.team || []);
+              setTeamPagination(r.pagination || null);
+            }
+          })
           .catch((e) => active && setError(e.message));
     }
     return () => {
       active = false;
     };
-  }, [api, data, month, employeeId, page, date, session.user_id]);
+  }, [
+    api,
+    data,
+    month,
+    employeeId,
+    page,
+    date,
+    session.user_id,
+    listPage,
+    filterQuery,
+    department,
+  ]);
   const run = async (action) => {
     setBusy(true);
     setError("");
@@ -893,7 +919,11 @@ function HRMWorkspace() {
                             ],
                           ]
                         : []),
-                      ["Pending requests", pending.length, "Awaiting review"],
+                      [
+                        "Pending requests",
+                        data.pendingCount ?? pending.length,
+                        "Awaiting review",
+                      ],
                     ].map(([label, value, note]) => (
                       <div className="hrm-stat" key={label}>
                         <span>{label}</span>
@@ -1711,7 +1741,7 @@ function HRMWorkspace() {
                       sx={{ mb: 2 }}
                     />
                     <LedgerSummary
-                      ledger={data.ledger.filter(
+                      ledger={(data.ledgerSummary || data.ledger).filter(
                         (l) => l.userId === employeeId,
                       )}
                       month={month}
@@ -2347,6 +2377,44 @@ function HRMWorkspace() {
               )}
             </>
           )}
+          {[
+            "leave",
+            "wfh",
+            "approvals",
+            "regularisation",
+            "ledger",
+            "team",
+            "monthly",
+            "entry",
+          ].includes(page) &&
+            (() => {
+              const info = ["team", "monthly", "entry"].includes(page)
+                ? teamPagination
+                : data.pagination;
+              return info?.totalPages > 1 ? (
+                <div className="hrm-actions" aria-label="Section pagination">
+                  <Button
+                    disabled={listPage <= 1}
+                    onClick={() =>
+                      setPager({ key: pagerKey, page: listPage - 1 })
+                    }
+                  >
+                    Previous
+                  </Button>
+                  <span>
+                    Page {listPage} / {info.totalPages} ({info.total} records)
+                  </span>
+                  <Button
+                    disabled={listPage >= info.totalPages}
+                    onClick={() =>
+                      setPager({ key: pagerKey, page: listPage + 1 })
+                    }
+                  >
+                    Next
+                  </Button>
+                </div>
+              ) : null;
+            })()}
           <footer className="hrm-footer">
             HRM Portal <span>Part of your CRM workspace · Asia/Kolkata</span>
           </footer>
