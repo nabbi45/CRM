@@ -2,7 +2,6 @@ import express from "express";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import mongoose from "mongoose";
-import { profileThumbnail } from "../utils/profileThumbnail.js";
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { UserModel } from "../models/UserModel.js";
 import { NotificationModel } from "../models/NotificationModel.js";
@@ -182,16 +181,17 @@ const listColumns = () =>
 
 const listAssignableUsers = async () => {
   const users = await UserModel.find({ isDisabled: { $ne: true } })
-    .select("name email user_role profilePicture")
+    // Assignment only needs an unambiguous recipient. Avoid reading or resizing
+    // profile images on every lead-page visit; the selector is loaded on demand.
+    .select("name email user_role")
     .sort({ name: 1 })
     .lean();
-  return Promise.all(users.map(async (user) => ({
+  return users.map((user) => ({
     userId: String(user._id),
     name: user.name,
     email: user.email,
     role: user.user_role,
-    profilePicture: await profileThumbnail(user.profilePicture),
-  })));
+  }));
 };
 
 const listLeads = async (req) => {
@@ -224,8 +224,9 @@ const listLeads = async (req) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
+      .maxTimeMS(12000)
       .lean(),
-    LeadManagementModel.countDocuments(query),
+    LeadManagementModel.countDocuments(query).maxTimeMS(12000),
   ]);
   const totalPages = Math.max(Math.ceil(total / limit), 1);
   return {
@@ -328,15 +329,13 @@ router.get("/users", managerOnly, async (_req, res) => {
 router.get("/bootstrap", async (req, res) => {
   try {
     const manager = isManager(req.user);
-    const [leadData, columns, users] = await Promise.all([
+    const [leadData, columns] = await Promise.all([
       listLeads(req),
       listColumns(),
-      manager ? listAssignableUsers() : Promise.resolve([]),
     ]);
     res.json({
       ...leadData,
       columns,
-      users,
       canManage: manager,
       canDelete: canDeleteLeads(req.user),
     });

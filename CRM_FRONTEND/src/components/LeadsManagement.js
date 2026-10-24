@@ -50,6 +50,7 @@ import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 
 const STATUS_OPTIONS = [
   ["new", "New"],
@@ -91,6 +92,8 @@ const LeadsManagement = () => {
   const [leads, setLeads] = useState([]);
   const [columns, setColumns] = useState([]);
   const [users, setUsers] = useState([]);
+  const [assignUsersLoaded, setAssignUsersLoaded] = useState(false);
+  const [assignUsersLoading, setAssignUsersLoading] = useState(false);
   const [canManage, setCanManage] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
   const [pagination, setPagination] = useState({
@@ -128,13 +131,13 @@ const LeadsManagement = () => {
   );
   const request = useCallback(
     async (path, options = {}) => {
-      const response = await fetch(`${apiUrl}/leads-management${path}`, {
+      const response = await fetchWithTimeout(`${apiUrl}/leads-management${path}`, {
         ...options,
         headers:
           options.body instanceof FormData
             ? { Authorization: token }
             : { ...headers, ...(options.headers || {}) },
-      });
+      }, options.method && options.method !== "GET" ? 30000 : 15000);
       const data = await response.json().catch(() => ({}));
       if (!response.ok)
         throw new Error(data.message || "Unable to complete the lead request.");
@@ -160,7 +163,12 @@ const LeadsManagement = () => {
         setCanDelete(Boolean(data.canDelete));
         setPagination(data.pagination || {});
         setColumns(data.columns || []);
-        setUsers(data.users || []);
+        // New API responses deliberately omit the assignment directory. Keep
+        // an already loaded selector rather than making every page reload it.
+        if (Array.isArray(data.users)) {
+          setUsers(data.users);
+          setAssignUsersLoaded(true);
+        }
         setSelected(new Set());
         if (data.pagination?.page && data.pagination.page !== requestedPage)
           setPage(data.pagination.page);
@@ -341,6 +349,22 @@ const LeadsManagement = () => {
         leads.length && leads.every((lead) => previous.has(lead._id));
       return allSelected ? new Set() : new Set(leads.map((lead) => lead._id));
     });
+
+  const openAssign = async () => {
+    setAssignOpen(true);
+    setAssignee("");
+    if (assignUsersLoaded || assignUsersLoading) return;
+    setAssignUsersLoading(true);
+    try {
+      const data = await request("/users");
+      setUsers(data.users || []);
+      setAssignUsersLoaded(true);
+    } catch (error) {
+      enqueueSnackbar(error.message, { variant: "error" });
+    } finally {
+      setAssignUsersLoading(false);
+    }
+  };
 
   const assignLeads = async () => {
     if (!assignee)
@@ -710,7 +734,7 @@ const LeadsManagement = () => {
               <Button
                 variant="contained"
                 startIcon={<AssignmentIndOutlinedIcon />}
-                onClick={() => setAssignOpen(true)}
+                onClick={openAssign}
               >
                 Assign selected
               </Button>
@@ -1098,6 +1122,14 @@ const LeadsManagement = () => {
             label="Assign to"
             value={assignee}
             onChange={(event) => setAssignee(event.target.value)}
+            disabled={assignUsersLoading}
+            helperText={
+              assignUsersLoading
+                ? "Loading available CRM users…"
+                : users.length
+                  ? "Choose who should receive these leads."
+                  : "No active CRM users are available."
+            }
           >
             {users.map((user) => (
               <MenuItem key={user.userId} value={user.userId}>
@@ -1110,7 +1142,7 @@ const LeadsManagement = () => {
           <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
-            disabled={working || !assignee}
+            disabled={working || assignUsersLoading || !assignee}
             onClick={assignLeads}
           >
             Assign leads

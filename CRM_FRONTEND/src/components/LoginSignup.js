@@ -17,7 +17,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 // Static logo imports removed to prevent cross-company branding leakage
 import { useColorMode } from "../context/AppThemeProvider";
 export const apiUrl =
-  process.env.REACT_APP_API_URL || "https://crm-backend-3026.onrender.com";
+  process.env.REACT_APP_API_URL || "https://crm-backend-sg26.onrender.com";
 
 const TypewriterText = ({ words }) => {
   const [text, setText] = useState("");

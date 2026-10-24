@@ -157,9 +157,18 @@ test("only management roles can create/import leads and required headings are ch
     .expect(200);
   assert.equal(bootstrap.body.leads.length, 3);
   assert.equal(bootstrap.body.canManage, true);
-  assert(bootstrap.body.users.some((user) => user.name === "Lead Owner"));
+  // The lead list must not load the whole assignment directory. It is fetched
+  // only if the manager opens the Assign dialog.
+  assert.equal(bootstrap.body.users, undefined);
   assert.equal(bootstrap.body.leads[0].assignmentHistory, undefined);
   assert.equal(bootstrap.body.leads[0].statusHistory, undefined);
+
+  const assignable = await request(app)
+    .get("/leads-management/users")
+    .set("Authorization", tokenFor(admin))
+    .expect(200);
+  assert(assignable.body.users.some((user) => user.name === "Lead Owner"));
+  assert.equal(assignable.body.users[0].profilePicture, undefined);
 
   const secondPage = await request(app)
     .get("/leads-management?limit=2&page=2")
