@@ -561,14 +561,80 @@ const requestsFor = (userId, from, to, s) =>
     }).lean(),
     s,
   );
-export const attendanceMonth = async (userId, month, s) => {
-  const dates = monthDates(month),
-    employee = await employeeFor(userId, s),
-    c = await control(s);
-  const locked = await sessionQuery(
-    HRMLock.findOne({ month, locked: true }).sort({ version: -1 }).lean(),
-    s,
+// Team reads share month data; do not reload the employee directory and policies
+// for each person. Authorization is applied once before constructing this batch.
+export const attendanceTeam = async (actor, month) => {
+  const dates = monthDates(month);
+  const list = await employees();
+  const visible = list.filter(
+    (e) =>
+      isHR(actor) ||
+      e.userId === actorId(actor) ||
+      e.managerId === actorId(actor),
   );
+  const ids = visible.map((e) => e.userId);
+  const range = { $gte: dates[0], $lte: dates[dates.length - 1] };
+  const [
+    c,
+    locked,
+    records,
+    requests,
+    holidays,
+    legacy,
+    oldLeaves,
+    versions,
+    recalculation,
+  ] = await Promise.all([
+    control(),
+    HRMLock.findOne({ month, locked: true }).sort({ version: -1 }).lean(),
+    HRMAttendance.find({ userId: { $in: ids }, date: range }).lean(),
+    HRMRequest.find({
+      userId: { $in: ids },
+      status: "approved",
+      from: { $lte: dates[dates.length - 1] },
+      to: { $gte: dates[0] },
+    }).lean(),
+    holidayList(),
+    AttendanceModel.find({ userId: { $in: ids }, date: range }).lean(),
+    LeaveModel.find({
+      user_id: { $in: ids },
+      status: "approved",
+      start_date: { $lte: new Date(`${dates[dates.length - 1]}T23:59:59Z`) },
+      end_date: { $gte: new Date(dates[0]) },
+    }).lean(),
+    HRMPolicy.find({ effectiveDate: { $lte: dates[dates.length - 1] } })
+      .sort({ effectiveDate: -1 })
+      .lean(),
+    HRMMonthPolicy.findOne({ month }).lean(),
+  ]);
+  return Promise.all(
+    visible.map(async (employee) => ({
+      employee,
+      records: await attendanceMonth(employee.userId, month, undefined, {
+        employee,
+        c,
+        locked,
+        holidays,
+        versions,
+        recalculation,
+        records: records.filter((r) => r.userId === employee.userId),
+        requests: requests.filter((r) => r.userId === employee.userId),
+        legacy: legacy.filter((r) => r.userId === employee.userId),
+        oldLeaves: oldLeaves.filter((r) => r.user_id === employee.userId),
+      }),
+    })),
+  );
+};
+export const attendanceMonth = async (userId, month, s, shared) => {
+  const dates = monthDates(month),
+    employee = shared ? shared.employee : await employeeFor(userId, s),
+    c = shared ? shared.c : await control(s);
+  const locked = shared
+    ? shared.locked
+    : await sessionQuery(
+        HRMLock.findOne({ month, locked: true }).sort({ version: -1 }).lean(),
+        s,
+      );
   if (locked) {
     const saved = locked.snapshot.find((e) => e.employee.userId === userId);
     if (saved) return saved.rows;
@@ -580,46 +646,52 @@ export const attendanceMonth = async (userId, month, s) => {
       locked: true,
     }));
   }
-  const records = await sessionQuery(
-    HRMAttendance.find({
-      userId,
-      date: { $gte: dates[0], $lte: dates[dates.length - 1] },
-    }).lean(),
-    s,
-  );
-  const requests = await requestsFor(
-    userId,
-    dates[0],
-    dates[dates.length - 1],
-    s,
-  );
-  const holidays = await holidayList(s);
-  const legacy = await sessionQuery(
-    AttendanceModel.find({
-      userId,
-      date: { $gte: dates[0], $lte: dates[dates.length - 1] },
-    }).lean(),
-    s,
-  );
-  const oldLeaves = await sessionQuery(
-    LeaveModel.find({
-      user_id: userId,
-      status: "approved",
-      start_date: { $lte: new Date(`${dates[dates.length - 1]}T23:59:59Z`) },
-      end_date: { $gte: new Date(dates[0]) },
-    }).lean(),
-    s,
-  );
-  const versions = await sessionQuery(
-    HRMPolicy.find({ effectiveDate: { $lte: dates[dates.length - 1] } })
-      .sort({ effectiveDate: -1 })
-      .lean(),
-    s,
-  );
-  const recalculation = await sessionQuery(
-    HRMMonthPolicy.findOne({ month }).lean(),
-    s,
-  );
+  const records = shared
+    ? shared.records
+    : await sessionQuery(
+        HRMAttendance.find({
+          userId,
+          date: { $gte: dates[0], $lte: dates[dates.length - 1] },
+        }).lean(),
+        s,
+      );
+  const requests = shared
+    ? shared.requests
+    : await requestsFor(userId, dates[0], dates[dates.length - 1], s);
+  const holidays = shared ? shared.holidays : await holidayList(s);
+  const legacy = shared
+    ? shared.legacy
+    : await sessionQuery(
+        AttendanceModel.find({
+          userId,
+          date: { $gte: dates[0], $lte: dates[dates.length - 1] },
+        }).lean(),
+        s,
+      );
+  const oldLeaves = shared
+    ? shared.oldLeaves
+    : await sessionQuery(
+        LeaveModel.find({
+          user_id: userId,
+          status: "approved",
+          start_date: {
+            $lte: new Date(`${dates[dates.length - 1]}T23:59:59Z`),
+          },
+          end_date: { $gte: new Date(dates[0]) },
+        }).lean(),
+        s,
+      );
+  const versions = shared
+    ? shared.versions
+    : await sessionQuery(
+        HRMPolicy.find({ effectiveDate: { $lte: dates[dates.length - 1] } })
+          .sort({ effectiveDate: -1 })
+          .lean(),
+        s,
+      );
+  const recalculation = shared
+    ? shared.recalculation
+    : await sessionQuery(HRMMonthPolicy.findOne({ month }).lean(), s);
   let late = 0;
   const rows = [];
   for (const date of dates) {
@@ -1932,15 +2004,26 @@ export const runAutomation = async () => {
 
 export const bootstrap = async (actor, month = todayIST().slice(0, 7)) => {
   monthDates(month);
-  const list = await employees(),
-    ids = await scopeIds(actor),
-    c = await control();
+  const [list, c] = await Promise.all([employees(), control()]);
+  const ids = list
+    .filter(
+      (e) =>
+        isHR(actor) ||
+        e.userId === actorId(actor) ||
+        e.managerId === actorId(actor),
+    )
+    .map((e) => e.userId);
   const visible = list.filter((e) => ids.includes(e.userId));
-  const requests = await HRMRequest.find({ userId: { $in: ids } })
-    .sort({ createdAt: -1 })
-    .lean();
   const own = actorId(actor);
-  const preference = await HRMEmployee.findOne({ userId: own }).lean();
+  const [requests, preference, ledgerRows] = await Promise.all([
+    HRMRequest.find({ userId: { $in: ids } })
+      .sort({ createdAt: -1 })
+      .lean(),
+    HRMEmployee.findOne({ userId: own }).lean(),
+    HRMLedger.find({ userId: { $in: ids } })
+      .sort({ date: -1 })
+      .lean(),
+  ]);
   let database = null;
   if (isHR(actor)) {
     try {
@@ -1957,9 +2040,6 @@ export const bootstrap = async (actor, month = todayIST().slice(0, 7)) => {
       database = { connected: true, transactionsSupported: null };
     }
   }
-  const ledgerRows = await HRMLedger.find({ userId: { $in: ids } })
-    .sort({ date: -1 })
-    .lean();
   const asOf = todayIST();
   const readBalance = (userId, kind) =>
     ledgerRows

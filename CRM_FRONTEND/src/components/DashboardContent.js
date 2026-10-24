@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { apiUrl } from "./LoginSignup";
 import {
   Avatar,
@@ -427,19 +428,19 @@ const DashboardContent = () => {
       const bookingUrl = isAdmin ? `${apiUrl}/booking/all` : `${apiUrl}/user/bookings/${session.user_id}`;
 
       const fetches = [
-        fetch(bookingUrl, {
+        fetchWithTimeout(bookingUrl, {
           headers: {
             "Content-Type": "application/json",
             authorization: session.token,
           },
         }),
-        fetch(`${apiUrl}/user/options`, {
+        fetchWithTimeout(`${apiUrl}/user/options`, {
           headers: {
             "Content-Type": "application/json",
             authorization: session.token,
           },
         }),
-        fetch(`${apiUrl}/services/api/services`, {
+        fetchWithTimeout(`${apiUrl}/services/api/services`, {
           headers: {
             "Content-Type": "application/json",
             authorization: session.token,
@@ -449,7 +450,7 @@ const DashboardContent = () => {
 
       if (!isAdmin) {
         fetches.push(
-          fetch(`${apiUrl}/booking/all`, {
+          fetchWithTimeout(`${apiUrl}/booking/all`, {
             headers: {
               "Content-Type": "application/json",
               authorization: session.token,
@@ -460,7 +461,7 @@ const DashboardContent = () => {
 
       if (isAdmin) {
         fetches.push(
-          fetch(`${apiUrl}/user/all`, {
+          fetchWithTimeout(`${apiUrl}/user/all`, {
             headers: {
               "Content-Type": "application/json",
               authorization: session.token,
@@ -791,6 +792,7 @@ const DashboardContent = () => {
       setRecentBookings(recent);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+      enqueueSnackbar("Dashboard data could not load. The server may be busy; please refresh to retry.", { variant: "error" });
     } finally {
       setLoading(false);
     }

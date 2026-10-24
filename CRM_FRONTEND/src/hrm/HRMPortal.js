@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Alert,
@@ -357,7 +358,7 @@ function HRMWorkspace() {
   const api = useCallback(
     async (path, method = "GET", body) => {
       const form = typeof FormData !== "undefined" && body instanceof FormData;
-      const response = await fetch(`${apiUrl}/hrm${path}`, {
+      const response = await fetchWithTimeout(`${apiUrl}/hrm${path}`, {
         method,
         headers: {
           Authorization: session.token || "",
@@ -365,7 +366,11 @@ function HRMWorkspace() {
         },
         body: body ? (form ? body : JSON.stringify(body)) : undefined,
       });
-      const result = await response.json();
+      const result = await response
+        .json()
+        .catch(() => ({
+          message: "The server returned an invalid response. Please retry.",
+        }));
       if (!response.ok)
         throw new Error(result.message || "Unable to complete request");
       return result;
@@ -401,24 +406,21 @@ function HRMWorkspace() {
   useEffect(() => {
     let active = true;
     if (data && ["attendance", "team", "entry", "monthly", ""].includes(page)) {
-      api(`/attendance?month=${month}&userId=${employeeId || session.user_id}`)
-        .then((r) => active && setRecords(r.records))
-        .catch((e) => active && setError(e.message));
+      if ((employeeId || session.user_id) === session.user_id) {
+        setRecords(data.attendance || []);
+      } else if (page === "attendance") {
+        api(`/attendance?month=${month}&userId=${employeeId}`)
+          .then((r) => active && setRecords(r.records))
+          .catch((e) => active && setError(e.message));
+      }
       if (
         ["team", "entry", "monthly", ""].includes(page) &&
         (data.isHR || data.employees.length > 1)
       )
-        Promise.all(
-          data.employees.map(async (e) => ({
-            employee: e,
-            records: (
-              await api(
-                `/attendance?month=${page === "entry" ? date.slice(0, 7) || month : month}&userId=${e.userId}`,
-              )
-            ).records,
-          })),
+        api(
+          `/attendance/team?month=${page === "entry" ? date.slice(0, 7) || month : month}`,
         )
-          .then((r) => active && setTeam(r))
+          .then((r) => active && setTeam(r.team || []))
           .catch((e) => active && setError(e.message));
     }
     return () => {
@@ -752,7 +754,12 @@ function HRMWorkspace() {
           </div>
         </header>
         <div className="hrm-content">
-          <HRMOnboarding data={data} api={api} reload={load} navigate={navigate} />
+          <HRMOnboarding
+            data={data}
+            api={api}
+            reload={load}
+            navigate={navigate}
+          />
           <div className="hrm-page-heading">
             <div>
               <span className="hrm-eyebrow">

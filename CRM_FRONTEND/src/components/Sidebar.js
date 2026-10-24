@@ -40,7 +40,6 @@ import FolderCopyOutlinedIcon from '@mui/icons-material/FolderCopyOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { socket } from '../socket';
-import logo from '../assets/whitelogo.png';
 import { apiUrl } from './LoginSignup';
 import { useColorMode } from '../context/AppThemeProvider';
 import { canAccessFeature } from '../utils/featureAccess';
@@ -144,7 +143,7 @@ const Sidebar = () => {
     // Fetch company logo
     const fetchLogo = async () => {
       try {
-        const res = await fetch(`${apiUrl}/company`, {
+        const res = await fetch(`${apiUrl}/company/public`, {
           headers: {
             'Authorization': userSession?.token || '',
             'user-role': userSession?.user_role || '',
@@ -164,6 +163,9 @@ const Sidebar = () => {
     if (canAccessFeature(userSession, 'dashboard_overview')) {
       items.push({ text: 'Dashboard', icon: <DashboardOutlinedIcon />, path: '/dashboard', color: '#3b82f6' });
     }
+    if (canAccessFeature(userSession, 'lead_management')) {
+      items.push({ text: 'Leads Management', icon: <ContactPhoneOutlinedIcon />, path: '/dashboard/leads-management', color: ACCENT });
+    }
     if (canAccessFeature(userSession, 'scorecard')) {
       items.push({ text: 'Scorecard', icon: <InsightsOutlinedIcon />, path: '/dashboard/scorecard', color: '#14b8a6' });
     }
@@ -175,9 +177,6 @@ const Sidebar = () => {
     }
     if (canAccessFeature(userSession, 'projection_leads')) {
       items.push({ text: 'Projection Lead', icon: <TrendingUpOutlinedIcon />, path: '/dashboard/projection-leads', color: '#22c55e' });
-    }
-    if (canAccessFeature(userSession, 'lead_management')) {
-      items.push({ text: 'Leads Management', icon: <ContactPhoneOutlinedIcon />, path: '/dashboard/leads-management', color: '#0f766e' });
     }
     if (canAccessFeature(userSession, 'all_bookings')) {
       items.push({ text: 'All Booking', icon: <ListAltOutlinedIcon />, path: '/dashboard/history', color: '#f59e0b' });
@@ -338,11 +337,11 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
           borderBottom: isLight ? '1px solid rgba(0,0,0,0.06)' : 'none',
         }}
       >
-        <img
-          src={companyLogo || logo}
+        {companyLogo ? <img
+          src={companyLogo}
           alt="Dashboard Logo"
           style={{ width: '140px', marginBottom: '12px', objectFit: 'contain' }}
-        />
+        /> : <Typography variant="h6" sx={{ mb: 1.5 }}>CRM</Typography>}
         <Typography
           variant="caption"
           sx={{
@@ -395,7 +394,7 @@ const SidebarContent = ({ onLogout, toggleDrawer, menuItems, userSession, compan
       <Divider sx={{ borderColor: 'rgba(148,163,184,0.1)', mt: 1 }} />
 
       {/* ── Navigation Items ── */}
-      <List sx={{ flexGrow: 1, pt: 1.5, px: 1 }}>
+      <List sx={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', pt: 1.5, px: 1 }}>
         {menuItems.map((item) => (
           <NavLink
             to={item.path}

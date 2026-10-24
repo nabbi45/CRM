@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchWithTimeout } from './utils/fetchWithTimeout';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginSignup from './components/LoginSignup';
 import Dashboard from './Pages/Dashboard';
@@ -18,8 +19,7 @@ const validateToken = async () => {
 
   try {
     // Try to validate token by making a request to a protected endpoint
-    const isHRMRoute = window.location.pathname.startsWith('/hrm') || window.location.pathname === '/dashboard/timecard';
-    const res = await fetch(`${apiUrl}${isHRMRoute ? '/hrm/session' : '/booking/all'}`, {
+    const res = await fetchWithTimeout(`${apiUrl}/hrm/session`, {
       method: 'GET',
       headers: {
         'Authorization': session.token,
@@ -28,10 +28,12 @@ const validateToken = async () => {
     });
     
     // If we get 200, token is valid
-    return res.ok;
+    if (res.status === 401 || res.status === 403) return false;
+    return true;
   } catch (error) {
     console.error('Token validation error:', error);
-    return false;
+    // A temporary network outage must not erase an otherwise valid session.
+    return true;
   }
 };
 
@@ -83,7 +85,7 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(checkAuth());
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Validate token on app mount and periodically
   useEffect(() => {

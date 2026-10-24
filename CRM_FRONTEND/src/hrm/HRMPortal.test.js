@@ -90,6 +90,36 @@ test("employee dashboard shows balances and hides HR-only navigation", async () 
     "/dashboard",
   );
 });
+
+test("HR dashboard loads team attendance in one request rather than per employee", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn(async (url, options) => {
+    if (url.includes("/bootstrap"))
+      return {
+        ok: true,
+        json: async () => ({
+          ...fixture,
+          isHR: true,
+          employees: [
+            ...fixture.employees,
+            { userId: "employee-2", name: "Second Employee" },
+          ],
+        }),
+      };
+    if (url.includes("/attendance/team"))
+      return { ok: true, json: async () => ({ team: [] }) };
+    return originalFetch(url, options);
+  });
+  open("/hrm");
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(([url]) => url.includes("/attendance/team?")),
+    ).toBe(true),
+  );
+  expect(
+    fetch.mock.calls.filter(([url]) => url.includes("/attendance?")),
+  ).toHaveLength(0);
+});
 test("direct settings navigation is restricted for employees", async () => {
   open("/hrm/settings");
   expect(

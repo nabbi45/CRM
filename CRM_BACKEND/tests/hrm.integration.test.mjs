@@ -372,6 +372,24 @@ test("explicit unlocked-month recalculation is audited and can restore original 
 });
 
 test("HTTP routes enforce authentication, team boundaries and HR-only attendance writes", async () => {
+  const batch = await request(app)
+    .get(`/hrm/attendance/team?month=${month}`)
+    .set("Authorization", token(manager))
+    .expect(200);
+  assert(
+    batch.body.team.some((entry) => entry.employee.userId === employee.userId),
+  );
+  assert(
+    !batch.body.team.some((entry) => entry.employee.userId === sales.userId),
+  );
+  for (const entry of batch.body.team) {
+    assert.deepEqual(
+      entry.records,
+      JSON.parse(
+        JSON.stringify(await hrm.attendanceMonth(entry.employee.userId, month)),
+      ),
+    );
+  }
   assert.equal((await request(app).get("/hrm/session")).status, 401);
   assert.equal(
     (

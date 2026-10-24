@@ -140,7 +140,7 @@ const Dashboard = () => {
   const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 
   const [showInitialLoader, setShowInitialLoader] = useState(() => {
-    return !sessionStorage.getItem('crm_initial_load');
+    return false;
   });
 
   useEffect(() => {

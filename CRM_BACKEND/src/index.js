@@ -45,7 +45,7 @@ const parseAllowedOrigins = () => {
     .map((o) => o.trim())
     .filter(Boolean);
 
-  return ["http://localhost:3000", "http://localhost:5173", ...envOrigins];
+  return ["http://localhost:3000", "http://localhost:5173", "https://crm.farsightconsultancy.com", ...envOrigins];
 };
 
 const allowedOrigins = parseAllowedOrigins();

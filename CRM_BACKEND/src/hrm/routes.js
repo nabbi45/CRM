@@ -86,6 +86,17 @@ router.post(
   }),
 );
 router.get(
+  "/attendance/team",
+  wrap(async (req, res) => {
+    res.json({
+      team: await service.attendanceTeam(
+        req.actor,
+        req.query.month || todayIST().slice(0, 7),
+      ),
+    });
+  }),
+);
+router.get(
   "/attendance",
   wrap(async (req, res) => {
     const ids = await service.scopeIds(req.actor),
