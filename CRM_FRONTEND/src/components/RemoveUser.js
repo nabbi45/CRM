@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import {
   Table,
@@ -22,6 +22,8 @@ import {
   Chip,
   Avatar,
   Stack,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import { Edit, PersonOff, PersonAdd } from "@mui/icons-material";
 import { enqueueSnackbar } from "notistack";
@@ -29,6 +31,7 @@ import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { apiUrl } from "./LoginSignup";
 import AddUser from "./AddUser";
+import { requestJson } from "../utils/requestJson";
 import {
   FEATURE_KEYS,
   FEATURE_LABELS,
@@ -36,6 +39,73 @@ import {
   applyRoleTemplate,
   getDefaultFeaturePermissionsForRole,
 } from "../utils/featureAccess";
+
+const AVATAR_CACHE_MS = 5 * 60 * 1000;
+const avatarCache = new Map();
+
+const UserAvatar = ({ user, token, size = 34 }) => {
+  const targetRef = useRef(null);
+  const userId = String(user?._id || "");
+  const cachedAvatar = avatarCache.get(userId);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(cachedAvatar?.expiresAt > Date.now() ? cachedAvatar.url : "");
+
+  useEffect(() => {
+    const cached = avatarCache.get(userId);
+    setAvatarUrl(cached?.expiresAt > Date.now() ? cached.url : "");
+    setShouldLoad(false);
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !token) return undefined;
+    const target = targetRef.current;
+    if (!target || typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setShouldLoad(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "160px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [userId, token]);
+
+  useEffect(() => {
+    if (!shouldLoad || !userId || !token || avatarUrl) return undefined;
+    let active = true;
+    requestJson(`/user/avatar/${encodeURIComponent(userId)}`, token)
+      .then((data) => {
+        const url = typeof data?.avatarUrl === "string" ? data.avatarUrl : "";
+        if (!url) return;
+        avatarCache.set(userId, { url, expiresAt: Date.now() + AVATAR_CACHE_MS });
+        if (active) setAvatarUrl(url);
+      })
+      .catch(() => {
+        // An avatar is decorative. Keep initials if this individual image fails.
+      });
+    return () => { active = false; };
+  }, [avatarUrl, shouldLoad, token, userId]);
+
+  return (
+    <Box ref={targetRef} sx={{ width: size, height: size, flex: "0 0 auto" }}>
+      <Avatar
+        src={avatarUrl}
+        imgProps={{ loading: "lazy" }}
+        onError={() => {
+          setAvatarUrl("");
+          setShouldLoad(false);
+        }}
+        sx={{ width: size, height: size, bgcolor: "#dbeafe", color: "#2563eb", fontWeight: 800 }}
+      >
+        {user?.name?.charAt(0)?.toUpperCase() || "U"}
+      </Avatar>
+    </Box>
+  );
+};
 
 const RemoveUser = () => {
   const [searchTerm, setSearchTerm] = useState(""); // State for search term
@@ -51,34 +121,41 @@ const RemoveUser = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [Token, setToken] = useState("");
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [usersLoadError, setUsersLoadError] = useState("");
 
   const theme = useTheme();
   const isMobileOrTablet = useMediaQuery(theme.breakpoints.down("md"));
   const currentRole = String(JSON.parse(localStorage.getItem("userSession"))?.user_role || "").trim().toLowerCase();
   const canGrantMeetingEdit = ["dev", "srdev", "sr dev"].includes(currentRole);
 
+  const loadUsers = useCallback(async (sessionToken) => {
+    if (!sessionToken) {
+      setUsers([]);
+      setUsersLoadError("Your session is missing. Please sign in again.");
+      setIsLoadingUsers(false);
+      return;
+    }
+
+    setIsLoadingUsers(true);
+    setUsersLoadError("");
+    try {
+      const data = await requestJson('/user/all', sessionToken);
+      setUsers(Array.isArray(data?.Users) ? data.Users : []);
+    } catch (error) {
+      console.error("Error fetching users", error);
+      setUsersLoadError(error.message || "Users could not be loaded. Please retry.");
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
+
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem("userSession"));
-    if (userSession && userSession.user_id) {
-      setToken(userSession.token);
-    }
-    const fetchUsers = async () => {
-      try {
-        const response = await axios.get(`${apiUrl}/user/all`, {
-          headers: {
-            authorization: `${userSession.token}`,
-            "Content-Type": "application/json",
-          },
-        });
-        setUsers(response.data.Users);
-        setFilteredUsers(response.data.Users); // Initialize filtered users
-      } catch (error) {
-        console.error("Error fetching users", error);
-      }
-    };
-
-    fetchUsers();
-  }, []);
+    const sessionToken = userSession?.token || "";
+    setToken(sessionToken);
+    loadUsers(sessionToken);
+  }, [loadUsers]);
 
   useEffect(() => {
     // Filter users based on search term
@@ -133,10 +210,7 @@ const RemoveUser = () => {
         }
       );
 
-      const response = await axios.get(`${apiUrl}/user/all`, {
-        headers: { authorization: Token },
-      });
-      setUsers(response.data.Users);
+      await loadUsers(Token);
       enqueueSnackbar("User Updated successfully!", { variant: "success" });
       setIsEditing(false);
       setSelectedUser(null);
@@ -221,15 +295,28 @@ const RemoveUser = () => {
           />
         </Box>
 
-      {isMobileOrTablet ? (
+      {usersLoadError && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          action={<Button color="inherit" size="small" onClick={() => loadUsers(Token)}>Retry</Button>}
+        >
+          {usersLoadError}
+        </Alert>
+      )}
+
+      {isLoadingUsers ? (
+        <Box sx={{ minHeight: 180, display: "flex", alignItems: "center", justifyContent: "center", gap: 1.25 }}>
+          <CircularProgress size={26} />
+          <Typography color="text.secondary">Loading users…</Typography>
+        </Box>
+      ) : isMobileOrTablet ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
           {filteredUsers.length > 0 ? filteredUsers.map((user, index) => (
             <Paper key={user._id} sx={{ p: 1.4, borderRadius: "8px", border: "1px solid", borderColor: "divider", boxShadow: "none" }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start" }}>
                 <Stack direction="row" spacing={1.1} sx={{ minWidth: 0, flex: 1 }}>
-                  <Avatar src={user.profilePicture || ""} sx={{ width: 42, height: 42, bgcolor: "#dbeafe", color: "#2563eb", fontWeight: 800 }}>
-                    {!user.profilePicture && (user.name?.charAt(0)?.toUpperCase() || "U")}
-                  </Avatar>
+                  <UserAvatar user={user} token={Token} size={42} />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>#{index + 1}</Typography>
                     <Typography sx={{ fontWeight: 800, mt: 0.3 }}>{user.name?.toUpperCase()}</Typography>
@@ -293,9 +380,7 @@ const RemoveUser = () => {
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1.1} alignItems="center">
-                      <Avatar src={user.profilePicture || ""} sx={{ width: 34, height: 34, bgcolor: "#dbeafe", color: "#2563eb", fontWeight: 800 }}>
-                        {!user.profilePicture && (user.name?.charAt(0)?.toUpperCase() || "U")}
-                      </Avatar>
+                      <UserAvatar user={user} token={Token} />
                       <Box>
                         <Typography sx={{ fontWeight: 700 }}>{user.name?.toUpperCase()}</Typography>
                       </Box>

@@ -8,12 +8,14 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
+import sharp from 'sharp';
 import { v2 as cloudinary } from 'cloudinary';
 import { authenticateUser, authorizeDevRole, authorizeFeature } from '../middlewares/authMiddleware.js';
 import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
 import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
 import { EmployeeModel } from '../models/EmployeeProfile.js';
 import { prepareUploadFile, toDataUri } from '../utils/uploadCompression.js';
+import { cachedRead } from '../utils/readCache.js';
 dotenv.config()
 const saltRounds = 5;
 const memoryUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -139,32 +141,50 @@ const bookingAccessConditions = (userId) => [
   ]),
 ];
 
-const withResolvedProfilePictures = async (users = []) => {
-  const plainUsers = Array.isArray(users)
-    ? users.map((user) => (typeof user?.toObject === "function" ? user.toObject() : { ...user }))
-    : [];
+const AVATAR_SIZE = 96;
 
-  const missingIds = plainUsers
-    .filter((user) => !user.profilePicture)
-    .map((user) => String(user._id || ""))
-    .filter(Boolean);
+const smallCloudinaryUrl = (url = '') => {
+  const value = String(url || '').trim();
+  if (!value.includes('res.cloudinary.com/') || !value.includes('/upload/')) return value;
+  return value.replace('/upload/', `/upload/c_fill,g_auto,w_${AVATAR_SIZE},h_${AVATAR_SIZE},q_auto,f_auto/`);
+};
 
-  if (!missingIds.length) return plainUsers;
+const legacyAvatarDataUrl = async (image = '') => {
+  const match = /^data:image\/[^;]+;base64,(.+)$/i.exec(String(image || ''));
+  if (!match) return '';
 
-  const employeeProfiles = await EmployeeModel.find({ userId: { $in: missingIds } })
-    .select("userId employeePhoto")
+  try {
+    const thumbnail = await sharp(Buffer.from(match[1], 'base64'), { failOn: 'none' })
+      .rotate()
+      .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: 'cover', position: 'attention', withoutEnlargement: true })
+      .webp({ quality: 65 })
+      .toBuffer();
+    return thumbnail.length ? `data:image/webp;base64,${thumbnail.toString('base64')}` : '';
+  } catch (error) {
+    console.warn('Unable to create legacy profile thumbnail:', error.message);
+    return '';
+  }
+};
+
+const avatarForUser = async (userId) => {
+  const user = await UserModel.findById(userId)
+    .select('profilePicture')
+    .maxTimeMS(5000)
     .lean();
+  if (!user) return null;
 
-  const photoMap = new Map(
-    employeeProfiles
-      .filter((profile) => profile?.userId && profile?.employeePhoto)
-      .map((profile) => [String(profile.userId), profile.employeePhoto])
-  );
+  let storedImage = String(user.profilePicture || '').trim();
+  if (!storedImage) {
+    const profile = await EmployeeModel.findOne({ userId: String(userId) })
+      .select('employeePhoto')
+      .maxTimeMS(5000)
+      .lean();
+    storedImage = String(profile?.employeePhoto || '').trim();
+  }
 
-  return plainUsers.map((user) => ({
-    ...user,
-    profilePicture: user.profilePicture || photoMap.get(String(user._id || "")) || "",
-  }));
+  if (!storedImage) return '';
+  if (/^https?:\/\//i.test(storedImage)) return smallCloudinaryUrl(storedImage);
+  return legacyAvatarDataUrl(storedImage);
 };
 
 const UserRoutes = express.Router();
@@ -442,8 +462,14 @@ UserRoutes.patch('/account-status/:id', authenticateUser, authorizeFeature('mana
 //listing all users (requires manage_users permission)
 UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
-    const userDocs = await UserModel.find({}).select("-password");
-    const Users = await withResolvedProfilePictures(userDocs);
+    // This table needs account metadata, not original employee documents/photos.
+    // Some older profiles contain multi-megabyte image data; joining those records
+    // made a small user list slow enough to look empty or time out.
+    const Users = await UserModel.find({})
+      .select('name email user_role feature_permissions isDisabled disabledAt disabledBy isActive')
+      .sort({ name: 1, _id: 1 })
+      .maxTimeMS(10000)
+      .lean();
     if (Users.length === 0) {
       return res.status(404).send({
         message: "No Users found",
@@ -458,6 +484,26 @@ UserRoutes.get('/all', authenticateUser, authorizeFeature('manage_users'), async
     return res.status(500).send({ message: error.message });
   }
 })
+
+// Avatars deliberately load separately from /all. This keeps user management
+// immediately usable even when a legacy employee profile has a very large photo.
+UserRoutes.get('/avatar/:id', authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!/^[a-f\d]{24}$/i.test(String(id))) {
+      return res.status(400).send({ message: 'A valid user id is required.' });
+    }
+
+    const avatarUrl = await cachedRead(`user-avatar:${id}`, () => avatarForUser(id), 5 * 60 * 1000);
+    if (avatarUrl === null) return res.status(404).send({ message: 'User not found.' });
+
+    res.set('Cache-Control', 'private, max-age=300');
+    return res.status(200).send({ avatarUrl });
+  } catch (error) {
+    console.error('User avatar lookup failed:', error.message);
+    return res.status(500).send({ message: 'Profile picture could not be loaded.' });
+  }
+});
 
 // Sanitized user list for dropdowns/share selectors
 UserRoutes.get('/options', authenticateUser, async (req, res) => {
