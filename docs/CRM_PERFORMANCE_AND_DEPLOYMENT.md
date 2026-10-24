@@ -13,11 +13,32 @@ eligible history, independently of pagination. Exports and locked payroll snapsh
 retain their complete calculations. The legacy bootstrap response remains available
 for older clients during rollout.
 
-Dropdowns, HRM and dashboard avatars use 96-pixel thumbnails for embedded photos.
-Original photo records and upload/edit endpoints are unchanged. Only thumbnail
-conversion results are cached in memory; financial summaries and authorization
-results are not cached. Concurrent identical frontend reads share an in-flight
-request and fetch fresh data after completion.
+Operational dropdowns, HRM and dashboard calculations do not select original user
+photos at all. These views use initials. Shrinking a photo after downloading it
+from MongoDB did not remove the expensive database transfer. Original photos and
+their profile/upload/edit endpoints are retained.
+
+Dashboard financial source reads, company calculations and account-scoped summaries
+share a bounded process-local cache (128 entries, 15-second TTL per layer). Successful
+booking, approval, service, employee and user changes invalidate it on the serving
+process; activity pings/login/logout do not. A generation guard prevents older reads
+from repopulating it after a write. Independent server processes or external database
+edits rely on TTL expiry; do not use these overview summaries as a payroll snapshot.
+Authorization and disabled-account checks always read the current account and are
+never cached. Browsers do not cache financial responses.
+
+MongoDB projects only financial fields and omits empty term-share defaults before
+transfer. Concurrent employee dashboards share that source read and the company
+service calculation. Full booking documents are only fetched when opened. HRM's
+month data is loaded once for the selected employee batch and indexed in memory;
+workspace reads reuse their existing directory. Team views, monthly locking,
+attendance exports and active legacy daily reads use the same batch calculation.
+Transactions keep their reads sequential on their MongoDB session.
+
+Failed CRM summary requests display a retryable error instead of zero-valued cards.
+Leads retains the last loaded page during refresh, ignores superseded filter
+responses, and pages at 100 with deterministic newest-first ordering. Notification
+polling skips hidden tabs and overlapping polls; audio is enabled by a user gesture.
 
 ## Deployment
 
@@ -30,6 +51,9 @@ request and fetch fresh data after completion.
    return JSON, not `index.html`. The build includes both the new manifest and the
    previous `/manifest.json` for compatibility.
 4. Hard-refresh an existing browser tab after the deployments.
+5. Verify the backend response header `X-CRM-Read-Version: 2026-10-25` to confirm
+   that this read-path fix is actually running. An old frontend asset hash alone
+   cannot explain or prove the current backend performance.
 
 New non-unique query indexes are declared for bookings, HR requests, HR ledgers and
 legacy leave. The existing Mongoose configuration creates declared indexes. If
@@ -56,3 +80,34 @@ Read-only checks during implementation found 681 bookings and 74 users; basic lo
 database operations were fast. Embedded user photo text totalled about 5.3 MB,
 including one photo about 4.7 MB. No production records or indexes were modified by
 these diagnostic checks.
+
+## Measured regression and verification (25 October 2026, IST)
+
+Authenticated live requests reproduced a 51.8-second dashboard response and an HRM
+workspace timeout after 55 seconds. The live Leads bootstrap returned in 483 ms.
+The old directory read downloaded original photos and took 53.7 seconds against
+the connected database; the old workspace reloaded it and took 107.8 seconds.
+
+The corrected code, tested locally against the same database with automatic index
+creation disabled, read the directory in 340–358 ms, HRM workspace in 646–720 ms,
+and the full team month in 435–492 ms. The cold projected booking source still took
+about 5.5 seconds over that connection (582 KB for 674 live bookings), so cold-load
+latency and Render-to-Atlas transport must be measured after deployment. These
+local database measurements are not production response-time guarantees.
+
+`npm run test:performance` in `CRM_BACKEND` creates an isolated temporary database
+with 5,000 bookings, 5,000 leads, 5,000 requests/ledger entries and 100 users. It
+verifies 100 concurrent, permission-scoped dashboards share one booking source
+read; current test runs completed those responses in about 1.1–1.6 seconds locally.
+A 100-person HRM month used 13 queries including authentication/directory reads.
+The test also verifies paging, balances, cache invalidation and disabled accounts.
+It never uses the CRM database. Full HRM and financial regression tests remain
+available through `test:hrm`, `test:dashboard` and `test:leads`.
+
+`scripts/diagnose-performance.mjs` is an opt-in, read-only timing script using the
+backend's existing MongoDB connection settings; it disables automatic collection
+and index creation and does not run automation. It prints counts/timings only.
+`scripts/measure-api.mjs` uses explicitly provided `CRM_DIAGNOSTIC_URL`,
+`CRM_DIAGNOSTIC_EMAIL` and `CRM_DIAGNOSTIC_PASSWORD`, signs in normally (updating
+normal login activity), then performs only GET requests. Neither script prints or
+saves passwords, tokens or business records.

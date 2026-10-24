@@ -94,12 +94,12 @@ timecardBridge.use(
     if (req.method === "GET" && daily && daily[1] >= c.activationDate) {
       if (!service.isHR(req.actor)) service.fail("HR required", 403);
       const records = [];
-      for (const e of await service.employees())
+      for (const { employee: e, records: monthRows } of await service.attendanceForEmployees(
+        await service.employees(), daily[1].slice(0, 7), { c },
+      ))
         records.push({
           ...legacyAttendance(
-            (
-              await service.attendanceMonth(e.userId, daily[1].slice(0, 7))
-            ).find((r) => r.date === daily[1]),
+            monthRows.find((r) => r.date === daily[1]),
           ),
           userId: { _id: e.userId, name: e.name, email: e.email },
         });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     Badge, IconButton, Popover, Box, Typography, Button, TextField,
     Divider, Chip, List, ListItem, ListItemText, Tab, Tabs, useTheme
@@ -8,14 +8,25 @@ import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import CircleIcon from '@mui/icons-material/Circle';
 import { apiUrl } from './LoginSignup';
+import { requestJson } from '../utils/requestJson';
 
 
 const POLL_INTERVAL = 30000;
 
 // Programmatic notification sound (Web Audio API — no file needed)
+let notificationAudio;
+const enableNotificationSound = () => {
+    try {
+        const Audio = window.AudioContext || window.webkitAudioContext;
+        if (!Audio) return;
+        if (!notificationAudio || notificationAudio.state === 'closed') notificationAudio = new Audio();
+        if (notificationAudio.state === 'suspended') notificationAudio.resume().catch(() => {});
+    } catch { /* optional sound */ }
+};
 const playNotificationSound = () => {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = notificationAudio;
+        if (!ctx || ctx.state !== 'running') return;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain);
@@ -28,6 +39,7 @@ const playNotificationSound = () => {
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.4);
+        osc.onended = () => { osc.disconnect(); gain.disconnect(); };
     } catch (e) { /* ignore audio errors in unsupported browsers */ }
 };
 
@@ -35,8 +47,8 @@ const NotificationBell = () => {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     const ACCENT = isDark ? '#fff' : '#111827';
-    const session = JSON.parse(localStorage.getItem('userSession')) || {};
-    const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
+    const session = useMemo(() => JSON.parse(localStorage.getItem('userSession')) || {}, []);
+    const headers = useMemo(() => ({ Authorization: session.token || '', 'Content-Type': 'application/json' }), [session.token]);
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [tab, setTab] = useState(0);
@@ -44,33 +56,35 @@ const NotificationBell = () => {
     const [notifications, setNotifications] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
-    const prevUnreadCount = useRef(0);
+    const prevUnreadCount = useRef(null);
+    useEffect(() => {
+        window.addEventListener('pointerdown', enableNotificationSound);
+        window.addEventListener('keydown', enableNotificationSound);
+        return () => {
+            window.removeEventListener('pointerdown', enableNotificationSound);
+            window.removeEventListener('keydown', enableNotificationSound);
+        };
+    }, []);
 
     const canBroadcast = ['admin', 'super admin', 'director', 'dev', 'srdev', 'sr dev', 'senior admin', 'hr'].includes((session.user_role || '').toLowerCase());
 
     const fetchBroadcasts = useCallback(async () => {
         try {
-            const res = await fetch(`${apiUrl}/broadcasts`, { headers });
-            if (res.ok) {
-                const data = await res.json();
+                const data = await requestJson('/broadcasts', session.token);
                 setBroadcasts(data);
                 return data;
-            }
         } catch (e) { /* silent */ }
         return [];
-    }, []);
+    }, [session.token]);
 
     const fetchNotifications = useCallback(async () => {
         try {
-            const res = await fetch(`${apiUrl}/leaves/notifications`, { headers });
-            if (res.ok) {
-                const data = await res.json();
+                const data = await requestJson('/leaves/notifications', session.token);
                 setNotifications(data);
                 return data;
-            }
         } catch (e) { /* silent */ }
         return [];
-    }, []);
+    }, [session.token]);
 
     const getUnreadCount = useCallback((bList, nList) => {
         const unreadBroadcasts = (bList || broadcasts).filter(
@@ -81,18 +95,24 @@ const NotificationBell = () => {
     }, [broadcasts, notifications, session.user_id]);
 
     useEffect(() => {
+        let pending = false;
+        let active = true;
         const poll = async () => {
+            if (pending || document.hidden || !session.token) return;
+            pending = true;
             const [bData, nData] = await Promise.all([fetchBroadcasts(), fetchNotifications()]);
-            const currentUnread = getUnreadCount(bData, nData);
-            if (currentUnread > prevUnreadCount.current && prevUnreadCount.current >= 0) {
+            pending = false;
+            if (!active) return;
+            const currentUnread = bData.filter(b => b.sender_id !== session.user_id && !b.read_by?.some(r => r.user_id === session.user_id)).length + nData.filter(n => !n.read).length;
+            if (prevUnreadCount.current !== null && currentUnread > prevUnreadCount.current) {
                 playNotificationSound();
             }
             prevUnreadCount.current = currentUnread;
         };
         poll();
         const interval = setInterval(poll, POLL_INTERVAL);
-        return () => clearInterval(interval);
-    }, []);
+        return () => { active = false; clearInterval(interval); };
+    }, [fetchBroadcasts, fetchNotifications, session.token, session.user_id]);
 
     const handleOpen = (e) => setAnchorEl(e.currentTarget);
     const handleClose = () => setAnchorEl(null);

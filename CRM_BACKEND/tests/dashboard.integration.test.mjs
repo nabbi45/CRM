@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import request from "supertest";
 import sharp from "sharp";
 import DashboardRoutes from "../src/routes/DashboardRoute.js";
+import { dashboardFinancialProjection } from "../src/routes/DashboardRoute.js";
 import { UserModel } from "../src/models/UserModel.js";
 import { BookingModel } from "../src/models/bookingModel.js";
 import { buildDashboardSummary } from "../../CRM_FRONTEND/src/utils/dashboardSummary.js";
@@ -163,4 +164,33 @@ test("embedded photos are thumbnailed without changing the input photo", async (
     await profileThumbnail("https://images.test/avatar.png"),
     "https://images.test/avatar.png",
   );
+});
+
+test('sparse database projection preserves ten-term, legacy, refund and shared financial calculations', async () => {
+  const now = new Date();
+  const owner = String(employee._id);
+  const shares = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`term_${i + 1}`, { payment_mode: '', shared_with: [] }]));
+  shares.term_2 = { creator: { user_id: String(admin._id), user_name: 'Admin' }, shared_with: [{ user_id: owner, percentage: 25 }], payment_date: now };
+  shares.term_3 = { payment_date: now, shared_with: [] }; // Legacy date without a creator still affects the graph.
+  const insert = await BookingModel.collection.insertOne({
+    user_id: owner, bdm: 'Employee', company_name: 'Projection fixture', bank: 'Bank', gst_included: true,
+    is_refundable: true, refundable_percentage: 10, term_1: 1180, term_2: 590, term_3: 118, term_10: 236, term_9: 0,
+    term_shares: shares, payment_date: now, createdAt: now, services: ['Website'], isDeleted: false,
+    service_deductions_snapshot: [{ service_name: 'Website', deduction: 50 }],
+    shared_with: [{ user_id: String(admin._id), user_name: 'Admin', percentage: 20 }],
+    refund_adjustments: [{ amount: 118, refund_date: now }, { amount: 59, refund_date: now }],
+  });
+  try {
+    const raw = await BookingModel.collection.findOne({ _id: insert.insertedId });
+    const [compact] = await BookingModel.collection.aggregate([{ $match: { _id: insert.insertedId } }, { $project: dashboardFinancialProjection }]).toArray();
+    assert.equal(compact.term_shares.term_5, undefined);
+    assert.equal(compact.term_9, undefined);
+    for (const isAdmin of [true, false]) {
+      const fullSummary = buildDashboardSummary({ bookings: [raw], session: { user_id: owner }, isAdmin });
+      const compactSummary = buildDashboardSummary({ bookings: [compact], session: { user_id: owner }, isAdmin });
+      delete fullSummary.recentBookings;
+      delete compactSummary.recentBookings;
+      assert.deepEqual(compactSummary, fullSummary);
+    }
+  } finally { await BookingModel.collection.deleteOne({ _id: insert.insertedId }); }
 });

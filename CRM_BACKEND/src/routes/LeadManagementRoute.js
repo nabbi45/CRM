@@ -221,7 +221,7 @@ const listLeads = async (req) => {
   const [leads, total] = await Promise.all([
     LeadManagementModel.find(query)
       .select("-assignmentHistory -statusHistory")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .maxTimeMS(12000)

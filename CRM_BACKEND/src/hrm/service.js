@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import { randomUUID } from "crypto";
-import { profileThumbnail } from "../utils/profileThumbnail.js";
 import { UserModel } from "../models/UserModel.js";
 import { EmployeeModel } from "../models/EmployeeProfile.js";
 import AttendanceModel from "../models/AttendanceModel.js";
@@ -170,34 +169,41 @@ const assertDates = async (dates, s) => {
   }
 };
 export const employees = async (s) => {
-  const users = await sessionQuery(
+  // Operational reads must never download/process multi-megabyte profile photos.
+  // Transactional reads remain sequential; normal reads share the three round trips.
+  const queries = [
+    () => sessionQuery(
     UserModel.find()
       .select(
-        "name email user_role feature_permissions isDisabled profilePicture",
+        "name email user_role isDisabled",
       )
       .lean(),
     s,
-  );
-  const profiles = await sessionQuery(
+  ),
+    () => sessionQuery(
     EmployeeModel.find()
       .select(
         "userId employeeId department branch gender dateOfJoining reportingManager isActive",
       )
       .lean(),
     s,
-  );
-  const settings = await sessionQuery(HRMEmployee.find().lean(), s);
-  return Promise.all(
-    users.map(async (u) => {
+  ),
+    () => sessionQuery(HRMEmployee.find().lean(), s),
+  ];
+  const [users, profiles, settings] = s
+    ? [await queries[0](), await queries[1](), await queries[2]()]
+    : await Promise.all(queries.map((read) => read()));
+  const profilesById = new Map(profiles.map((p) => [String(p.userId), p]));
+  const settingsById = new Map(settings.map((h) => [String(h.userId), h]));
+  return users.map((u) => {
       const id = String(u._id),
-        p = profiles.find((p) => p.userId === id) || {},
-        h = settings.find((h) => h.userId === id) || {};
+        p = profilesById.get(id) || {},
+        h = settingsById.get(id) || {};
       return {
         userId: id,
         name: u.name,
         email: u.email,
         user_role: u.user_role,
-        profilePicture: await profileThumbnail(u.profilePicture),
         disabled: u.isDisabled,
         hasProfile: Boolean(p._id),
         employeeId: p.employeeId,
@@ -216,8 +222,7 @@ export const employees = async (s) => {
         ...h,
         userId: id,
       };
-    }),
-  );
+    });
 };
 const employeeFor = async (userId, s) => {
   const e = (await employees(s)).find((e) => e.userId === userId);
@@ -566,23 +571,32 @@ const requestsFor = (userId, from, to, s) =>
   );
 // Team reads share month data; do not reload the employee directory and policies
 // for each person. Authorization is applied once before constructing this batch.
-export const attendanceTeam = async (actor, month, options = {}) => {
+export const attendanceForEmployees = async (visible, month, seed = {}, s) => {
   const dates = monthDates(month);
-  const list = await employees();
-  let visible = list.filter(
-    (e) =>
-      isHR(actor) ||
-      e.userId === actorId(actor) ||
-      e.managerId === actorId(actor),
-  );
-  if (options.department)
-    visible = visible.filter((e) => e.department === options.department);
-  let total = visible.length;
-  const page = Math.max(1, Math.floor(Number(options.page) || 1));
-  if (options.page && !options.search)
-    visible = visible.slice((page - 1) * 100, page * 100);
   const ids = visible.map((e) => e.userId);
   const range = { $gte: dates[0], $lte: dates[dates.length - 1] };
+  const reads = [
+    () => Object.hasOwn(seed, 'c') ? seed.c : control(s),
+    () => sessionQuery(HRMLock.findOne({ month, locked: true }).sort({ version: -1 }).lean(), s),
+    () => sessionQuery(HRMAttendance.find({ userId: { $in: ids }, date: range }).lean(), s),
+    () => sessionQuery(HRMRequest.find({
+      userId: { $in: ids }, status: "approved",
+      from: { $lte: dates.at(-1) }, to: { $gte: dates[0] },
+    }).lean(), s),
+    () => seed.holidays || holidayList(s),
+    () => sessionQuery(AttendanceModel.find({ userId: { $in: ids }, date: range }).lean(), s),
+    () => sessionQuery(LeaveModel.find({
+      user_id: { $in: ids }, status: "approved",
+      start_date: { $lte: new Date(`${dates.at(-1)}T23:59:59Z`) },
+      end_date: { $gte: new Date(dates[0]) },
+    }).lean(), s),
+    () => sessionQuery(HRMPolicy.find({ effectiveDate: { $lte: dates.at(-1) } }).sort({ effectiveDate: -1 }).lean(), s),
+    () => sessionQuery(HRMMonthPolicy.findOne({ month }).lean(), s),
+  ];
+  const values = [];
+  // MongoDB transactions do not support parallel operations on one session.
+  if (s) { for (const read of reads) values.push(await read()); }
+  else values.push(...await Promise.all(reads.map((read) => read())));
   const [
     c,
     locked,
@@ -593,46 +607,44 @@ export const attendanceTeam = async (actor, month, options = {}) => {
     oldLeaves,
     versions,
     recalculation,
-  ] = await Promise.all([
-    control(),
-    HRMLock.findOne({ month, locked: true }).sort({ version: -1 }).lean(),
-    HRMAttendance.find({ userId: { $in: ids }, date: range }).lean(),
-    HRMRequest.find({
-      userId: { $in: ids },
-      status: "approved",
-      from: { $lte: dates[dates.length - 1] },
-      to: { $gte: dates[0] },
-    }).lean(),
-    holidayList(),
-    AttendanceModel.find({ userId: { $in: ids }, date: range }).lean(),
-    LeaveModel.find({
-      user_id: { $in: ids },
-      status: "approved",
-      start_date: { $lte: new Date(`${dates[dates.length - 1]}T23:59:59Z`) },
-      end_date: { $gte: new Date(dates[0]) },
-    }).lean(),
-    HRMPolicy.find({ effectiveDate: { $lte: dates[dates.length - 1] } })
-      .sort({ effectiveDate: -1 })
-      .lean(),
-    HRMMonthPolicy.findOne({ month }).lean(),
-  ]);
-  let team = await Promise.all(
+  ] = values;
+  const byUser = (rows, key = 'userId') => {
+    const index = new Map();
+    for (const row of rows) {
+      const id = String(row[key]);
+      if (!index.has(id)) index.set(id, []);
+      index.get(id).push(row);
+    }
+    return index;
+  };
+  const indexed = [byUser(records), byUser(requests), byUser(legacy), byUser(oldLeaves, 'user_id')];
+  return Promise.all(
     visible.map(async (employee) => ({
       employee,
-      records: await attendanceMonth(employee.userId, month, undefined, {
+      records: await attendanceMonth(employee.userId, month, s, {
         employee,
         c,
         locked,
         holidays,
         versions,
         recalculation,
-        records: records.filter((r) => r.userId === employee.userId),
-        requests: requests.filter((r) => r.userId === employee.userId),
-        legacy: legacy.filter((r) => String(r.userId) === employee.userId),
-        oldLeaves: oldLeaves.filter((r) => r.user_id === employee.userId),
+        records: indexed[0].get(employee.userId) || [],
+        requests: indexed[1].get(employee.userId) || [],
+        legacy: indexed[2].get(employee.userId) || [],
+        oldLeaves: indexed[3].get(employee.userId) || [],
       }),
     })),
   );
+};
+export const attendanceTeam = async (actor, month, options = {}) => {
+  monthDates(month);
+  const list = await employees();
+  let visible = list.filter((e) => isHR(actor) || e.userId === actorId(actor) || e.managerId === actorId(actor));
+  if (options.department) visible = visible.filter((e) => e.department === options.department);
+  let total = visible.length;
+  const page = Math.max(1, Math.floor(Number(options.page) || 1));
+  if (options.page && !options.search) visible = visible.slice((page - 1) * 100, page * 100);
+  let team = await attendanceForEmployees(visible, month);
   if (options.search) {
     const search = String(options.search).toLowerCase();
     team = team.filter((t) =>
@@ -661,15 +673,15 @@ export const attendanceTeam = async (actor, month, options = {}) => {
     : team;
 };
 export const attendanceMonth = async (userId, month, s, shared) => {
+  if (!shared) {
+    const employee = await employeeFor(userId, s);
+    return (await attendanceForEmployees([employee], month, {}, s))[0].records;
+  }
+  const today = todayIST();
   const dates = monthDates(month),
-    employee = shared ? shared.employee : await employeeFor(userId, s),
-    c = shared ? shared.c : await control(s);
-  const locked = shared
-    ? shared.locked
-    : await sessionQuery(
-        HRMLock.findOne({ month, locked: true }).sort({ version: -1 }).lean(),
-        s,
-      );
+    employee = shared.employee,
+    c = shared.c;
+  const { locked, records, requests, holidays, legacy, oldLeaves, versions, recalculation } = shared;
   if (locked) {
     const saved = locked.snapshot.find((e) => e.employee.userId === userId);
     if (saved) return saved.rows;
@@ -681,52 +693,6 @@ export const attendanceMonth = async (userId, month, s, shared) => {
       locked: true,
     }));
   }
-  const records = shared
-    ? shared.records
-    : await sessionQuery(
-        HRMAttendance.find({
-          userId,
-          date: { $gte: dates[0], $lte: dates[dates.length - 1] },
-        }).lean(),
-        s,
-      );
-  const requests = shared
-    ? shared.requests
-    : await requestsFor(userId, dates[0], dates[dates.length - 1], s);
-  const holidays = shared ? shared.holidays : await holidayList(s);
-  const legacy = shared
-    ? shared.legacy
-    : await sessionQuery(
-        AttendanceModel.find({
-          userId,
-          date: { $gte: dates[0], $lte: dates[dates.length - 1] },
-        }).lean(),
-        s,
-      );
-  const oldLeaves = shared
-    ? shared.oldLeaves
-    : await sessionQuery(
-        LeaveModel.find({
-          user_id: userId,
-          status: "approved",
-          start_date: {
-            $lte: new Date(`${dates[dates.length - 1]}T23:59:59Z`),
-          },
-          end_date: { $gte: new Date(dates[0]) },
-        }).lean(),
-        s,
-      );
-  const versions = shared
-    ? shared.versions
-    : await sessionQuery(
-        HRMPolicy.find({ effectiveDate: { $lte: dates[dates.length - 1] } })
-          .sort({ effectiveDate: -1 })
-          .lean(),
-        s,
-      );
-  const recalculation = shared
-    ? shared.recalculation
-    : await sessionQuery(HRMMonthPolicy.findOne({ month }).lean(), s);
   let late = 0;
   const rows = [];
   for (const date of dates) {
@@ -835,7 +801,7 @@ export const attendanceMonth = async (userId, month, s, shared) => {
       date < employee.dateOfJoining ||
       (employee.exitDate && date > employee.exitDate);
     if (notEmployed) row = { ...row, status: "Not Employed", payable: 0 };
-    row.future = date > todayIST();
+    row.future = date > today;
     rows.push(row);
   }
   return rows;
@@ -1826,8 +1792,10 @@ export const lockMonth = async (actor, month, body) =>
     )
       fail("Resolve pending requests before locking");
     const snapshot = [];
-    for (const e of (await employees(s)).filter((e) => e.setupConfirmed)) {
-      const rows = await attendanceMonth(e.userId, month, s);
+    const prepared = await attendanceForEmployees(
+      (await employees(s)).filter((e) => e.setupConfirmed), month, { c }, s,
+    );
+    for (const { employee: e, records: rows } of prepared) {
       const unresolved = rows.filter(
         (r) =>
           r.payable === null ||
@@ -1928,7 +1896,10 @@ export const recalculateMonth = async (actor, month, body) =>
     return { month, policyEffectiveDate: after?.effectiveDate || null };
   });
 
-export const runAutomation = async () => {
+let automationInFlight;
+export const runAutomation = () => automationInFlight ||
+  (automationInFlight = processAutomation().finally(() => { automationInFlight = undefined; }));
+const processAutomation = async () => {
   if (mongoose.connection.readyState !== 1) return;
   const c = await control();
   if (!c?.activationDate) return;
@@ -2220,8 +2191,8 @@ export const report = async (actor, month, type) => {
     }));
   }
   const rows = [];
-  for (const e of await employees())
-    for (const r of await attendanceMonth(e.userId, month)) {
+  for (const { employee: e, records } of await attendanceForEmployees(await employees(), month))
+    for (const r of records) {
       if (
         (type === "late" && !r.late) ||
         (type === "early" && !r.earlyGoingMinutes) ||

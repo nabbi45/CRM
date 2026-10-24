@@ -1,0 +1,21 @@
+import React from 'react';
+import { render, fireEvent, waitFor } from '@testing-library/react';
+import NotificationBell from './NotificationBell';
+import { requestJson } from '../utils/requestJson';
+jest.mock('./LoginSignup', () => ({ apiUrl: 'https://crm.test' }));
+jest.mock('../utils/requestJson', () => ({ requestJson: jest.fn() }));
+test('notification polling never creates audio before a user gesture', async () => {
+  localStorage.setItem('userSession', JSON.stringify({ user_id: 'admin', user_role: 'admin', token: 'test' }));
+  requestJson.mockResolvedValue([]);
+  const resume = jest.fn().mockResolvedValue(undefined);
+  window.AudioContext = jest.fn().mockImplementation(() => ({ state: 'suspended', resume }));
+  const view = render(<NotificationBell />);
+  await waitFor(() => expect(requestJson).toHaveBeenCalledTimes(2));
+  expect(window.AudioContext).not.toHaveBeenCalled();
+  fireEvent.pointerDown(window);
+  expect(window.AudioContext).toHaveBeenCalledTimes(1);
+  expect(resume).toHaveBeenCalledTimes(1);
+  view.unmount();
+  delete window.AudioContext;
+  localStorage.clear();
+});

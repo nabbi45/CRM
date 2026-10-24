@@ -27,6 +27,7 @@ import MeetingUpdateRoutes from "./routes/MeetingUpdateRoute.js";
 import LeadManagementRoutes from "./routes/LeadManagementRoute.js";
 import DashboardRoutes from "./routes/DashboardRoute.js";
 import { requestTiming } from "./middlewares/requestTiming.js";
+import { invalidateReadsAfterWrite } from "./utils/readCache.js";
 
 import cors from "cors";
 import path from "path";
@@ -97,6 +98,11 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(requestTiming);
+app.use(invalidateReadsAfterWrite);
+app.use((_req, res, next) => {
+  res.set('X-CRM-Read-Version', '2026-10-25');
+  next();
+});
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

@@ -19,7 +19,8 @@ export const authenticateUser = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET); // Replace with your JWT secret
     // Validate the current account state on every request so disabling an employee
     // immediately invalidates already-issued sessions as well as future logins.
-    const currentUser = await UserModel.findById(decoded.userId).select('isDisabled name').lean();
+    const currentUser = await UserModel.findById(decoded.userId)
+      .select('isDisabled name user_role feature_permissions').maxTimeMS(10000).lean();
     if (!currentUser) {
       return res.status(401).send({ message: 'User account no longer exists' });
     }
@@ -31,9 +32,10 @@ export const authenticateUser = async (req, res, next) => {
     }
     // Reuse the account lookup already made above for the actor name. This avoids a
     // second database round trip for audited actions (such as lead notes/assignment).
-    req.user = { ...decoded, name: decoded.name || currentUser.name || '' };
+    req.account = currentUser;
+    req.user = { ...decoded, name: currentUser.name || '', user_role: currentUser.user_role, feature_permissions: currentUser.feature_permissions || [] };
 
-    if (!canManageSecurity(decoded)) {
+    if (!canManageSecurity(req.user)) {
       const clientIp = getClientIp(req);
       const { allowed } = await isIpAllowed(clientIp);
       if (!allowed) {
@@ -47,6 +49,10 @@ export const authenticateUser = async (req, res, next) => {
 
     next(); // Proceed to the next middleware or route handler
   } catch (error) {
+    if (!['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name)) {
+      console.error('Session account lookup failed:', error.message);
+      return res.status(503).send({ message: 'The server could not validate your session. Please retry.' });
+    }
     return res.status(401).send({ message: 'Invalid or expired token' });
   }
 };

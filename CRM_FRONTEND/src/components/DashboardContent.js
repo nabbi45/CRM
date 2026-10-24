@@ -110,6 +110,7 @@ const DashboardContent = () => {
   const [refundableTransactions, setRefundableTransactions] = useState([]);
   const [deductionBreakdownDialog, setDeductionBreakdownDialog] = useState({ open: false, type: "vendor" });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [isBookingPopupOpen, setIsBookingPopupOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [companyBranches, setCompanyBranches] = useState([]);
@@ -402,6 +403,8 @@ const DashboardContent = () => {
   }, [serviceRevenueData, theme.palette.mode]);
 
   const fetchDashboardData = async (session) => {
+    setLoading(true);
+    setLoadError("");
     try {
       const response = await requestJson("/dashboard/summary", session.token);
       const summary = response.summary;
@@ -427,6 +430,7 @@ const DashboardContent = () => {
       setRecentBookings(summary.recentBookings);
       setTotalUsers(summary.totalUsers);
     } catch (error) {
+      setLoadError(error.message || "Dashboard data could not load.");
       console.error("Error fetching dashboard data:", error);
       enqueueSnackbar(error.message || "Dashboard data could not load. Please retry.", { variant: "error" });
     } finally { setLoading(false); }
@@ -518,6 +522,16 @@ const DashboardContent = () => {
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
         <Loader />
       </Box>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Paper role="alert" sx={{ p: 3, m: 2 }}>
+        <Typography variant="h6">Dashboard could not load</Typography>
+        <Typography color="text.secondary" sx={{ my: 2 }}>{loadError}</Typography>
+        <Button variant="contained" onClick={() => fetchDashboardData(userSession)}>Retry dashboard</Button>
+      </Paper>
     );
   }
 

@@ -24,7 +24,7 @@ const upload = multer({
 export const wrap = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 export const loadActor = wrap(async (req, res, next) => {
-  const user = await UserModel.findById(req.user.userId)
+  const user = req.account || await UserModel.findById(req.user.userId)
     .select("name user_role feature_permissions isDisabled")
     .lean();
   if (!user || user.isDisabled)

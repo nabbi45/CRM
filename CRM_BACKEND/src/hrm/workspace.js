@@ -155,7 +155,9 @@ export async function workspace(actor, options = {}) {
       },
     ]),
     ["dashboard", "attendance"].includes(section)
-      ? service.attendanceMonth(own, month)
+      ? service.attendanceForEmployees(
+          [employees.find((e) => e.userId === own)], month, { c: control, holidays },
+        ).then((team) => team[0].records)
       : [],
     hr &&
     (["settings", "monthly", "setup"].includes(section) ||

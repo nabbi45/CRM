@@ -14,7 +14,6 @@ import { toLowerEmail, toUpperText } from '../utils/textNormalize.js';
 import { canManageSecurity, getClientIp, isIpAllowed } from '../utils/ipAccess.js';
 import { EmployeeModel } from '../models/EmployeeProfile.js';
 import { prepareUploadFile, toDataUri } from '../utils/uploadCompression.js';
-import { profileThumbnail } from '../utils/profileThumbnail.js';
 dotenv.config()
 const saltRounds = 5;
 const memoryUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -472,8 +471,9 @@ UserRoutes.get('/options', authenticateUser, async (req, res) => {
     const userQuery = requestedHistoricalUsers && canViewHistoricalUsers
       ? {}
       : { isDisabled: { $ne: true } };
-    const userDocs = await UserModel.find(userQuery, 'name user_role profilePicture isDisabled').sort({ name: 1 }).lean();
-    const users = await Promise.all((await withResolvedProfilePictures(userDocs)).map(async (user) => ({ ...user, profilePicture: await profileThumbnail(user.profilePicture) })));
+    // Name/share selectors must not download every employee's original image.
+    // Photo/profile editing retains its existing dedicated endpoints.
+    const users = await UserModel.find(userQuery, 'name user_role isDisabled').sort({ name: 1 }).maxTimeMS(10000).lean();
     return res.status(200).send({ users });
   } catch (error) {
     console.log(error.message);

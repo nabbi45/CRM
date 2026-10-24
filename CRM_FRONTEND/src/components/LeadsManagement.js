@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -51,6 +51,7 @@ import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { requestJson } from "../utils/requestJson";
 
 const STATUS_OPTIONS = [
   ["new", "New"],
@@ -105,6 +106,8 @@ const LeadsManagement = () => {
     hasNext: false,
   });
   const [loading, setLoading] = useState(true);
+  const latestLoad = useRef(0);
+  const [loadError, setLoadError] = useState("");
   const [working, setWorking] = useState(false);
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -131,6 +134,8 @@ const LeadsManagement = () => {
   );
   const request = useCallback(
     async (path, options = {}) => {
+      if (!options.method || options.method === "GET")
+        return requestJson(`/leads-management${path}`, token);
       const response = await fetchWithTimeout(`${apiUrl}/leads-management${path}`, {
         ...options,
         headers:
@@ -148,7 +153,9 @@ const LeadsManagement = () => {
 
   const load = useCallback(
     async (requestedPage = page, quiet = false) => {
+      const loadId = ++latestLoad.current;
       if (!quiet) setLoading(true);
+      setLoadError("");
       try {
         const params = new URLSearchParams({
           limit: String(LEADS_PER_PAGE),
@@ -158,6 +165,7 @@ const LeadsManagement = () => {
         if (appliedSearch) params.set("search", appliedSearch);
         // One compact request instead of three authenticated round trips.
         const data = await request(`/bootstrap?${params}`);
+        if (loadId !== latestLoad.current) return;
         setLeads(data.leads || []);
         setCanManage(Boolean(data.canManage));
         setCanDelete(Boolean(data.canDelete));
@@ -173,9 +181,11 @@ const LeadsManagement = () => {
         if (data.pagination?.page && data.pagination.page !== requestedPage)
           setPage(data.pagination.page);
       } catch (error) {
+        if (loadId !== latestLoad.current) return;
+        setLoadError(error.message);
         enqueueSnackbar(error.message, { variant: "error" });
       } finally {
-        if (!quiet) setLoading(false);
+        if (loadId === latestLoad.current) setLoading(false);
       }
     },
     [request, page, status, appliedSearch],
@@ -577,6 +587,12 @@ const LeadsManagement = () => {
           )}
         </Stack>
       </Box>
+
+      {loadError && (
+        <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => load(page)}>Retry</Button>}>
+          {loadError}
+        </Alert>
+      )}
 
       <Grid container spacing={1.4} sx={{ mb: 2.5 }}>
         <Grid item xs={6} sm={4} md={2.4}>

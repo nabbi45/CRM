@@ -31,6 +31,7 @@ export function buildDashboardSummary({
   totalUsers = 0,
   session,
   isAdmin,
+  companyServiceStats,
   now = new Date(),
 }) {
   const result = { totalUsers };
@@ -300,7 +301,14 @@ export function buildDashboardSummary({
     const companySoldMap = {};
     const companyRevenueMap = {};
 
-    for (const booking of allCompanyBookings) {
+    // Company service cards are identical for every employee. The API computes
+    // them once per source snapshot instead of rescanning 5,000 rows per user.
+    if (companyServiceStats) {
+      companyServiceStats.serviceSoldData.labels.forEach((name, index) => {
+        companySoldMap[name] = companyServiceStats.serviceSoldData.values[index];
+      });
+    }
+    for (const booking of companyServiceStats ? [] : allCompanyBookings) {
       const paymentDate = new Date(
         booking.payment_date || booking.date || booking.createdAt,
       );

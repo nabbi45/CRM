@@ -23,13 +23,13 @@ export const DEFAULT_POLICY = {
   earlyGoingPenalty: 0,
   approvalMode: "MANAGER_OR_HR",
 };
-export const todayIST = (now = new Date()) =>
-  new Intl.DateTimeFormat("en-CA", {
+const istDateFormatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(now);
+  });
+export const todayIST = (now = new Date()) => istDateFormatter.format(now);
 export const dateKey = (value) => {
   const key = String(value || "").slice(0, 10);
   if (

@@ -5,10 +5,9 @@ import { UserModel } from "../models/UserModel.js";
 import { ServiceModel } from "../models/ServiceModel.js";
 import { isAdminRole, TERM_KEYS } from "../utils/revenueRules.js";
 import { buildDashboardSummary } from "../../../CRM_FRONTEND/src/utils/dashboardSummary.js";
-import { profileThumbnail } from "../utils/profileThumbnail.js";
+import { cachedRead, readCacheGeneration } from "../utils/readCache.js";
 
 const router = express.Router();
-const pending = new Map();
 const fields = [
   "user_id",
   "shared_with",
@@ -33,6 +32,28 @@ const fields = [
   "isDeleted",
   ...TERM_KEYS,
 ].join(" ");
+export const dashboardFinancialProjection = {
+  ...Object.fromEntries(fields.split(' ').map((field) => [field, 1])),
+  // Mongoose stores ten default share objects on many legacy bookings. Empty
+  // term metadata has no financial/access effect: omit it at MongoDB, before
+  // transfer, instead of sending it for every booking on every cold read.
+  term_shares: {
+    $arrayToObject: {
+      $filter: {
+        input: { $objectToArray: { $ifNull: ['$term_shares', {}] } },
+        as: 'term',
+        cond: { $or: [
+          { $ne: [{ $ifNull: ['$$term.v.creator.user_id', ''] }, ''] },
+          { $ne: [{ $ifNull: ['$$term.v.payment_date', ''] }, ''] },
+          { $gt: [{ $size: { $ifNull: ['$$term.v.shared_with', []] } }, 0] },
+        ] },
+      },
+    },
+  },
+  ...Object.fromEntries(TERM_KEYS.map((key) => [key, {
+    $cond: [{ $ne: [{ $ifNull: [`$${key}`, 0] }, 0] }, `$${key}`, '$$REMOVE'],
+  }])),
+};
 const accessible = (booking, id) =>
   String(booking.user_id) === id ||
   (booking.shared_with || []).some((s) => String(s.user_id) === id) ||
@@ -47,35 +68,37 @@ const accessible = (booking, id) =>
 router.get("/summary", authenticateUser, async (req, res) => {
   const id = String(req.user.userId);
   const admin = isAdminRole(req.user.user_role);
-  const key = `${id}:${admin}`;
+  const key = admin ? 'dashboard:admin' : `dashboard:user:${id}`;
+  const generation = readCacheGeneration();
   try {
-    if (!pending.has(key)) {
-      const work = (async () => {
+    const payload = await cachedRead(key, async () => {
         const [company, users, services, count] = await Promise.all([
-          BookingModel.find(admin ? { isDeleted: false } : { isDeleted: { $ne: true } })
-            .select(fields)
+          // One shared projected source read serves concurrent dashboard users.
+          // Browsers receive only the computed summary and six recent bookings.
+          cachedRead('dashboard:financial-source', () => BookingModel.collection.aggregate([
+            { $match: { isDeleted: { $ne: true } } },
+            { $project: dashboardFinancialProjection },
+          ], { maxTimeMS: 12000, batchSize: 1000 }).toArray()),
+          cachedRead('dashboard:user-directory', () => UserModel.find({ isDisabled: { $ne: true } })
+            .select("name user_role")
             .lean()
-            .maxTimeMS(20000),
-          UserModel.find({ isDisabled: { $ne: true } })
-            .select("name user_role profilePicture")
-            .lean()
-            .maxTimeMS(10000),
-          ServiceModel.find()
+            .maxTimeMS(10000)),
+          cachedRead('dashboard:services', () => ServiceModel.find()
             .select("name value status deduction")
             .lean()
-            .maxTimeMS(10000),
-          admin ? UserModel.countDocuments().maxTimeMS(10000) : 0,
+            .maxTimeMS(10000)),
+          admin ? cachedRead('dashboard:user-count', () => UserModel.countDocuments().maxTimeMS(10000)) : 0,
         ]);
-        const compactUsers = await Promise.all(
-          users.map(async (u) => ({
-            ...u,
-            profilePicture: await profileThumbnail(u.profilePicture),
-          })),
-        );
-        const summary = buildDashboardSummary({
-          bookings: admin ? company : company.filter((b) => accessible(b, id)),
-          allCompanyBookings: admin ? company : company.filter((b) => b.isDeleted === false),
-          users: compactUsers,
+        const companyBookings = company.filter((b) => b.isDeleted === false);
+        const companySummary = await cachedRead(`dashboard:company-calculations:${generation}`, () => buildDashboardSummary({
+          bookings: companyBookings, users, services, totalUsers: count,
+          session: { user_id: id }, isAdmin: true,
+        }));
+        const summary = admin ? { ...companySummary, totalUsers: count } : buildDashboardSummary({
+          bookings: company.filter((b) => accessible(b, id)),
+          allCompanyBookings: companyBookings,
+          companyServiceStats: companySummary,
+          users,
           services,
           totalUsers: count,
           session: { user_id: id },
@@ -97,11 +120,9 @@ router.get("/summary", authenticateUser, async (req, res) => {
             ].map((key) => [key, booking[key]]),
           ),
         );
-        return { summary };
-      })().finally(() => pending.delete(key));
-      pending.set(key, work);
-    }
-    res.json(await pending.get(key));
+        return { summary, generatedAt: new Date().toISOString() };
+      });
+    res.set('Cache-Control', 'no-store').json(payload);
   } catch (error) {
     res
       .status(503)

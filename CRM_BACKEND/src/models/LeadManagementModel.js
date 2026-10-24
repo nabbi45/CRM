@@ -90,6 +90,10 @@ leadManagementSchema.index({ createdAt: -1 });
 leadManagementSchema.index({ status: 1, createdAt: -1 });
 leadManagementSchema.index({ assignedTo: 1, createdAt: -1 });
 leadManagementSchema.index({ assignedTo: 1, status: 1, createdAt: -1 });
+leadManagementSchema.index({ createdAt: -1, _id: -1 });
+leadManagementSchema.index({ status: 1, createdAt: -1, _id: -1 });
+leadManagementSchema.index({ assignedTo: 1, createdAt: -1, _id: -1 });
+leadManagementSchema.index({ assignedTo: 1, status: 1, createdAt: -1, _id: -1 });
 leadManagementSchema.index({ createdBy: 1, updatedAt: -1 });
 
 const leadColumnSchema = new mongoose.Schema(
