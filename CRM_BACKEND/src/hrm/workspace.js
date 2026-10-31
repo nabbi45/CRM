@@ -210,6 +210,8 @@ export async function workspace(actor, options = {}) {
     activationDate: control?.activationDate || "",
     isHR: hr,
     isSystem: service.isSystem(actor),
+    canActivate: service.canActivatePortal(actor),
+    canSaveInitialPolicy: !control?.activationDate && service.canActivatePortal(actor),
     onboarding: {
       tourVersion: preference?.tourVersion || 0,
       adminTourVersion: preference?.adminTourVersion || 0,

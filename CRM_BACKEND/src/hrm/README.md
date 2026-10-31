@@ -32,10 +32,11 @@ before setup. Timestamps, version counters and replica sets are not undo backups
 3. Confirm opening EL, WFH and ML balances. These represent balances on the
    activation date **including that month's credits**, after reconciling historical
    usage. Values default to zero and are recorded as opening ledger transactions.
-4. A system administrator saves the initial policy effective on or before the
-   intended activation date, then activates HRM from **HR policies**. Prefer the
-   first day of a month. A partial activation month can be reviewed, but complete
-   payroll locking starts with the next full month.
+4. An authorised HR, Admin or Dev user saves the initial policy effective on or
+   before the intended activation date, then activates HRM from the guided setup.
+   Prefer the first day of a month. A partial activation month can be reviewed,
+   but complete payroll locking starts with the next full month. Later policy
+   changes and monthly unlocking retain their system-authority controls.
 5. Automation credits the months following activation. HR records manual
    adjustments for later corrections; opening balances cannot be overwritten
    after activation. Earlier attendance remains historical and is not recalculated.

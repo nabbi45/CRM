@@ -43,6 +43,14 @@ const today = todayIST(),
   first = `${month}-01`;
 const previous = addDays(first, -1).slice(0, 7),
   activation = `${previous}-01`;
+test("authorised HR roles may perform first HRM activation", () => {
+  assert.equal(
+    hrm.canActivatePortal({ user_role: "hr", feature_permissions: ["timecard_edit"] }),
+    true,
+  );
+  assert.equal(hrm.canActivatePortal({ user_role: "admin" }), true);
+  assert.equal(hrm.canActivatePortal({ user_role: "employee" }), false);
+});
 test("setup can review an existing account without fabricating a full CRM profile", async () => {
   const account = await UserModel.create({
     name: "Unprofiled",

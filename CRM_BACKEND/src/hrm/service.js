@@ -41,10 +41,16 @@ export const role = (u) =>
     .toLowerCase();
 export const isSystem = (u) => SYSTEM.includes(role(u));
 export const isHR = (u) =>
-  isSystem(u) ||
-  (u?.feature_permissions?.length
-    ? u.feature_permissions.includes("timecard_edit")
-    : ADMIN.includes(role(u)));
+  Boolean(
+    isSystem(u) ||
+      // Named HR/Admin roles retain their authority even if they have an older,
+      // customised permission list that predates the HRM permission keys.
+      ADMIN.includes(role(u)) ||
+      u?.feature_permissions?.includes("timecard_edit"),
+  );
+// First activation is an HR-owned business decision. System authority is still
+// required for later high-risk operations such as unlocking a payroll period.
+export const canActivatePortal = (u) => isHR(u);
 export const hasPortal = (u) =>
   isHR(u) ||
   !u.feature_permissions?.length ||
@@ -309,10 +315,15 @@ const availableBalance = async (userId, kind, date, s) => {
 
 export const savePolicy = async (actor, body) =>
   mutate(actor, async (s) => {
-    if (!isSystem(actor))
-      fail("Only system administrators may change HR policies.", 403);
-    const effectiveDate = dateKey(body.effectiveDate);
     const c = await control(s);
+    // HR can prepare the first policy only while the portal is inactive. Once
+    // active, policy changes remain a system-administrator responsibility.
+    if (!isSystem(actor) && (c?.activationDate || !isHR(actor)))
+      fail(
+        "Only authorised HR may save the initial policy before activation. Later policy changes require a system administrator.",
+        403,
+      );
+    const effectiveDate = dateKey(body.effectiveDate);
     if (c?.activationDate && effectiveDate <= todayIST())
       fail("Policy changes must take effect on a future date.");
     const values = { ...DEFAULT_POLICY, ...body.values };
@@ -518,8 +529,8 @@ export const setup = async (actor, body) =>
   });
 export const activate = async (actor, body) =>
   mutate(actor, async (s) => {
-    if (!isSystem(actor))
-      fail("System administrator required to activate HRM", 403);
+    if (!canActivatePortal(actor))
+      fail("Authorised HR, Admin or Dev access is required to activate HRM", 403);
     const activationDate = dateKey(body.activationDate);
     if ((await control(s))?.activationDate) fail("HRM is already activated");
     if (
@@ -2101,6 +2112,8 @@ export const bootstrap = async (actor, month = todayIST().slice(0, 7)) => {
     activationDate: c?.activationDate || "",
     isHR: isHR(actor),
     isSystem: isSystem(actor),
+    canActivate: canActivatePortal(actor),
+    canSaveInitialPolicy: !c?.activationDate && canActivatePortal(actor),
     policy: await policyFor(todayIST()),
     policies: isHR(actor)
       ? await HRMPolicy.find().sort({ effectiveDate: -1 }).lean()

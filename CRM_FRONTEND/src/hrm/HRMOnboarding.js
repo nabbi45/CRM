@@ -47,7 +47,7 @@ export const adminTour = [
   ],
   [
     "Configure and activate safely",
-    "The setup assistant walks you through employees, policy and activation. HR can prepare employee settings; a system administrator must save policy and activate. Review fields with missing information instead of guessing. Setup can be resumed later.",
+    "The setup assistant walks you through employees, policy and activation. An authorised HR, Admin or Dev user can save the first policy and activate after the readiness checks pass. Review fields with missing information instead of guessing. Setup can be resumed later.",
   ],
   [
     "Manage your team",
@@ -88,6 +88,34 @@ export default function HRMOnboarding({ data, api, reload, navigate }) {
       e.branch &&
       e.gender,
   );
+  const incompleteEmployees = people.filter(
+    (e) =>
+      !e.setupConfirmed ||
+      !e.dateOfJoining ||
+      !e.department ||
+      !e.branch ||
+      !e.gender,
+  );
+  // Backward-compatible fallbacks keep the assistant usable during a rolling
+  // frontend/backend deployment.
+  const canActivate = data.canActivate ?? data.isSystem;
+  const canSaveInitialPolicy = data.canSaveInitialPolicy ?? data.isSystem;
+  const hasActivationPolicy = Boolean(date) && data.policies.some(
+    (policy) => policy.effectiveDate <= date,
+  );
+  const transactionBlocked =
+    data.onboarding?.database?.transactionsSupported === false;
+  const activationBlockers = [
+    !canActivate && "Sign in with an authorised HR, Admin or Dev account.",
+    !date && "Choose an activation date.",
+    incompleteEmployees.length > 0 &&
+      `${incompleteEmployees.length} enabled employee${incompleteEmployees.length === 1 ? " still needs" : "s still need"} a completed setup review.`,
+    !hasActivationPolicy &&
+      "Save an initial policy effective on or before the activation date.",
+    !confirmed && "Tick the final confirmation after reviewing the setup.",
+    transactionBlocked &&
+      "The connected MongoDB deployment does not support transactions.",
+  ].filter(Boolean);
   const perform = async (fn) => {
     setBusy(true);
     setError("");
@@ -419,10 +447,11 @@ export default function HRMOnboarding({ data, api, reload, navigate }) {
                   <Typography variant="h6">
                     Review policy before activation
                   </Typography>
-                  {!data.isSystem ? (
+                  {!canSaveInitialPolicy ? (
                     <Alert severity="info">
-                      Employee setup is available to HR. A system administrator
-                      must save the initial policy and activate the portal.
+                      Employee setup is available to HR. An authorised HR,
+                      Admin or Dev account must save the initial policy before
+                      activation.
                     </Alert>
                   ) : (
                     <>
@@ -514,17 +543,26 @@ export default function HRMOnboarding({ data, api, reload, navigate }) {
                         }
                         label="I confirm employee reviews, opening balances and policy. Activate from this date."
                       />
+                      <Alert
+                        severity={activationBlockers.length ? "warning" : "success"}
+                        sx={{ my: 2 }}
+                      >
+                        {activationBlockers.length ? (
+                          <>
+                            <strong>Activation is waiting for:</strong>
+                            <Box component="ul" sx={{ my: 0.75, pl: 2.5 }}>
+                              {activationBlockers.map((blocker) => (
+                                <li key={blocker}>{blocker}</li>
+                              ))}
+                            </Box>
+                          </>
+                        ) : (
+                          "Everything is ready. Activating will preserve all earlier records as historical."
+                        )}
+                      </Alert>
                       <Button
                         variant="contained"
-                        disabled={
-                          busy ||
-                          !data.isSystem ||
-                          !ready ||
-                          !data.policies.some((p) => p.effectiveDate <= date) ||
-                          !confirmed ||
-                          data.onboarding?.database?.transactionsSupported ===
-                            false
-                        }
+                        disabled={busy || activationBlockers.length > 0}
                         onClick={() =>
                           perform(() =>
                             api("/activate", "POST", { activationDate: date }),
@@ -533,10 +571,10 @@ export default function HRMOnboarding({ data, api, reload, navigate }) {
                       >
                         Activate HRM Portal
                       </Button>
-                      {!data.isSystem && (
+                      {!canActivate && (
                         <Alert severity="info" sx={{ mt: 2 }}>
-                          Ask a system administrator to complete activation.
-                          Your employee reviews are saved.
+                          Ask an authorised HR, Admin or Dev user to complete
+                          activation. Your employee reviews are saved.
                         </Alert>
                       )}
                     </>

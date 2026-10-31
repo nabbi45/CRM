@@ -14,7 +14,8 @@ attendance sheets, previous leave balances, joining dates and approvals availabl
 while reviewing employees.
 
 Opening HRM does not activate the new rules. Setup reviews can be saved first.
-A system administrator must explicitly choose the activation date and activate.
+An authorised HR, Admin or Dev user must explicitly choose the activation date
+and activate. Monthly unlocking remains restricted to system authority.
 
 ## What the setup terms mean
 
@@ -127,10 +128,10 @@ is a separate authorised action with a reason; it does not recreate entitlements
    EL, WFH and ML opening balances against HR records. Tick the review confirmation
    and press **Save employee review**. Repeat for the next employee. Disabled
    accounts are excluded from activation checks; enabled accounts need review.
-5. On **Policy**, a system administrator reviews the effective date and timing
-   defaults, then saves the initial policy. **Open all policy settings** provides
-   the remaining fields and department schedules. HR can prepare employees without
-   being allowed to activate the portal.
+5. On **Policy**, an authorised HR, Admin or Dev user reviews the effective date
+   and timing defaults, then saves the initial policy. **Open all policy settings**
+   provides the remaining fields and department schedules after activation; later
+   policy changes remain system-administrator controlled.
 6. On **Activation**, verify all employee reviews, profiles, balances and the saved
    policy. Choose the activation date, tick the final confirmation and activate.
    Resolve any server validation message rather than bypassing it.

@@ -115,3 +115,30 @@ test("unprofiled existing employee can be reviewed without creating a duplicate 
     ),
   );
 });
+test("authorised HR can activate when every visible readiness check is complete", () => {
+  open({
+    isHR: true,
+    isSystem: false,
+    canActivate: true,
+    canSaveInitialPolicy: true,
+    onboarding: {
+      tourVersion: 1,
+      adminTourVersion: 1,
+      database: { transactionsSupported: true },
+    },
+    employees: [{ ...data.employees[0], setupConfirmed: true }],
+    policies: [{ effectiveDate: data.today }],
+  });
+  fireEvent.click(screen.getByText("Continue guided setup"));
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+  const activate = screen.getByRole("button", { name: "Activate HRM Portal" });
+  expect(activate).toBeDisabled();
+  expect(screen.getByText(/Tick the final confirmation/)).toBeVisible();
+  fireEvent.click(
+    screen.getByLabelText(/I confirm employee reviews, opening balances and policy/),
+  );
+  expect(activate).toBeEnabled();
+});
