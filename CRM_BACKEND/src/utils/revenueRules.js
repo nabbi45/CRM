@@ -74,15 +74,28 @@ export const sanitizeRefundable = ({
 export const snapshotServiceDeductions = async (services = []) => {
   if (!Array.isArray(services) || !services.length) return [];
 
+  // Catalog labels are literal text, including brackets, dots and plus signs.
+  // Interpolating a label such as COMPANY (UTTAR PRADESH) into a regex silently
+  // failed to match its parentheses, dropping the deduction on create and edit.
+  const names = [...new Map(services.map((service) => String(service || '').trim())
+    .filter(Boolean).map((name) => [name.toLowerCase(), name])).values()];
+  const patterns = names.map((name) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
   const serviceDocs = await ServiceModel.find({
-    name: { $in: services.map((service) => new RegExp(`^${String(service).trim()}$`, "i")) },
+    $or: [{ name: { $in: patterns } }, { value: { $in: patterns } }],
   }).lean();
 
-  const deductionByName = new Map(
-    serviceDocs.map((service) => [String(service.name || "").trim().toLowerCase(), Number(service.deduction || 0)])
-  );
+  const deductionByName = new Map();
+  for (const service of serviceDocs) {
+    for (const label of [service.name, service.value]) {
+      const key = String(label || '').trim().toLowerCase();
+      const amount = Number(service.deduction || 0);
+      if (deductionByName.has(key) && deductionByName.get(key) !== amount)
+        throw new Error(`Conflicting catalog deduction rates for ${label}. Please resolve the duplicate service.`);
+      deductionByName.set(key, amount);
+    }
+  }
 
-  return services
+  return names
     .map((service) => {
       const serviceName = String(service || "").trim();
       return {

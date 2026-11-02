@@ -223,6 +223,18 @@ test("startup/monthly catch-up is idempotent and manager scope is enforced", asy
     /Only HR/,
   );
 });
+test('daily entry excludes disabled employees before pagination, preserving historical team access', async () => {
+  await UserModel.updateOne({ _id: sales.userId }, { $set: { isDisabled: true } });
+  try {
+    const daily = await hrm.attendanceTeam(hr, month, { activeOnly: 'true', page: 1 });
+    assert(!daily.team.some((t) => t.employee.userId === sales.userId));
+    assert.equal(daily.pagination.total, 3);
+    const historical = await hrm.attendanceTeam(hr, month, { page: 1 });
+    assert(historical.team.some((t) => t.employee.userId === sales.userId));
+  } finally {
+    await UserModel.updateOne({ _id: sales.userId }, { $set: { isDisabled: false } });
+  }
+});
 test("WhatsApp original timing, approval/cancellation effects, and audit survive retries", async () => {
   const dates = await workDates(),
     date = dates[0];

@@ -428,7 +428,7 @@ function HRMWorkspace() {
         (data.isHR || data.employees.length > 1)
       )
         api(
-          `/attendance/team?month=${page === "entry" ? date.slice(0, 7) || month : month}${page === "" ? `&date=${data.today}` : `&page=${listPage}&search=${encodeURIComponent(filterQuery)}&department=${encodeURIComponent(department)}`}`,
+          `/attendance/team?month=${page === "entry" ? date.slice(0, 7) || month : month}${page === "" ? `&date=${data.today}&activeOnly=true` : `&page=${listPage}&search=${encodeURIComponent(filterQuery)}&department=${encodeURIComponent(department)}${page === "entry" ? "&activeOnly=true" : ""}`}`,
         )
           .then((r) => {
             if (active) {
@@ -1263,7 +1263,7 @@ function HRMWorkspace() {
               {page === "entry" && (
                 <Panel
                   title="Daily attendance entry"
-                  description="Enter the original WhatsApp ‘Reached’ time. Missing check-in stays pending."
+                  description="Mark daily attendance here. Enter the actual arrival and departure times, or use Mark absent / UA after checking leave and WFH records."
                 >
                   <div className="hrm-form-grid">
                     <Field
@@ -1278,6 +1278,14 @@ function HRMWorkspace() {
                       onChange={setFilter}
                     />
                   </div>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    For present employees, enter check-in and Save attendance.
+                    A blank checkout is filled automatically after the checkout deadline.
+                    For an absent employee, choose Mark absent / UA: Absent is one unpaid
+                    day; UA applies the policy's two-day adjustment with an explicit EL/unpaid
+                    allocation. Approved leave or WFH should be recorded through its request.
+                    Blank attendance stays Pending until HR reviews it.
+                  </Alert>
                   <Table
                     headers={[
                       "Employee",
@@ -1289,6 +1297,7 @@ function HRMWorkspace() {
                     ]}
                   >
                     {team
+                      .filter((t) => !t.employee.disabled)
                       .filter((t) =>
                         t.employee.name
                           .toLowerCase()
@@ -1324,6 +1333,17 @@ function HRMWorkspace() {
                                 remarks: "",
                               })
                             }
+                            onAbsence={() => setEditAttendance({
+                              ...r,
+                              userId: t.employee.userId,
+                              date,
+                              checkIn: r.checkIn || "",
+                              checkOut: r.checkOutSource === "AUTO" ? "" : r.checkOut || "",
+                              remarks: "",
+                              override: { status: "Absent", payable: 0 },
+                              reviewConfirmed: false,
+                              uaEL: 0,
+                            })}
                           />
                         );
                       })}
@@ -2597,6 +2617,7 @@ function HRMWorkspace() {
       >
         <DialogTitle>Attendance correction / override</DialogTitle>
         <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {editAttendance && (
             <div className="hrm-dialog-fields">
               <Field
@@ -2629,8 +2650,8 @@ function HRMWorkspace() {
                 options={[
                   { value: "", label: "Use attendance rules / clear override" },
                   "Present",
-                  "Absent",
-                  "UA",
+                  { value: "Absent", label: "Absent - one unpaid day" },
+                  { value: "UA", label: "UA - two-day policy adjustment" },
                   "Half Day",
                 ]}
                 onChange={(v) =>
@@ -2650,9 +2671,19 @@ function HRMWorkspace() {
                         }
                       : undefined,
                     clearOverride: !v,
+                    uaEL: v === "UA" ? 0 : editAttendance.uaEL,
                   })
                 }
               />
+              {["Absent", "UA"].includes(editAttendance.override?.status) && (
+                <Alert severity="warning">
+                  Confirm absence only after checking CRM, WhatsApp/offline,
+                  emergency and WFH records. Resolve linked requests first.
+                  {editAttendance.override.status === "UA"
+                    ? ` Total adjustment: 2 days; EL: ${Number(editAttendance.uaEL || 0)}; unpaid: ${2 - Number(editAttendance.uaEL || 0)}.`
+                    : " Absent records one unpaid day. Use leave approval when EL should be used."}
+                </Alert>
+              )}
               {editAttendance.override?.status === "UA" && (
                 <Field
                   label="UA: EL units allocated (0–2, remainder unpaid)"
@@ -2726,7 +2757,8 @@ function HRMWorkspace() {
           <Button onClick={() => setEditAttendance(null)}>Back</Button>
           <Button
             variant="contained"
-            disabled={busy}
+            disabled={busy || !editAttendance?.remarks?.trim() ||
+              (["Absent", "UA"].includes(editAttendance?.override?.status) && !editAttendance?.reviewConfirmed)}
             onClick={() =>
               run(async () => {
                 await api("/attendance", "POST", editAttendance);
@@ -2747,7 +2779,7 @@ function HRMWorkspace() {
   );
 }
 
-function AttendanceEntry({ employee, row, onSave, onEdit, busy }) {
+function AttendanceEntry({ employee, row, onSave, onEdit, onAbsence, busy }) {
   const [checkIn, setCheckIn] = useState(row.checkIn || ""),
     [checkOut, setCheckOut] = useState(
       row.checkOutSource === "AUTO" ? "" : row.checkOut || "",
@@ -2794,9 +2826,10 @@ function AttendanceEntry({ employee, row, onSave, onEdit, busy }) {
             disabled={busy}
             onClick={() => onSave({ checkIn, checkOut, remarks })}
           >
-            Save
+            Save attendance
           </Button>
-          <Button onClick={onEdit}>More</Button>
+          <Button onClick={onEdit} disabled={busy}>Correct / more</Button>
+          <Button onClick={onAbsence} disabled={busy} color="warning">Mark absent / UA</Button>
         </div>
       </td>
     </tr>

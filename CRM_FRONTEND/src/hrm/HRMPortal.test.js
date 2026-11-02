@@ -129,6 +129,37 @@ test("direct settings navigation is restricted for employees", async () => {
   ).toBeInTheDocument();
   expect(screen.queryByText("Save policy version")).not.toBeInTheDocument();
 });
+test('HR daily entry hides disabled staff and provides a reviewed absence action', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn(async (url, options) => {
+    if (url.includes('/bootstrap')) return {
+      ok: true, json: async () => ({ ...fixture, isHR: true }),
+    };
+    if (url.includes('/attendance/team')) return {
+      ok: true, json: async () => ({ team: [
+        { employee: fixture.employees[0], records: fixture.attendance },
+        { employee: { userId: 'disabled', name: 'Disabled Employee', disabled: true }, records: [] },
+      ] }),
+    };
+    return originalFetch(url, options);
+  });
+  open('/hrm/entry');
+  const absence = await screen.findByRole('button', { name: 'Mark absent / UA' });
+  expect(screen.queryByText('Disabled Employee')).not.toBeInTheDocument();
+  expect(fetch.mock.calls.some(([url]) => url.includes('/attendance/team?') && url.includes('activeOnly=true'))).toBe(true);
+  fireEvent.click(absence);
+  const save = screen.getByRole('button', { name: 'Save correction' });
+  expect(save).toBeDisabled();
+  fireEvent.change(screen.getByLabelText(/Required remarks/), { target: { value: 'Confirmed no leave or WFH' } });
+  fireEvent.click(screen.getByLabelText(/I verified CRM, WhatsApp/));
+  expect(save).toBeEnabled();
+  fireEvent.click(save);
+  await screen.findByText('Saved successfully');
+  const [, options] = fetch.mock.calls.find(([url, opts]) => url.endsWith('/attendance') && opts?.method === 'POST');
+  expect(JSON.parse(options.body)).toMatchObject({
+    userId: 'employee-1', reviewConfirmed: true, override: { status: 'Absent', payable: 0 },
+  });
+});
 test("calendar opens the recorded attendance details without employee edit controls", async () => {
   open("/hrm/attendance");
   const day = await screen.findByRole("button", { name: /22 Present/ });

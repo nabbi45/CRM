@@ -152,6 +152,8 @@ After activation, the setup review and normal settings remain available.
   Asia/Kolkata. The default office start is 10:00, late begins after 10:15, the fourth
   and subsequent monthly late arrivals are half days, and check-in after 11:00 is a
   half day unless HR records an override.
+  Choose the attendance date, enter check-in, and press **Save attendance**.
+  Disabled accounts are excluded from daily entry; historical reports retain them.
 - **AUTO checkout** means the system supplied checkout after the policy deadline
   when a valid check-in existed. Default checkout is 18:30. A manual HR checkout
   takes precedence. AUTO does not prove the employee physically left at that time.
@@ -222,6 +224,12 @@ and expiries before adjusting. Record the reason and supporting information. Do 
 approve twice or manually credit a cancelled request that already posted a reversal.
 
 ## Absence and month end
+
+In **Today's entry**, use **Mark absent / UA** beside the employee. Choose
+**Absent - one unpaid day** for a confirmed ordinary unpaid absence. For approved
+paid leave, use the leave request and HR pay treatment instead. Enter remarks,
+tick the verification checkbox, then **Save correction**. A blank check-in alone
+stays Pending and does not mark absence.
 
 **UA** means unauthorised absence confirmed by HR after checking CRM requests,
 WhatsApp/offline intimation, emergencies and WFH records. Pending attendance is not

@@ -651,6 +651,9 @@ export const attendanceTeam = async (actor, month, options = {}) => {
   monthDates(month);
   const list = await employees();
   let visible = list.filter((e) => isHR(actor) || e.userId === actorId(actor) || e.managerId === actorId(actor));
+  // Daily entry excludes disabled accounts before counting and paging. Historical
+  // team reports retain them so disabling a user never erases payroll history.
+  if (String(options.activeOnly) === 'true') visible = visible.filter((e) => !e.disabled);
   if (options.department) visible = visible.filter((e) => e.department === options.department);
   let total = visible.length;
   const page = Math.max(1, Math.floor(Number(options.page) || 1));
