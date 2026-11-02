@@ -68,7 +68,10 @@ const accessible = (booking, id) =>
 router.get("/summary", authenticateUser, async (req, res) => {
   const id = String(req.user.userId);
   const admin = isAdminRole(req.user.user_role);
-  const key = admin ? 'dashboard:admin' : `dashboard:user:${id}`;
+  const month = req.query.month || new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7);
+  if (typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
+    return res.status(400).json({ message: 'Choose a valid dashboard month (YYYY-MM).' });
+  const key = `${admin ? 'dashboard:admin' : `dashboard:user:${id}`}:${month}`;
   const generation = readCacheGeneration();
   try {
     const payload = await cachedRead(key, async () => {
@@ -90,9 +93,9 @@ router.get("/summary", authenticateUser, async (req, res) => {
           admin ? cachedRead('dashboard:user-count', () => UserModel.countDocuments().maxTimeMS(10000)) : 0,
         ]);
         const companyBookings = company.filter((b) => b.isDeleted === false);
-        const companySummary = await cachedRead(`dashboard:company-calculations:${generation}`, () => buildDashboardSummary({
+        const companySummary = await cachedRead(`dashboard:company-calculations:${generation}:${month}`, () => buildDashboardSummary({
           bookings: companyBookings, users, services, totalUsers: count,
-          session: { user_id: id }, isAdmin: true,
+          session: { user_id: id }, isAdmin: true, month,
         }));
         const summary = admin ? { ...companySummary, totalUsers: count } : buildDashboardSummary({
           bookings: company.filter((b) => accessible(b, id)),
@@ -103,6 +106,7 @@ router.get("/summary", authenticateUser, async (req, res) => {
           totalUsers: count,
           session: { user_id: id },
           isAdmin: admin,
+          month,
         });
         // Detail/edit data is fetched on demand rather than embedded in this page.
         summary.recentBookings = summary.recentBookings.map((booking) =>

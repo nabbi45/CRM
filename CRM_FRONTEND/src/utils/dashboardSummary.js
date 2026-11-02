@@ -4,7 +4,7 @@ import {
   getBookingDeductionRowsForUser,
   getBookingDeductionRowsForStats,
   getBookingRevenueForUser,
-  getBookingRevenueRowsForUser,
+  hasBookingPaymentForUser,
 } from "./bookingRevenue.js";
 
 const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
@@ -20,7 +20,7 @@ const parseDateValue = (value) => {
 
 const getDateKey = (value) => {
   const date = parseDateValue(value);
-  return date ? date.toISOString().split("T")[0] : "";
+  return date ? calendarDate(date).toISOString().slice(0, 10) : "";
 };
 
 export function buildDashboardSummary({
@@ -33,8 +33,10 @@ export function buildDashboardSummary({
   isAdmin,
   companyServiceStats,
   now = new Date(),
+  month = monthKeyFor(now),
 }) {
-  const result = { totalUsers };
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Choose a valid dashboard month (YYYY-MM).');
+  const result = { totalUsers, period: month };
   const serviceDeductionMap = buildServiceDeductionMap(services);
   const serviceDeductionCatalogRows = services
     .map((service) => ({
@@ -59,10 +61,10 @@ export function buildDashboardSummary({
       },
     ]),
   );
-  const today = now.toISOString().split("T")[0];
+  const today = calendarDate(now).toISOString().slice(0, 10);
 
-  const currentMonth = calendarDate(now).getUTCMonth();
-  const currentYear = calendarDate(now).getUTCFullYear();
+  const [currentYear, monthNumber] = month.split('-').map(Number);
+  const currentMonth = monthNumber - 1;
   const threeMonthsAgo = calendarDate(now);
   threeMonthsAgo.setUTCMonth(threeMonthsAgo.getUTCMonth() - 3);
   threeMonthsAgo.setUTCHours(0, 0, 0, 0);
@@ -112,14 +114,14 @@ export function buildDashboardSummary({
   for (const booking of bookings) {
     bookingCount += 1;
 
-    const currentMonthParticipationRows = getBookingRevenueRowsForUser(
+    const hasCurrentMonthPayment = hasBookingPaymentForUser(
       booking,
       session.user_id,
       isAdmin,
       (termShare, termKey) =>
         termKey !== "refund" && isCurrentMonthTerm(termShare),
     );
-    if (currentMonthParticipationRows.length > 0) {
+    if (hasCurrentMonthPayment) {
       bookingCountThisMonth += 1;
     }
 

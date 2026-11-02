@@ -111,3 +111,30 @@ and index creation and does not run automation. It prints counts/timings only.
 `CRM_DIAGNOSTIC_EMAIL` and `CRM_DIAGNOSTIC_PASSWORD`, signs in normally (updating
 normal login activity), then performs only GET requests. Neither script prints or
 saves passwords, tokens or business records.
+
+## Dashboard period selection (2 November 2026)
+
+Read-only checks of all 697 live bookings confirmed October 2026 net revenue of
+INR 1,131,640.34 across 71 bookings with payments, and no November payments at the
+time of inspection. One booking has a November booking date but an October payment
+date. Financial cards and rankings follow payment dates, so a new month can correctly
+start at zero even while total booking count and previous-month bars remain populated.
+
+The dashboard now offers a **Dashboard month** field and **View previous month**
+when there are no payments. Period labels explicitly identify the selected month;
+the selection is remembered per account in this browser. Revenue, deductions,
+payment-participation counts, rankings and the six-month graph use that period.
+Today's revenue stays tied to the actual date in Asia/Kolkata. The booking count
+card says **Bookings with payments**, matching its transaction-based calculation.
+This includes two October bookings whose net credit is zero after deductions;
+the previous count incorrectly omitted those two and showed 69.
+
+The API accepts `/dashboard/summary?month=YYYY-MM`, validates it, and includes
+`summary.period`. Summary caches include the month and permission scope; source
+booking reads remain shared. Deploy the backend before the frontend, since the
+frontend checks the returned period instead of displaying totals from a different
+month. No booking/payment dates were modified for this change.
+
+`node scripts/diagnose-dashboard-period.mjs` from `CRM_BACKEND` is a read-only
+diagnostic using the existing connection with automatic index/collection creation
+disabled. It prints aggregate financial/date counts and does not run CRM jobs.

@@ -13,6 +13,7 @@ import { BookingModel } from "../src/models/bookingModel.js";
 import { buildDashboardSummary } from "../../CRM_FRONTEND/src/utils/dashboardSummary.js";
 import { getBookingRevenueForUser } from "../../CRM_FRONTEND/src/utils/bookingRevenue.js";
 import { profileThumbnail } from "../src/utils/profileThumbnail.js";
+import { invalidateReadCaches } from '../src/utils/readCache.js';
 const { MongoMemoryServer } = createRequire(import.meta.url)(
   "mongodb-memory-server",
 );
@@ -147,6 +148,51 @@ test("business-month revenue is independent of server timezone", () => {
   });
   assert.equal(summary.totalRevenue, 0);
   assert.equal(summary.monthlyRevData.labels.at(-1), "Nov");
+});
+test('selected month restores earlier revenue while today uses the real IST date', () => {
+  const bookings = [{
+    user_id: 'owner', bdm: 'Owner', bank: 'Cash', term_1: 1000, term_2: 500,
+    payment_date: '2026-10-31T10:00:00Z',
+    term_shares: { term_2: { creator: { user_id: 'owner', user_name: 'Owner' }, payment_date: '2026-10-31T19:00:00Z' } },
+    service_deductions_snapshot: [{ service_name: 'Fee', deduction: 100 }],
+  }];
+  const options = { bookings, session: { user_id: 'owner' }, isAdmin: true, now: new Date('2026-10-31T20:00:00Z') };
+  const november = buildDashboardSummary(options);
+  const october = buildDashboardSummary({ ...options, month: '2026-10' });
+  assert.equal(november.period, '2026-11');
+  assert.equal(november.totalRevenue, 500);
+  assert.equal(october.totalRevenue, 900);
+  assert.equal(october.totalServiceDeductions, 100);
+  assert.equal(october.todayRevenue, 500);
+  assert.equal(november.todayRevenue, 500);
+  assert.equal(october.monthlyRevData.labels.at(-1), 'Oct');
+  assert.equal(october.leaderboard[0].revenue, 900);
+  const fullyDeducted = buildDashboardSummary({ ...options, month: '2026-10', bookings: [{
+    ...bookings[0], service_deductions_snapshot: [{ service_name: 'Fee', deduction: 2000 }],
+  }] });
+  assert.equal(fullyDeducted.totalRevenue, 0);
+  assert.equal(fullyDeducted.bookingsThisMonth, 1);
+});
+test('month query is validated, permission scoped and cached separately', async () => {
+  const inserted = await BookingModel.collection.insertOne({
+    user_id: String(employee._id), bdm: 'Employee', bank: 'Cash', isDeleted: false,
+    term_1: 1000, payment_date: new Date('2025-10-14T00:00:00Z'),
+    service_deductions_snapshot: [{ service_name: 'Fee', deduction: 100 }],
+  });
+  invalidateReadCaches();
+  try {
+    const previous = await request(app).get('/dashboard/summary?month=2025-10').set('Authorization', token(employee)).expect(200);
+    assert.equal(previous.body.summary.period, '2025-10');
+    assert.equal(previous.body.summary.totalRevenue, 900);
+    const empty = await request(app).get('/dashboard/summary?month=2025-09').set('Authorization', token(employee)).expect(200);
+    assert.equal(empty.body.summary.totalRevenue, 0);
+    const again = await request(app).get('/dashboard/summary?month=2025-10').set('Authorization', token(employee)).expect(200);
+    assert.equal(again.body.summary.totalRevenue, 900);
+    await request(app).get('/dashboard/summary?month=2025-13').set('Authorization', token(employee)).expect(400);
+  } finally {
+    await BookingModel.collection.deleteOne({ _id: inserted.insertedId });
+    invalidateReadCaches();
+  }
 });
 test("embedded photos are thumbnailed without changing the input photo", async () => {
   const photo = `data:image/png;base64,${(

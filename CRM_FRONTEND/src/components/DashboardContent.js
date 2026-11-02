@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { requestJson } from "../utils/requestJson";
 import { apiUrl } from "./LoginSignup";
 import {
+  Alert,
   Avatar,
   Box,
   Button,
@@ -20,6 +21,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
   useMediaQuery,
   useTheme,
@@ -84,6 +86,14 @@ const DashboardContent = () => {
   const userSession = JSON.parse(localStorage.getItem("userSession"));
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const currentMonth = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7);
+  const monthStorageKey = `dashboard-month:${userSession?.user_id || ''}`;
+  const [reportMonth, setReportMonth] = useState(() => {
+    const saved = localStorage.getItem(monthStorageKey);
+    return /^\d{4}-(0[1-9]|1[0-2])$/.test(saved || '') ? saved : currentMonth;
+  });
+  const periodLabel = new Date(`${reportMonth}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const latestLoad = useRef(0);
 
   const [totalBookings, setTotalBookings] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -130,12 +140,6 @@ const DashboardContent = () => {
 
 
   useEffect(() => {
-    if (userSession?.user_id) {
-      fetchDashboardData(userSession);
-    } else {
-      setLoading(false);
-    }
-
     fetch(`${apiUrl}/company/public`)
       .then((res) => res.json())
       .then((data) => {
@@ -164,6 +168,15 @@ const DashboardContent = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(monthStorageKey, reportMonth);
+    if (userSession?.user_id) fetchDashboardData(userSession, reportMonth);
+    else setLoading(false);
+    return () => { latestLoad.current += 1; };
+    // Only a change to the period or authenticated session reloads the summary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportMonth, monthStorageKey, userSession?.user_id, userSession?.token]);
 
   useEffect(() => {
     if (monthlyRevData.labels.length === 0 || !chartRef.current) return;
@@ -402,12 +415,16 @@ const DashboardContent = () => {
     };
   }, [serviceRevenueData, theme.palette.mode]);
 
-  const fetchDashboardData = async (session) => {
+  const fetchDashboardData = async (session, requestedMonth = reportMonth) => {
+    const load = ++latestLoad.current;
     setLoading(true);
     setLoadError("");
     try {
-      const response = await requestJson("/dashboard/summary", session.token);
+      const response = await requestJson(`/dashboard/summary?month=${encodeURIComponent(requestedMonth)}`, session.token);
+      if (load !== latestLoad.current) return;
       const summary = response.summary;
+      if (summary.period !== requestedMonth)
+        throw new Error('The server did not return the requested dashboard month. Please refresh and retry.');
       setLeaderboard(summary.leaderboard);
       setMonthlyRevData(summary.monthlyRevData);
       setPersonalMostSoldService(summary.personalMostSoldService);
@@ -430,10 +447,11 @@ const DashboardContent = () => {
       setRecentBookings(summary.recentBookings);
       setTotalUsers(summary.totalUsers);
     } catch (error) {
+      if (load !== latestLoad.current) return;
       setLoadError(error.message || "Dashboard data could not load.");
       console.error("Error fetching dashboard data:", error);
       enqueueSnackbar(error.message || "Dashboard data could not load. Please retry.", { variant: "error" });
-    } finally { setLoading(false); }
+    } finally { if (load === latestLoad.current) setLoading(false); }
   };
 
   const handleOpenBooking = async (bookingId) => {
@@ -485,7 +503,12 @@ const DashboardContent = () => {
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "From today's bookings", icon: <TodayOutlinedIcon fontSize="small" /> },
     ];
 
-    return isAdmin ? adminCards : userCards;
+    return (isAdmin ? adminCards : userCards).map((card) => {
+      if (card.label === 'Revenue This Month') return { ...card, label: `Revenue - ${periodLabel}` };
+      if (card.label === 'Bookings This Month') return { ...card, label: 'Bookings with payments', sub: periodLabel };
+      if (card.detailType) return { ...card, sub: periodLabel };
+      return card;
+    });
   }, [
     bookingsThisMonth,
     isAdmin,
@@ -496,6 +519,7 @@ const DashboardContent = () => {
     totalServiceDeductions,
     totalRefundableCuts,
     totalUsers,
+    periodLabel,
   ]);
 
   const featuredLeaderboardEntry = leaderboard[0] || null;
@@ -578,6 +602,34 @@ const DashboardContent = () => {
         )}
 
         <PaymentReminders onOpenBooking={handleOpenBooking} />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
+          <TextField
+            label="Dashboard month"
+            type="month"
+            size="small"
+            value={reportMonth}
+            InputLabelProps={{ shrink: true }}
+            onChange={(event) => {
+              if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) setReportMonth(event.target.value);
+            }}
+          />
+          <Typography variant="body2" color="text.secondary">
+            Revenue, deductions and rankings follow payment dates in {periodLabel} (IST).
+            Today's revenue always shows today.
+          </Typography>
+          {reportMonth !== currentMonth && <Button onClick={() => setReportMonth(currentMonth)}>Current month</Button>}
+        </Box>
+        {bookingsThisMonth === 0 && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            No recorded payments in {periodLabel}. Earlier payments remain in their original months.
+            <Button size="small" onClick={() => {
+              const previous = new Date(`${reportMonth}-01T00:00:00Z`);
+              previous.setUTCMonth(previous.getUTCMonth() - 1);
+              setReportMonth(previous.toISOString().slice(0, 7));
+            }}>View previous month</Button>
+          </Alert>
+        )}
 
         <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.75 }} sx={{ mt: sectionSpacing, overflowX: "hidden" }}>
           {statCards.map((card, index) => {
@@ -719,7 +771,7 @@ const DashboardContent = () => {
                     </Typography>
                     <Chip
                       size="small"
-                      label={new Date().toLocaleString("default", { month: "short" })}
+                      label={periodLabel}
                       sx={{
                         ml: "auto",
                         bgcolor: ACCENT_LIGHT,
@@ -803,7 +855,7 @@ const DashboardContent = () => {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                      No leaderboard data this month.
+                      No leaderboard data for {periodLabel}.
                     </Typography>
                   )}
 

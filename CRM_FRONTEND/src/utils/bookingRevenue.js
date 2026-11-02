@@ -469,6 +469,12 @@ export const getBookingRevenueForUser = (
   return roundMoney(termRevenue - refundReversal);
 };
 
+// Payment participation remains true even when deductions reduce net credit to zero.
+export const hasBookingPaymentForUser = (booking, userId, isAdmin = false, includeTerm = () => true) =>
+  termKeys.some((key) => Number(booking?.[key] || 0) > 0 &&
+    includeTerm(getTermShare(booking, key), key) &&
+    getParticipantShare(booking, key, userId, isAdmin) > 0);
+
 export const getBookingRevenueRowsForUser = (
   booking,
   userId,

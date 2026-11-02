@@ -25,10 +25,29 @@ test('a timed out summary shows a retryable error, not zero-valued dashboard car
   render(<DashboardContent />);
   const error = await screen.findByRole('alert');
   expect(error).toHaveTextContent('Dashboard could not load');
-  expect(screen.queryByText('Revenue This Month')).not.toBeInTheDocument();
+  expect(screen.queryByText(/^Revenue - /)).not.toBeInTheDocument();
   const summary = buildDashboardSummary({ bookings: [], session: { user_id: 'admin' }, isAdmin: true });
   requestJson.mockResolvedValueOnce({ summary });
   fireEvent.click(screen.getByRole('button', { name: 'Retry dashboard' }));
-  await screen.findByText('Revenue This Month');
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await screen.findByText(/^Revenue - /);
+  expect(screen.queryByText('Dashboard could not load')).not.toBeInTheDocument();
+});
+test('empty current month explains the period and can retrieve earlier payments', async () => {
+  const current = buildDashboardSummary({ bookings: [], session: { user_id: 'admin' }, isAdmin: true });
+  requestJson.mockResolvedValueOnce({ summary: current });
+  render(<DashboardContent />);
+  await screen.findByText(/No recorded payments in/);
+  const previous = new Date(`${current.period}-01T00:00:00Z`);
+  previous.setUTCMonth(previous.getUTCMonth() - 1);
+  const month = previous.toISOString().slice(0, 7);
+  const summary = buildDashboardSummary({
+    bookings: [{ _id: 'previous-payment', user_id: 'admin', bdm: 'Admin', bank: 'Cash', term_1: 1000, payment_date: `${month}-14` }],
+    session: { user_id: 'admin' }, isAdmin: true, month,
+  });
+  requestJson.mockResolvedValueOnce({ summary });
+  fireEvent.click(screen.getByRole('button', { name: 'View previous month' }));
+  await screen.findByText('Bookings with payments');
+  expect(requestJson).toHaveBeenLastCalledWith(`/dashboard/summary?month=${month}`, 'test-token');
+  expect(screen.getByLabelText('Dashboard month')).toHaveValue(month);
+  expect(screen.queryByText(/No recorded payments in/)).not.toBeInTheDocument();
 });
