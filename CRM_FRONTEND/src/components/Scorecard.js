@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Avatar,
   Box,
   Card,
@@ -26,10 +27,11 @@ import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import Loader from "./Loader";
+import DeductionManager from "./DeductionManager";
+import { getBookingFinancials, monthIST } from "../utils/bookingFinancials";
 import { apiUrl } from "./LoginSignup";
 import {
-  getBookingDeductionRowsForUser,
-  getBookingRevenueRowsForUser,
+  getBookingDeductionRowsForStats,
 } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
@@ -47,14 +49,10 @@ const formatDate = (value) => {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("en-GB");
+  return date.toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" });
 };
 
-const monthKeyFromDate = (value) => {
-  const date = new Date(value || 0);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-};
+const monthKeyFromDate = (value) => value ? monthIST(value) : '';
 
 const monthLabel = (monthKey) => {
   if (!monthKey || monthKey === "all") return "All Time";
@@ -79,18 +77,23 @@ const Scorecard = () => {
   const currentMonthKey = monthKeyFromDate(new Date());
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [bookings, setBookings] = useState([]);
   const [users, setUsers] = useState([]);
   const [scopeMode, setScopeMode] = useState(isAdmin ? "all" : "month");
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [deductionDialog, setDeductionDialog] = useState({ open: false, bookingId: '' });
+  const [reload, setReload] = useState(0);
+  const canRecover = ['director', 'dev', 'srdev', 'sr dev'].includes(String(session.user_role || '').trim().toLowerCase());
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         const headers = { authorization: session.token || "" };
-        const bookingsUrl = isAdmin ? `${apiUrl}/booking/all` : `${apiUrl}/user/bookings/${session.user_id}`;
+        const bookingsUrl = `${apiUrl}/booking/scorecard-source`;
         const [bookingsRes, usersRes] = await Promise.all([
           fetch(bookingsUrl, { headers }),
           // Historical employee revenue must remain visible after an account is disabled.
@@ -99,6 +102,7 @@ const Scorecard = () => {
         ]);
 
         const bookingsData = await bookingsRes.json().catch(() => ({}));
+        if (!bookingsRes.ok) throw new Error(bookingsData.message || 'Scorecard could not load. Please retry.');
         setBookings(bookingsData.Allbookings || bookingsData.bookings || bookingsData || []);
 
         if (isAdmin && usersRes?.ok) {
@@ -108,6 +112,7 @@ const Scorecard = () => {
           setUsers([]);
         }
       } catch (error) {
+        setLoadError(error.message || 'Scorecard could not load. Please retry.');
         setBookings([]);
         setUsers([]);
       } finally {
@@ -116,7 +121,7 @@ const Scorecard = () => {
     };
 
     fetchData();
-  }, [isAdmin, session.token, session.user_id]);
+  }, [isAdmin, session.token, session.user_id, reload]);
 
   const allMonthOptions = useMemo(() => {
     const keys = new Set();
@@ -125,6 +130,7 @@ const Scorecard = () => {
         const key = monthKeyFromDate(value);
         if (key) keys.add(key);
       });
+      (booking.deduction_recoveries || []).forEach((event) => { const key = monthKeyFromDate(event.effective_date); if (key) keys.add(key); });
       TERM_KEYS.forEach((termKey) => {
         const key = monthKeyFromDate(booking?.term_shares?.[termKey]?.payment_date);
         if (key) keys.add(key);
@@ -156,92 +162,36 @@ const Scorecard = () => {
   }, [isAdmin, users, session.user_id, session.name, session.user_role, session.profilePicture]);
 
   const employeeCards = useMemo(() => {
-    const activeMonth = scopeMode === "all" ? "all" : selectedMonth;
-
-    return employeePool
-      .map((employee) => {
-        const employeeId = employee._id;
-        const rows = [];
-
-        bookings.forEach((booking) => {
-          getBookingRevenueRowsForUser(
-            booking,
-            employeeId,
-            false,
-            (termShare, termKey) => {
-              if (activeMonth === "all") return true;
-              if (termKey === "refund") {
-                return monthKeyFromDate(termShare?.payment_date) === activeMonth;
-              }
-              return monthKeyFromDate(termShare?.payment_date || booking.payment_date || booking.date || booking.createdAt) === activeMonth;
-            }
-          ).forEach((row) => {
-            rows.push({
-              type: "Revenue",
-              date: row.date,
-              bookingId: row.bookingId,
-              companyName: row.companyName || "-",
-              clientName: row.clientName || "-",
-              service: row.service || "-",
-              amount: row.amount || 0,
-              tone: "success",
-              refundableType: row.refundableType || "none",
-              refundablePercentage: row.refundablePercentage || 0,
-              note: row.note || "Net credited after GST and deductions",
-            });
-          });
-
-          getBookingDeductionRowsForUser(
-            booking,
-            employeeId,
-            false,
-            (termShare, termKey) => {
-              if (activeMonth === "all") return true;
-              if (termKey === "refund") {
-                return monthKeyFromDate(termShare?.payment_date) === activeMonth;
-              }
-              return monthKeyFromDate(termShare?.payment_date || booking.payment_date || booking.date || booking.createdAt) === activeMonth;
-            }
-          ).forEach((row) => {
-            rows.push({
-              type: row.type,
-              date: row.date,
-              bookingId: row.bookingId,
-              companyName: row.companyName || "-",
-              clientName: row.clientName || "-",
-              service: row.service || "-",
-              amount: row.deduction || 0,
-              tone: row.type === "Refundable Clause Deduction" ? "warning" : "error",
-              note: row.type,
-            });
-          });
-        });
-
-        const sortedRows = rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-        const revenue = sortedRows.filter((row) => row.type === "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-        const deductions = sortedRows.filter((row) => row.type !== "Revenue").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-        const serviceDeductions = sortedRows.filter((row) => row.type === "Service Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-        const refundable = sortedRows.filter((row) => row.type === "Refundable Clause Deduction").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-        const manualRefunds = sortedRows.filter((row) => row.type === "Manual Refund Adjustment").reduce((sum, row) => sum + Number(row.amount || 0), 0);
-        const approvalGuaranteeTerms = sortedRows.filter((row) => row.type === "Revenue" && row.refundableType === "approval").length;
-        const bookingCount = new Set(sortedRows.map((row) => row.bookingId).filter(Boolean)).size;
-
-        return {
-          ...employee,
-          rows: sortedRows,
-          revenue,
-          deductions,
-          serviceDeductions,
-          refundable,
-          net: revenue - manualRefunds,
-          manualRefunds,
-          approvalGuaranteeTerms,
-          bookingCount,
-        };
-      })
-      .filter((employee) => employee.rows.length > 0 || String(employee._id) === String(session.user_id))
-      .sort((a, b) => b.net - a.net);
+    const activeMonth = scopeMode === 'all' ? 'all' : selectedMonth;
+    const include = (term) => activeMonth === 'all' || monthKeyFromDate(term.payment_date) === activeMonth;
+    const byEmployee = new Map();
+    const add = (id, row) => {
+      const key = String(id);
+      if (!byEmployee.has(key)) byEmployee.set(key, []);
+      byEmployee.get(key).push(row);
+    };
+    // Calculate and index each booking once, rather than once per employee.
+    bookings.forEach((booking) => {
+      getBookingFinancials(booking).terms.forEach((term) => {
+        if (!include(term)) return;
+        term.base_participants.forEach((person) => add(person.user_id, { type: 'Revenue', date: term.payment_date, bookingId: booking._id, companyName: booking.company_name || '-', clientName: booking.contact_person || '-', service: (booking.services || []).join(', '), amount: person.amount, tone: 'success', refundableType: booking.is_approval_refundable ? 'approval' : 'none', note: `Credit before deductions from ${term.term_key.replace('_', ' ').toUpperCase()} · ${term.payment_mode} · Term GST ${formatCurrency(term.gst)}` }));
+      });
+      getBookingDeductionRowsForStats(booking, include).forEach((row) => add(row.employeeId, { type: row.type, date: row.date, bookingId: row.bookingId, companyName: row.companyName, clientName: row.clientName, service: row.service, amount: row.deduction, tone: row.type === 'Refundable Clause Deduction' ? 'warning' : 'error', note: row.note || row.type }));
+    });
+    return employeePool.map((employee) => {
+      const rows = (byEmployee.get(String(employee._id)) || []).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const total = (predicate) => Math.round(rows.filter(predicate).reduce((sum, row) => sum + Number(row.amount || 0), 0) * 100) / 100;
+      const revenue = total((row) => row.type === 'Revenue');
+      const deductions = total((row) => row.type !== 'Revenue');
+      return { ...employee, rows, revenue, deductions, net: Math.round((revenue - deductions) * 100) / 100,
+        serviceDeductions: total((row) => ['Service Deduction', 'Historical Deduction Recovery', 'Deduction Recovery Reversal'].includes(row.type)),
+        refundable: total((row) => row.type === 'Refundable Clause Deduction'), manualRefunds: total((row) => row.type === 'Manual Refund Adjustment'),
+        approvalGuaranteeTerms: rows.filter((row) => row.type === 'Revenue' && row.refundableType === 'approval').length,
+        bookingCount: new Set(rows.map((row) => row.bookingId).filter(Boolean)).size };
+    }).filter((employee) => employee.rows.length > 0 || String(employee._id) === String(session.user_id)).sort((a, b) => b.net - a.net);
   }, [bookings, employeePool, scopeMode, selectedMonth, session.user_id]);
+
+  useEffect(() => { setSelectedEmployee((current) => current ? employeeCards.find((employee) => String(employee._id) === String(current._id)) || null : null); }, [employeeCards]);
 
   const dashboardStats = useMemo(() => {
     const totals = employeeCards.reduce((acc, item) => {
@@ -257,7 +207,7 @@ const Scorecard = () => {
 
     return [
       { label: "Net Revenue", value: totals.net, sub: "After all cuts", icon: <InsightsOutlinedIcon fontSize="small" />, color: "#0f766e" },
-      { label: "Gross Revenue", value: totals.revenue, sub: "Before reversals", icon: <CurrencyRupeeOutlinedIcon fontSize="small" />, color: "#2563eb" },
+      { label: "Credit before deductions", value: totals.revenue, sub: "Before reversals", icon: <CurrencyRupeeOutlinedIcon fontSize="small" />, color: "#2563eb" },
       { label: "Service Deductions", value: totals.serviceDeductions, sub: "Vendor costs only", icon: <PaidOutlinedIcon fontSize="small" />, color: "#ea580c" },
       { label: "Auto Refundable Cuts", value: totals.refundable, sub: "Disbursement guarantee only", icon: <ReceiptLongOutlinedIcon fontSize="small" />, color: "#db2777" },
       { label: "Refund Adjustments", value: totals.manualRefunds, sub: "Manual refunds only", icon: <ReceiptLongOutlinedIcon fontSize="small" />, color: "#dc2626" },
@@ -298,6 +248,7 @@ const Scorecard = () => {
       </Box>
     );
   }
+  if (loadError) return <Alert severity="error">{loadError}<Button onClick={() => setReload((value) => value + 1)}>Retry scorecard</Button></Alert>;
 
   return (
     <Box sx={{ maxWidth: 1560, mx: "auto", width: "100%" }}>
@@ -310,7 +261,7 @@ const Scorecard = () => {
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary">
-            Transaction-wise employee revenue with month-aware deductions and refund reversals.
+            Credit before deductions, applied deductions and final employee scores.
           </Typography>
         </Box>
 
@@ -435,7 +386,7 @@ const Scorecard = () => {
                   >
                     {[
                       { label: "Bookings", value: employee.bookingCount, color: "#334155" },
-                      { label: "Revenue", value: formatCurrency(employee.revenue), color: "#059669" },
+                      { label: "Credit before deductions", value: formatCurrency(employee.revenue), color: "#059669" },
                       { label: "Deductions", value: formatCurrency(employee.deductions), color: "#ea580c" },
                       { label: "Net", value: formatCurrency(employee.net), color: "#2563eb" },
                     ].map((item) => (
@@ -474,6 +425,8 @@ const Scorecard = () => {
         </Stack>
       </Paper>
 
+      {canRecover && <Button variant="outlined" onClick={() => setDeductionDialog({ open: true, bookingId: '' })}>Audit booking deductions</Button>}
+      <DeductionManager open={deductionDialog.open} bookingId={deductionDialog.bookingId} onClose={() => setDeductionDialog({ open: false, bookingId: '' })} onChanged={() => setReload((value) => value + 1)} />
       <Dialog
         open={Boolean(selectedEmployee)}
         onClose={() => setSelectedEmployee(null)}
@@ -496,7 +449,7 @@ const Scorecard = () => {
               >
                 {[
                   { label: "Bookings", value: selectedEmployee.bookingCount, color: "#334155" },
-                  { label: "Revenue", value: formatCurrency(selectedEmployee.revenue), color: "#059669" },
+                  { label: "Credit before deductions", value: formatCurrency(selectedEmployee.revenue), color: "#059669" },
                   { label: "Deductions", value: formatCurrency(selectedEmployee.deductions), color: "#ea580c" },
                   { label: "Net", value: formatCurrency(selectedEmployee.net), color: "#2563eb" },
                 ].map((item) => (
@@ -565,6 +518,7 @@ const Scorecard = () => {
                     <Box>
                       <Typography variant="caption" sx={{ color: "text.secondary", textTransform: "uppercase", fontWeight: 700 }}>Note</Typography>
                       <Typography variant="body2">{row.note}</Typography>
+                      <Button size="small" onClick={() => setDeductionDialog({ open: true, bookingId: row.bookingId })}>Deduction details</Button>
                     </Box>
                   </Box>
                 </Paper>

@@ -3,7 +3,7 @@ import { Grid, FormControl, useTheme } from "@mui/material";
 import SelectReact from "react-select";
 import { apiUrl } from "./LoginSignup";
 
-const ServiceDropdown = ({ formData, setFormData, accentColor = "#8b5cf6", surfaceColor = "#fbf7ff" }) => {
+const ServiceDropdown = ({ formData, setFormData, onCatalogLoaded, accentColor = "#8b5cf6", surfaceColor = "#fbf7ff" }) => {
   const [serviceOptions, setServiceOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const userSession = JSON.parse(localStorage.getItem("userSession")) || {};
@@ -26,6 +26,7 @@ const ServiceDropdown = ({ formData, setFormData, accentColor = "#8b5cf6", surfa
           throw new Error("Failed to fetch services");
         }
         const data = await response.json();
+        if (onCatalogLoaded) onCatalogLoaded(data);
 
         // Map API response to serviceOptions format
         const options = data.map((service) => ({
@@ -43,7 +44,7 @@ const ServiceDropdown = ({ formData, setFormData, accentColor = "#8b5cf6", surfa
     };
 
     fetchServices();
-  }, []);
+  }, [onCatalogLoaded, userSession.token]);
 
   return (
     <Grid item xs={12} sm={6}>

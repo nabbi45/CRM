@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { BookingModel } from "../models/bookingModel.js";
 import { UserModel } from "../models/UserModel.js";
 import { normalizeBookingPayload } from "./textNormalize.js";
+import { prepareFinancialMutation, revisionFilter } from "./bookingFinancialState.js";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -289,24 +290,29 @@ async function main() {
     skipped.forEach((item) => console.log(`- Row ${item.rowNumber}: ${item.reason}`));
   }
 
-  if (COMMIT && bookingsToInsert.length) {
-    const result = await BookingModel.insertMany(bookingsToInsert, { ordered: false });
+  if (COMMIT && !SYNC && bookingsToInsert.length) {
+    const prepared = [];
+    for (const booking of bookingsToInsert) prepared.push(await prepareFinancialMutation(null, booking, { actor: { name: 'CSV IMPORT' }, reason: 'Booking imported from CSV' }));
+    const result = await BookingModel.insertMany(prepared, { ordered: false });
     console.log(`Inserted: ${result.length}`);
   }
 
-  if (SYNC) {
+  if (COMMIT && SYNC) {
     let updated = 0;
     let inserted = 0;
 
     for (const booking of bookings) {
-      const exactMatch = await BookingModel.findOne(buildDuplicateFilter(booking)).select("_id").lean();
-      const naturalMatch = exactMatch || await BookingModel.findOne(buildNaturalFilter(booking)).select("_id").lean();
+      const exactMatch = await BookingModel.findOne(buildDuplicateFilter(booking)).lean();
+      const naturalMatch = exactMatch || await BookingModel.findOne(buildNaturalFilter(booking)).lean();
 
       if (naturalMatch) {
-        const result = await BookingModel.updateOne({ _id: naturalMatch._id }, { $set: booking });
+        const next = await prepareFinancialMutation(naturalMatch, { ...naturalMatch, ...booking }, { actor: { name: 'CSV IMPORT' }, reason: 'Booking synchronized from CSV', targetTerm: 'term_1', resetFromTerm: true });
+        const { _id, updatedhistory, createdAt, updatedAt, ...updates } = next;
+        const result = await BookingModel.updateOne(revisionFilter(naturalMatch), { $set: updates, $push: { updatedhistory: { updatedBy: 'CSV IMPORT', note: 'Booking synchronized from CSV' } } });
+        if (!result.matchedCount) throw new Error(`Booking ${naturalMatch._id} changed during import. Refresh before retrying.`);
         updated += result.modifiedCount || 0;
       } else {
-        await BookingModel.create(booking);
+        await BookingModel.create(await prepareFinancialMutation(null, booking, { actor: { name: 'CSV IMPORT' }, reason: 'Booking imported from CSV' }));
         inserted += 1;
       }
     }
@@ -315,12 +321,15 @@ async function main() {
     console.log(`Sync inserted missing: ${inserted}`);
   }
 
-  if (UPDATE_SHARES) {
+  if (COMMIT && UPDATE_SHARES) {
     let updated = 0;
     for (const booking of bookings) {
-      const result = await BookingModel.updateOne(buildDuplicateFilter(booking), {
-        $set: { shared_with: booking.shared_with },
-      });
+      const existing = await BookingModel.findOne(buildDuplicateFilter(booking)).lean();
+      if (!existing) continue;
+      const next = await prepareFinancialMutation(existing, { ...existing, shared_with: booking.shared_with, term_shares: { ...existing.term_shares, term_1: { ...(existing.term_shares?.term_1 || booking.term_shares.term_1), shared_with: booking.shared_with } } }, { actor: { name: 'CSV IMPORT' }, reason: 'Imported sharing updated', targetTerm: 'term_1', resetFromTerm: true });
+      const { _id, updatedhistory, createdAt, updatedAt, ...updates } = next;
+      const result = await BookingModel.updateOne(revisionFilter(existing), { $set: updates, $push: { updatedhistory: { updatedBy: 'CSV IMPORT', note: 'Imported sharing updated' } } });
+      if (!result.matchedCount) throw new Error(`Booking ${existing._id} changed during import.`);
       updated += result.modifiedCount || 0;
     }
     console.log(`Share records updated: ${updated}`);

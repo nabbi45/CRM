@@ -5,9 +5,9 @@ import {
   getBookingDeductionRowsForStats,
   getBookingRevenueForUser,
   hasBookingPaymentForUser,
+  getBookingFinancials,
 } from "./bookingRevenue.js";
 
-const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
 // Business-month grouping must not depend on the Render machine's timezone.
 const calendarDate = (date) => new Date(date.getTime() + 330 * 60000);
 const monthKeyFor = (date) => calendarDate(date).toISOString().slice(0, 7);
@@ -113,6 +113,7 @@ export function buildDashboardSummary({
 
   for (const booking of bookings) {
     bookingCount += 1;
+    result.totalPendingServiceDeductions = (result.totalPendingServiceDeductions || 0) + getBookingFinancials(booking).pending;
 
     const hasCurrentMonthPayment = hasBookingPaymentForUser(
       booking,
@@ -228,7 +229,7 @@ export function buildDashboardSummary({
       }
     }
 
-    TERM_KEYS.forEach((termKey) => {
+    getBookingFinancials(booking).terms.forEach(({ term_key: termKey, payment_date: effectiveDate }) => {
       const termAmount = getBookingRevenueForUser(
         booking,
         session.user_id,
@@ -238,12 +239,7 @@ export function buildDashboardSummary({
       );
       if (!termAmount) return;
 
-      const termDate = new Date(
-        booking.term_shares?.[termKey]?.payment_date ||
-          booking.payment_date ||
-          booking.date ||
-          booking.createdAt,
-      );
+      const termDate = new Date(effectiveDate);
       if (Number.isNaN(termDate.getTime())) return;
 
       const monthKey = monthKeyFor(termDate);
@@ -265,6 +261,10 @@ export function buildDashboardSummary({
       );
     });
 
+    const recoveryMonths = new Set((booking.deduction_recoveries || []).map((event) => monthKeyFor(new Date(event.effective_date))));
+    recoveryMonths.forEach((monthKey) => {
+      monthlyMap[monthKey] = (monthlyMap[monthKey] || 0) + getBookingRevenueForUser(booking, session.user_id, isAdmin, (entry, key) => key === 'recovery' && monthKeyFor(new Date(entry.payment_date)) === monthKey);
+    });
     sortedBookings.push(booking);
   }
 
@@ -403,7 +403,7 @@ export function buildDashboardSummary({
 
   result.serviceDeductionCatalog = serviceDeductionCatalogRows;
   const serviceDeductionRows = currentMonthDeductions.filter(
-    (row) => row.type === "Service Deduction",
+    (row) => ['Service Deduction', 'Historical Deduction Recovery', 'Deduction Recovery Reversal'].includes(row.type),
   );
   const manualRefundRows = currentMonthDeductions.filter(
     (row) => row.type === "Manual Refund Adjustment",

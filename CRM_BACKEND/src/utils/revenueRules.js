@@ -1,4 +1,5 @@
 import { ServiceModel } from "../models/ServiceModel.js";
+import { termHasGst, FINANCIAL_VERSION } from '../../../CRM_FRONTEND/src/utils/bookingFinancials.js';
 
 export const GST_RATE = 18;
 export const GST_MULTIPLIER = 1 + GST_RATE / 100;
@@ -42,7 +43,7 @@ export const buildGstMetadata = (booking = {}) => {
     total_amount_before_gst: amountExcludingGst(amounts.total_amount, gstIncluded),
     gst_amount: gstComponent(amounts.total_amount, gstIncluded),
     gst_excluded_amounts: Object.entries(amounts).reduce((acc, [key, value]) => {
-      acc[key] = amountExcludingGst(value, gstIncluded);
+      acc[key] = amountExcludingGst(value, key === 'total_amount' ? gstIncluded : termHasGst(booking, key));
       return acc;
     }, {}),
   };
@@ -71,7 +72,7 @@ export const sanitizeRefundable = ({
   };
 };
 
-export const snapshotServiceDeductions = async (services = []) => {
+export const snapshotServiceDeductions = async (services = [], catalog = null) => {
   if (!Array.isArray(services) || !services.length) return [];
 
   // Catalog labels are literal text, including brackets, dots and plus signs.
@@ -80,35 +81,44 @@ export const snapshotServiceDeductions = async (services = []) => {
   const names = [...new Map(services.map((service) => String(service || '').trim())
     .filter(Boolean).map((name) => [name.toLowerCase(), name])).values()];
   const patterns = names.map((name) => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
-  const serviceDocs = await ServiceModel.find({
+  const serviceDocs = catalog || await ServiceModel.find({
     $or: [{ name: { $in: patterns } }, { value: { $in: patterns } }],
   }).lean();
 
   const deductionByName = new Map();
+  const requestedLabels = new Set(names.map((name) => name.toLowerCase()));
   for (const service of serviceDocs) {
+    if (![service.name, service.value].some((label) => requestedLabels.has(String(label || '').trim().toLowerCase()))) continue;
     for (const label of [service.name, service.value]) {
       const key = String(label || '').trim().toLowerCase();
       const amount = Number(service.deduction || 0);
-      if (deductionByName.has(key) && deductionByName.get(key) !== amount)
+      if (!Number.isFinite(amount) || amount < 0) throw new Error(`Invalid catalog deduction for ${service.name}.`);
+      if (deductionByName.has(key) && deductionByName.get(key).id !== String(service._id))
         throw new Error(`Conflicting catalog deduction rates for ${label}. Please resolve the duplicate service.`);
-      deductionByName.set(key, amount);
+      deductionByName.set(key, { amount, id: String(service._id) });
     }
   }
 
+  const seenIds = new Set();
   return names
     .map((service) => {
       const serviceName = String(service || "").trim();
+      const catalog = deductionByName.get(serviceName.toLowerCase());
+      if (!catalog || seenIds.has(catalog.id)) return null;
+      seenIds.add(catalog.id);
       return {
+        service_id: catalog.id,
+        service_key: catalog.id,
         service_name: serviceName,
-        deduction: roundMoney(deductionByName.get(serviceName.toLowerCase()) || 0),
+        deduction: roundMoney(catalog.amount || 0),
       };
     })
-    .filter((item) => item.service_name && item.deduction > 0);
+    .filter((item) => item && item.service_name && item.deduction > 0);
 };
 
 // Service deductions are financial snapshots. Editing a booking's services must remove
 // deleted services without rewriting the historical rate of services that remain.
-export const reconcileServiceDeductionSnapshot = async (services = [], existingSnapshot = []) => {
+export const reconcileServiceDeductionSnapshot = async (services = [], existingSnapshot = [], catalog = null) => {
   const normalizedServices = [...new Map(
     (Array.isArray(services) ? services : [])
       .map((service) => String(service || "").trim())
@@ -120,20 +130,36 @@ export const reconcileServiceDeductionSnapshot = async (services = [], existingS
     (Array.isArray(existingSnapshot) ? existingSnapshot : [])
       .filter((item) => String(item?.service_name || "").trim())
       .map((item) => [String(item.service_name).trim().toLowerCase(), {
+        ...(item.service_id ? { service_id: String(item.service_id) } : {}),
+        ...(item.service_key ? { service_key: item.service_key } : {}),
+        ...(item.effective_term_key ? { effective_term_key: item.effective_term_key } : {}),
         service_name: String(item.service_name).trim(),
         deduction: roundMoney(item.deduction || 0),
       }])
   );
 
-  const missingServices = normalizedServices.filter((service) => !existingByName.has(service.toLowerCase()));
-  const newSnapshots = await snapshotServiceDeductions(missingServices);
+  const labels = [...normalizedServices, ...existingSnapshot.map((item) => item.service_name)].filter(Boolean);
+  const patterns = labels.map((label) => new RegExp(`^${String(label).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
+  const resolvedCatalog = catalog || (patterns.length ? await ServiceModel.find({ $or: [{ name: { $in: patterns } }, { value: { $in: patterns } }] }).lean() : []);
+  const catalogByLabel = new Map(resolvedCatalog.flatMap((item) => [item.name, item.value].map((label) => [String(label || '').trim().toLowerCase(), item])));
+  const newSnapshots = await snapshotServiceDeductions(normalizedServices, resolvedCatalog);
   const newByName = new Map(
     newSnapshots.map((item) => [String(item.service_name).trim().toLowerCase(), item])
   );
 
-  return normalizedServices
-    .map((service) => existingByName.get(service.toLowerCase()) || newByName.get(service.toLowerCase()))
-    .filter((item) => item && item.deduction > 0);
+  const existingById = new Map(existingSnapshot.map((item) => [String(item.service_id || catalogByLabel.get(String(item.service_name).trim().toLowerCase())?._id || ''), item]).filter(([id]) => id));
+  const freshById = new Map(newSnapshots.map((item) => [item.service_id, item]));
+  const seen = new Set();
+  return normalizedServices.map((service) => {
+    const serviceId = String(catalogByLabel.get(service.toLowerCase())?._id || '');
+    const fresh = newByName.get(service.toLowerCase()) || freshById.get(serviceId);
+    const retained = existingByName.get(service.toLowerCase()) || existingById.get(serviceId);
+    const item = retained ? { ...retained, service_name: service, ...(serviceId ? { service_id: serviceId, service_key: retained.service_key || String(retained.service_name).trim().toLowerCase() } : {}) } : fresh && { ...fresh, service_name: service };
+    if (!item || item.deduction <= 0) return null;
+    const key = item.service_id || item.service_name.toLowerCase();
+    if (seen.has(key)) return null;
+    seen.add(key); return item;
+  }).filter(Boolean);
 };
 
 export const prepareBookingFinancials = async (booking = {}, { snapshotDeductions = true } = {}) => {
@@ -144,6 +170,7 @@ export const prepareBookingFinancials = async (booking = {}, { snapshotDeduction
     : booking.service_deductions_snapshot || [];
 
   return {
+    financial_version: FINANCIAL_VERSION,
     ...gstMetadata,
     ...refundable,
     service_deductions_snapshot,

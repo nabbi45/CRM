@@ -21,6 +21,7 @@ const main = async () => {
   const booking = await BookingModel.findById(BOOKING_ID);
   if (!booking) throw new Error(`Booking ${BOOKING_ID} was not found.`);
 
+  if (apply && booking.financial_version >= 2) throw new Error('Use the audited deduction review/recovery API for bookings using financial version 2.');
   const before = booking.service_deductions_snapshot || [];
   const after = before.filter((item) => normalize(item.service_name) !== normalize(REMOVED_SERVICE));
   const markdown = [

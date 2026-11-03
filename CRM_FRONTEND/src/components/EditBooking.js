@@ -22,7 +22,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import SelectMUI from 'react-select';
 import { enqueueSnackbar } from 'notistack';
 import servicesList from '../Data/ServicesData';
-import ServiceDropdown from './Servicesdropdown'
+import ServiceDropdown from './Servicesdropdown';
+import DeductionPreview from './DeductionPreview';
+import { termMetadata } from '../utils/bookingFinancials';
 import { getPaymentMethodsForEdit } from "../utils/paymentMethods";
 const userSession = JSON.parse(localStorage.getItem('userSession')) || {};
 const updatedBy = userSession.name || 'Unknown';
@@ -60,17 +62,33 @@ const EditBooking = ({ initialData, onClose }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [deductionCatalog, setDeductionCatalog] = useState(null);
   const [companyBranches, setCompanyBranches] = useState([]);
   const [users, setUsers] = useState([]);
   const [sharedPersons, setSharedPersons] = useState([]);
-  const userOptions = [
+  const selectedTermKey = `term_${Number(String(formData.selectTerm).replace(/\D/g, '')) || 1}`;
+  const previewBooking = {
+    ...initialData,
+    services: formData.services,
+    [selectedTermKey]: Number(formData.amount || 0),
+    term_shares: {
+      ...initialData.term_shares,
+      [selectedTermKey]: {
+        ...termMetadata(initialData, selectedTermKey),
+        payment_mode: formData.bank,
+        payment_date: formData.paymentDate,
+        shared_with: sharedPersons.filter((person) => person.userId).map((person) => ({ user_id: person.userId, percentage: person.percentage === '' ? null : Number(person.percentage) })),
+      },
+    },
+  };
+  const userOptions = [...new Map([
     ...users,
-    ...(Array.isArray(initialData?.shared_with)
-      ? initialData.shared_with
+    ...(initialData
+      ? [...(initialData.shared_with || []), ...Object.values(initialData.term_shares || {}).flatMap((term) => term.shared_with || [])]
           .filter((sw) => sw.user_id && !users.some((u) => String(u._id) === String(sw.user_id)))
           .map((sw) => ({ _id: sw.user_id, name: sw.user_name || 'Shared employee' }))
       : []),
-  ];
+  ].map((user) => [String(user._id), user])).values()];
 
   const nextReceivableTerm = (() => {
     for (let index = 1; index < TERM_KEYS.length; index += 1) {
@@ -84,11 +102,11 @@ const EditBooking = ({ initialData, onClose }) => {
   // Populate the form with initialData if available
   useEffect(() => {
     if (initialData) {
-      console.log(initialData)
       const firstActiveTermKey =
         initialData.__editTermKey ||
         TERM_KEYS.find((termKey) => Number(initialData?.[termKey] || 0) > 0) ||
         'term_1';
+      const selectedMetadata = termMetadata(initialData, firstActiveTermKey);
       setFormData({
         branch: initialData.branch_name || '',
         companyName: initialData.company_name ? initialData.company_name.toUpperCase() : '',
@@ -100,22 +118,22 @@ const EditBooking = ({ initialData, onClose }) => {
         totalAmount: initialData.total_amount || '',
         selectTerm: TERM_OPTIONS.find((option) => option.key === firstActiveTermKey)?.label || 'Term 1',
         amount: initialData[firstActiveTermKey] || '',
-        paymentDate: initialData.payment_date ? new Date(initialData.payment_date).toLocaleDateString('en-GB').split('/').reverse().join('-') : '',
+        paymentDate: selectedMetadata.payment_date ? new Date(selectedMetadata.payment_date).toISOString().slice(0, 10) : '',
         pan: initialData.pan ? initialData.pan.toUpperCase() : '',
         gst: initialData.gst ? initialData.gst.toUpperCase() : '',
         notes: initialData.remark || '',
         note: initialData.note || '',
         updatedBy: updatedBy || "Unknown",
-        bank: initialData.bank,
+        bank: selectedMetadata.payment_mode,
         status: initialData.status || '',
         closed: initialData.closed_by || '',
         funddisbursement: initialData.after_disbursement || ''
       });
       setSharedPersons(
-        Array.isArray(initialData.shared_with)
-          ? initialData.shared_with.map((sw) => ({
+        Array.isArray(selectedMetadata.shared_with)
+          ? selectedMetadata.shared_with.map((sw) => ({
               userId: sw.user_id || '',
-              percentage: sw.percentage || '',
+              percentage: sw.percentage == null ? '' : sw.percentage,
             }))
           : []
       );
@@ -173,6 +191,13 @@ const EditBooking = ({ initialData, onClose }) => {
   // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'selectTerm') {
+      const key = TERM_KEYS[Number(value.replace(/\D/g, '')) - 1];
+      const term = termMetadata(initialData, key);
+      setFormData((prev) => ({ ...prev, selectTerm: value, amount: initialData[key] || '', paymentDate: term.payment_date ? new Date(term.payment_date).toISOString().slice(0, 10) : '', bank: term.payment_mode }));
+      setSharedPersons((term.shared_with || []).map((person) => ({ userId: person.user_id, percentage: person.percentage == null ? '' : person.percentage })));
+      return;
+    }
     const upperFields = ["companyName", "contactPerson", "pan", "gst"];
     const nextValue = name === "email"
       ? value.toLowerCase()
@@ -205,6 +230,12 @@ const EditBooking = ({ initialData, onClose }) => {
     if (!formData.amount || isNaN(formData.amount)) validationErrors.amount = "Valid Amount is required";
     if (!formData.paymentDate) validationErrors.paymentDate = "Payment Date is required";
 
+    const selectedShares = sharedPersons.filter((person) => person.userId);
+    const blanks = selectedShares.filter((person) => person.percentage === '' || person.percentage == null);
+    if (blanks.length && blanks.length !== selectedShares.length) {
+      validationErrors.sharing = 'Leave every coworker percentage blank, or enter every percentage.';
+      enqueueSnackbar(validationErrors.sharing, { variant: 'error' });
+    }
     setErrors(validationErrors);
     return Object.keys(validationErrors).length === 0;
   };
@@ -218,13 +249,13 @@ const EditBooking = ({ initialData, onClose }) => {
       if (userSession) {
         const buildShareEntries = () =>
           sharedPersons
-            .filter((person) => person.userId && person.percentage)
+            .filter((person) => person.userId)
             .map((person) => {
               const userObj = users.find((u) => String(u._id) === String(person.userId));
               return {
                 user_id: person.userId,
                 user_name: userObj ? userObj.name?.toUpperCase() : "COWORKER",
-                percentage: Number(person.percentage),
+                percentage: person.percentage === '' || person.percentage == null ? null : Number(person.percentage),
               };
             });
         const selectedTermNumber = Math.min(
@@ -233,12 +264,6 @@ const EditBooking = ({ initialData, onClose }) => {
         );
         const termKey = TERM_KEYS[selectedTermNumber - 1] || "term_1";
         const shareEntries = buildShareEntries();
-        const termAmounts = TERM_KEYS.reduce((acc, currentTermKey, index) => {
-          acc[currentTermKey] = currentTermKey === termKey
-            ? Number(formData.amount || 0)
-            : Number(initialData?.[currentTermKey] || 0) || null;
-          return acc;
-        }, {});
         const dataToSubmit = {
           branch_name: formData.branch,
           company_name: formData.companyName?.toUpperCase() || "",
@@ -248,12 +273,13 @@ const EditBooking = ({ initialData, onClose }) => {
           services: formData.services,
           closed_by: formData.closed,
           total_amount: Number(formData.totalAmount),
-          ...termAmounts,
+          edit_term_key: termKey,
+          [termKey]: Number(formData.amount || 0),
           pan: formData.pan?.toUpperCase() || "",
           gst: formData.gst?.toUpperCase() || "",
           payment_date:formData.paymentDate,
           remark: formData.notes,
-          date: formData.date,
+          ...(termKey === 'term_1' ? { date: formData.date } : {}),
           bank: formData.bank,
           status: formData.status,
           updatedBy: formData.updatedBy,
@@ -273,7 +299,6 @@ const EditBooking = ({ initialData, onClose }) => {
             },
           },
         };
-        console.log(dataToSubmit);
 
         fetch(`${apiUrl}/booking/editbooking/${initialData._id}`, {
           method: 'PATCH',
@@ -285,11 +310,10 @@ const EditBooking = ({ initialData, onClose }) => {
           },
           body: JSON.stringify(dataToSubmit),
         })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error('Error updating booking');
-            }
-            return response.json();
+          .then(async (response) => {
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.message || 'Error updating booking');
+            return result;
           })
           .then(() => {
             enqueueSnackbar('Booking Updated successfully!', { variant: 'success' }); // Use notistack's success notification
@@ -407,7 +431,10 @@ const EditBooking = ({ initialData, onClose }) => {
             </Grid>
 
             {/* Services */}
-            <ServiceDropdown formData={formData} setFormData={setFormData} />
+            <ServiceDropdown formData={formData} setFormData={setFormData} onCatalogLoaded={setDeductionCatalog} />
+            <Grid item xs={12}>
+              <DeductionPreview catalog={deductionCatalog} source={initialData} targetTerm={selectedTermKey} booking={previewBooking} />
+            </Grid>
 
             {/* Total Amount */}
             <Grid item xs={12} sm={6}>

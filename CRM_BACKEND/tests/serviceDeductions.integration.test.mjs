@@ -43,7 +43,14 @@ test('service changes preserve saved rates, remove deleted services and add miss
     { service_name: startup, deduction: 2300 },
     { service_name: 'Removed service', deduction: 500 },
   ]);
-  assert.deepEqual(snapshot, [{ service_name: registration, deduction: 9200 }, { service_name: startup, deduction: 2300 }]);
+  assert.deepEqual(snapshot.map(({ service_name, deduction }) => ({ service_name, deduction })), [{ service_name: registration, deduction: 9200 }, { service_name: startup, deduction: 2300 }]);
+});
+
+test('switching a saved service to its catalog alias retains the historical rate', async () => {
+  const snapshot = await reconcileServiceDeductionSnapshot(['ISO+SUPPORT'], [{ service_name: 'ISO 9001 (NON-IAF) + SUPPORT', deduction: 1200 }]);
+  assert.equal(snapshot.length, 1);
+  assert.equal(snapshot[0].deduction, 1200);
+  assert.equal(snapshot[0].service_name, 'ISO+SUPPORT');
 });
 test('new bookings and edited services persist registration deductions through real HTTP routes', async () => {
   const owner = await UserModel.findOne({ user_role: 'dev' }).lean();

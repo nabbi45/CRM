@@ -15,6 +15,10 @@ const fields = [
   "refund_adjustments",
   "services",
   "service_deductions_snapshot",
+  "financial_version",
+  "financial_revision",
+  "deduction_baseline",
+  "deduction_recoveries",
   "gst_included",
   "gst_applied",
   "bank",
@@ -45,6 +49,7 @@ export const dashboardFinancialProjection = {
         cond: { $or: [
           { $ne: [{ $ifNull: ['$$term.v.creator.user_id', ''] }, ''] },
           { $ne: [{ $ifNull: ['$$term.v.payment_date', ''] }, ''] },
+          { $ne: [{ $ifNull: ['$$term.v.payment_mode', ''] }, ''] },
           { $gt: [{ $size: { $ifNull: ['$$term.v.shared_with', []] } }, 0] },
         ] },
       },
@@ -92,7 +97,7 @@ router.get("/summary", authenticateUser, async (req, res) => {
             .maxTimeMS(10000)),
           admin ? cachedRead('dashboard:user-count', () => UserModel.countDocuments().maxTimeMS(10000)) : 0,
         ]);
-        const companyBookings = company.filter((b) => b.isDeleted === false);
+        const companyBookings = company.filter((b) => b.isDeleted !== true);
         const companySummary = await cachedRead(`dashboard:company-calculations:${generation}:${month}`, () => buildDashboardSummary({
           bookings: companyBookings, users, services, totalUsers: count,
           session: { user_id: id }, isAdmin: true, month,

@@ -28,6 +28,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { enqueueSnackbar } from "notistack";
 import { apiUrl } from "./LoginSignup";
+import DeductionPreview from "./DeductionPreview";
 import { getBookingRefundableLabel } from "../utils/bookingRevenue";
 
 const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
@@ -86,6 +87,7 @@ const BookingApprovals = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [approvals, setApprovals] = useState([]);
+  const [deductionCatalog, setDeductionCatalog] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [refund, setRefund] = useState({ amount: "", refund_date: new Date().toISOString().split("T")[0], note: "" });
@@ -145,15 +147,15 @@ const BookingApprovals = () => {
   };
 
   const fetchBookings = async () => {
-    if (!isAdmin) return;
-    const res = await fetch(`${apiUrl}/booking/all`, { headers: authHeaders });
+    const res = await fetch(isAdmin ? `${apiUrl}/booking/all` : `${apiUrl}/booking/scorecard-source`, { headers: authHeaders });
     const data = await res.json().catch(() => ({}));
-    if (res.ok) setBookings(data.Allbookings || []);
+    if (res.ok) setBookings(data.Allbookings || data.bookings || []);
   };
 
   useEffect(() => {
     fetchApprovals();
     fetchBookings();
+    fetch(`${apiUrl}/services/api/services`, { headers: authHeaders }).then((res) => res.ok ? res.json() : null).then(setDeductionCatalog).catch(() => setDeductionCatalog(null));
   }, []);
 
   const actOnApproval = async (approvalId, action) => {
@@ -532,6 +534,7 @@ const BookingApprovals = () => {
                     </Grid>
                   </Grid>
 
+                  <DeductionPreview catalog={deductionCatalog} source={bookings.find((booking) => booking._id === approval.payload?.continuation_of_booking_id)} targetTerm={approval.payload?.continuation_term_key || 'term_1'} booking={approval.payload || {}} />
                   {approval.admin_comment && (
                     <Alert severity={approval.status === "rejected" ? "error" : "warning"} sx={{ mt: 1 }}>
                       {approval.admin_comment}

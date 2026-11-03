@@ -19,7 +19,10 @@ import {
   TERM_KEYS,
 } from "../utils/revenueRules.js";
 
+import { prepareFinancialMutation, isolateTermUpdate, stripFinancialInput, revisionFilter, amountChanged } from "../utils/bookingFinancialState.js";
+import DeductionRoutes from './DeductionRoute.js';
 const BookingRoutes = express.Router();
+BookingRoutes.use(DeductionRoutes);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 const uploadPaymentProofs = async (files = [], bookingId) => {
@@ -110,18 +113,6 @@ const getBookingAccessUserIds = (booking) => {
   });
 
   return accessIds;
-};
-
-const isContinuationEditPayload = (updates = {}) => {
-  const keys = Object.keys(updates || {});
-  if (!keys.length) return false;
-  if (!keys.every((key) => CONTINUATION_EDIT_FIELDS.has(key))) return false;
-
-  const hasTermAmount = TERM_KEYS.slice(1).some((termKey) =>
-    Object.prototype.hasOwnProperty.call(updates, termKey)
-  );
-
-  return hasTermAmount && Object.prototype.hasOwnProperty.call(updates, "term_shares");
 };
 
 const resolveEditorName = async (req, fallback = "") => {
@@ -256,10 +247,9 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
       is_approval_refundable,
       approval_refundable_percentage,
     });
-    const new_booking = {
-      ...basePayload,
-      ...(await prepareBookingFinancials(basePayload)),
-    };
+    const new_booking = await prepareFinancialMutation(null, {
+      ...basePayload, ...(await prepareBookingFinancials(basePayload)),
+    }, { actor: req.user, reason: 'Booking created', reconcile: false });
 
     const booking = await BookingModel.create(new_booking);
     if (req.files?.length) {
@@ -289,7 +279,7 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
     });
   } catch (error) {
     console.log(error);
-    return res.status(500).send({ message: error.message });
+    return res.status(error.status || 500).send({ message: error.message });
   }
 });
 
@@ -297,175 +287,40 @@ BookingRoutes.post("/addbooking", authenticateUser, upload.array("paymentProofs"
 
 BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
   const { id } = req.params;
-  let updates = req.body;
-
-  const user_role = (req.headers["user-role"] || "").toString().trim().toLowerCase();
-  if (!user_role) {
-    return res.status(400).send({ message: "User role is required" });
-  }
-
-  const { updatedBy, note } = updates;
-  delete updates.updatedBy;
-  delete updates.note;
-  updates = normalizeBookingPayload(updates);
-
   try {
-    const oldBooking = await BookingModel.findById(id);
-    if (!oldBooking) {
-      return res.status(404).send("Booking not found");
-    }
-
-    const requesterUserId = String(req.user?.userId || req.user?.user_id || "");
-    const continuationEdit = isContinuationEditPayload(updates);
-
-    if (
-      TERM_KEYS.some((termKey) => Object.prototype.hasOwnProperty.call(updates, termKey)) ||
-      Object.prototype.hasOwnProperty.call(updates, "total_amount") ||
-      Object.prototype.hasOwnProperty.call(updates, "bank")
-    ) {
-      const mergedBooking = {
-        ...oldBooking.toObject(),
-        ...updates,
-      };
-      updates = {
-        ...updates,
-        ...buildGstMetadata(mergedBooking),
-      };
-    }
-
-    // Keep the original deduction rate for retained services, remove deleted services,
-    // and snapshot only services newly added through this edit.
-    if (Object.prototype.hasOwnProperty.call(updates, "services")) {
-      updates.service_deductions_snapshot = await reconcileServiceDeductionSnapshot(
-        updates.services,
-        oldBooking.service_deductions_snapshot || []
-      );
-    } else {
-      delete updates.service_deductions_snapshot;
-    }
-    delete updates.refund_adjustments;
-    updates.is_refundable = oldBooking.is_refundable;
-    updates.refundable_percentage = oldBooking.refundable_percentage || 0;
-    updates.is_approval_refundable = oldBooking.is_approval_refundable || false;
-    updates.approval_refundable_percentage = oldBooking.approval_refundable_percentage || 0;
-
-    if (Object.prototype.hasOwnProperty.call(updates, "payment_date") && !continuationEdit) {
-      const selectedTermKey =
-        TERM_KEYS.find((termKey) => Object.prototype.hasOwnProperty.call(updates, termKey) && Number(updates[termKey] || 0) > 0) ||
-        TERM_KEYS.find((termKey) => Number(oldBooking[termKey] || 0) > 0) ||
-        "term_1";
-      updates.term_shares = {
-        ...(oldBooking.term_shares || {}),
-        ...(updates.term_shares || {}),
-        [selectedTermKey]: {
-          ...(oldBooking.term_shares?.[selectedTermKey] || {}),
-          ...(updates.term_shares?.[selectedTermKey] || {}),
-          creator: updates.term_shares?.[selectedTermKey]?.creator || oldBooking.term_shares?.[selectedTermKey]?.creator || {
-            user_id: oldBooking.user_id,
-            user_name: oldBooking.bdm,
-          },
-          payment_date: updates.payment_date,
-          payment_mode: updates.bank || oldBooking.term_shares?.[selectedTermKey]?.payment_mode || oldBooking.bank || "",
-          shared_with: Array.isArray(updates.term_shares?.[selectedTermKey]?.shared_with)
-            ? updates.term_shares[selectedTermKey].shared_with
-            : Array.isArray(oldBooking.term_shares?.[selectedTermKey]?.shared_with)
-              ? oldBooking.term_shares[selectedTermKey].shared_with
-              : [],
-        },
-      };
-    }
-
-    if (!isAdminRole(user_role)) {
-      if (continuationEdit) {
-        const accessIds = getBookingAccessUserIds(oldBooking);
-        if (!requesterUserId || !accessIds.has(requesterUserId)) {
-          return res.status(403).send({
-            message: "Only the booking owner or shared employees can add continuation terms.",
-          });
-        }
-      } else {
-        return res.status(403).send({
-          message: "Only admins and higher roles can edit bookings.",
-        });
+    const oldBooking = await BookingModel.findById(id).lean();
+    if (!oldBooking || oldBooking.isDeleted) return res.status(404).json({ message: 'Booking not found' });
+    const { note = '' } = req.body;
+    const clean = stripFinancialInput(req.body);
+    delete clean.updatedBy;
+    delete clean.note;
+    const normalized = normalizeBookingPayload(clean);
+    const { updates, target } = isolateTermUpdate(oldBooking, normalized);
+    const continuationEdit = target && Number(oldBooking[target] || 0) <= 0 && Number(updates[target] || 0) > 0;
+    const requester = String(req.user.userId || req.user.user_id || '');
+    if (!isAdminRole(req.user.user_role)) {
+      const allowed = new Set([...CONTINUATION_EDIT_FIELDS, 'edit_term_key']);
+      if (!continuationEdit || !Object.keys(clean).every((key) => allowed.has(key)) || !getBookingAccessUserIds(oldBooking).has(requester)) {
+        return res.status(403).json({ message: 'Only admins and higher roles can edit bookings. Booking participants may submit a new continuation term.' });
       }
+      if (String(updates.term_shares?.[target]?.creator?.user_id) !== requester) return res.status(403).json({ message: 'The continuation creator must be the signed-in employee.' });
     }
-
-    if (continuationEdit) {
-      const targetTermKey = TERM_KEYS.slice(1).find((termKey) => Object.prototype.hasOwnProperty.call(updates, termKey)) || "";
-      const targetTermShare = updates.term_shares?.[targetTermKey];
-
-      if (
-        !targetTermKey ||
-        !targetTermShare?.creator?.user_id ||
-        !targetTermShare?.payment_date
-      ) {
-        return res.status(400).send({
-          message: "Continuation flow can only add one new term at a time.",
-        });
-      }
-
-      if (targetTermKey && Number(oldBooking[targetTermKey] || 0) > 0) {
-        return res.status(400).send({ message: `${targetTermKey.replace("_", " ").toUpperCase()} already exists for this booking.` });
-      }
-
-      const targetIndex = TERM_KEYS.indexOf(targetTermKey);
-      if (targetIndex > 0) {
-        const previousTermKey = TERM_KEYS[targetIndex - 1];
-        if (Number(oldBooking[previousTermKey] || 0) <= 0) {
-          return res.status(400).send({ message: `${previousTermKey.replace("_", " ").toUpperCase()} must be completed before ${targetTermKey.replace("_", " ").toUpperCase()}.` });
-        }
-      }
-
-      updates.term_shares = {
-        ...(oldBooking.term_shares || {}),
-        ...(updates.term_shares || {}),
-      };
-    }
-
-    if (!isAdminRole(user_role) && !continuationEdit) {
-      return res.status(403).send({
-        message: "Only admins and higher roles can edit bookings.",
-      });
-    }
-
-    const oldBookingPlain = oldBooking.toObject();
-
-    // Detect changed fields
+    if (continuationEdit && TERM_KEYS.indexOf(target) > 0 && Number(oldBooking[TERM_KEYS[TERM_KEYS.indexOf(target) - 1]] || 0) <= 0) return res.status(400).json({ message: 'Complete the previous term first.' });
+    const editable = new Set(['branch_name', 'company_name', 'contact_person', 'email', 'contact_no', 'services', 'closed_by', 'total_amount', 'pan', 'gst', 'payment_date', 'remark', 'date', 'bank', 'state', 'status', 'after_disbursement', 'shared_with', 'term_shares', ...TERM_KEYS]);
+    if (Object.keys(updates).some((key) => !editable.has(key))) return res.status(400).json({ message: 'Unsupported booking update field.' });
+    const merged = { ...oldBooking, ...updates };
+    const next = await prepareFinancialMutation(oldBooking, merged, { actor: req.user, reason: note || 'Booking edited', targetTerm: target, resetFromTerm: amountChanged(oldBooking, merged, target) });
     const changedFields = {};
-    for (let key in updates) {
-      const oldValue = oldBookingPlain[key];
-      const newValue = updates[key];
-
-      if (!valuesEqualForHistory(oldValue, newValue)) {
-        changedFields[key] = {
-          old: normalizeForHistory(oldValue),
-          new: normalizeForHistory(newValue),
-        };
+    const savedUpdates = {};
+    Object.keys(next).filter((key) => !['_id', 'updatedhistory', 'createdAt', 'updatedAt'].includes(key)).forEach((key) => {
+      if (!valuesEqualForHistory(oldBooking[key], next[key])) {
+        savedUpdates[key] = next[key];
+        if (key !== 'financial_events') changedFields[key] = { old: normalizeForHistory(oldBooking[key]), new: normalizeForHistory(next[key]) };
       }
-    }
-
-    // If nothing changed, exit early
-    if (Object.keys(changedFields).length === 0) {
-      return res.status(400).send({ message: "No changes detected" });
-    }
-
-    // Create updated history entry
-    const historyEntry = {
-      updatedBy: await resolveEditorName(req, updatedBy),
-      updatedAt: new Date(),
-      note: note || "",
-      changes: changedFields,
-    };
-
-    const updatedBooking = await BookingModel.findByIdAndUpdate(
-      id,
-      {
-        $set: updates,
-        $push: { updatedhistory: historyEntry },
-      },
-      { new: true }
-    );
-
+    });
+    const historyEntry = { updatedBy: await resolveEditorName(req), updatedAt: new Date(), note, changes: changedFields };
+    const updatedBooking = await BookingModel.findOneAndUpdate(revisionFilter(oldBooking), { $set: savedUpdates, $push: { updatedhistory: historyEntry } }, { new: true, runValidators: true });
+    if (!updatedBooking) return res.status(409).json({ message: 'Booking changed. Refresh and try again.' });
     // Check for newly added shared_with users and notify them
     if (updates.shared_with && Array.isArray(updates.shared_with)) {
       const oldSharedIds = (oldBooking.shared_with || []).map(sw => String(sw.user_id));
@@ -491,7 +346,7 @@ BookingRoutes.patch("/editbooking/:id", authenticateUser, async (req, res) => {
       updatedBooking,
     });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -528,13 +383,15 @@ BookingRoutes.delete("/editbooking/:id/terms/:termKey", authenticateUser, async 
       });
     }
 
+    const beforeFinancial = booking.toObject();
     const oldAmount = Number(booking[termKey] || 0);
     booking[termKey] = 0;
     if (booking.term_shares) {
       booking.term_shares[termKey] = undefined;
       booking.markModified("term_shares");
     }
-    Object.assign(booking, buildGstMetadata(booking.toObject()));
+    const recalculated = await prepareFinancialMutation(beforeFinancial, booking.toObject(), { actor: req.user, reason: `${termKey} deleted`, targetTerm: termKey, resetFromTerm: true });
+    Object.assign(booking, recalculated);
     booking.updatedhistory.push({
       updatedBy: await resolveEditorName(req),
       updatedAt: new Date(),
@@ -545,10 +402,13 @@ BookingRoutes.delete("/editbooking/:id/terms/:termKey", authenticateUser, async 
       },
     });
 
-    await booking.save();
+    const deletedTerm = await BookingModel.findOneAndUpdate(revisionFilter(beforeFinancial), {
+      $set: Object.fromEntries(Object.entries(booking.toObject()).filter(([key]) => !['_id', 'createdAt', 'updatedAt'].includes(key))),
+    }, { new: true });
+    if (!deletedTerm) return res.status(409).json({ message: 'Booking changed. Refresh and try again.' });
     return res.status(200).send({ message: `${termKey.replace("_", " ").toUpperCase()} deleted successfully.`, booking });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -648,7 +508,7 @@ BookingRoutes.delete("/deletebooking/:id", authenticateUser, async (req, res) =>
     await BookingModel.findByIdAndDelete(id);
     return res.status(200).send({ message: "Booking permanently deleted." });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -665,7 +525,7 @@ BookingRoutes.delete("/emptytrash", authenticateUser, async (req, res) => {
     await BookingModel.deleteMany({ isDeleted: true });
     return res.status(200).send({ message: "Trash emptied successfully." });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -686,7 +546,7 @@ BookingRoutes.get("/all", authenticateUser, async (req, res) => {
     });
   } catch (err) {
     console.error("Error in /all:", err.message);
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -992,7 +852,7 @@ BookingRoutes.post("/:id/refunds", authenticateUser, async (req, res) => {
     });
   } catch (err) {
     console.error("Refund adjustment error:", err);
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -1034,7 +894,7 @@ BookingRoutes.patch("/:id/refunds/:refundId", authenticateUser, async (req, res)
 
     return res.status(200).send({ message: "Refund adjustment updated successfully.", refund, booking });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -1057,7 +917,7 @@ BookingRoutes.delete("/:id/refunds/:refundId", authenticateUser, async (req, res
 
     return res.status(200).send({ message: "Refund adjustment deleted successfully.", booking });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 

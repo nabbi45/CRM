@@ -11,6 +11,8 @@ import { normalizeBookingPayload } from "../utils/textNormalize.js";
 import { getCloudinaryPublicExtension, prepareUploadFiles, toDataUri } from "../utils/uploadCompression.js";
 import { collectAffectedUserIds, isAdminRole, prepareBookingFinancials, TERM_KEYS } from "../utils/revenueRules.js";
 
+import { prepareFinancialMutation, revisionFilter, stripFinancialInput } from '../utils/bookingFinancialState.js';
+import { participantsForTerm } from '../../../CRM_FRONTEND/src/utils/bookingFinancials.js';
 const BookingApprovalRoutes = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -48,16 +50,19 @@ const requiredBookingFields = [
 ];
 
 const parsePayload = (body = {}) => {
-  const rawPayload = body.payload ? JSON.parse(body.payload) : body;
+  const rawPayload = stripFinancialInput(body.payload ? JSON.parse(body.payload) : body);
   const numericTerms = TERM_KEYS.reduce((acc, termKey) => {
     acc[termKey] = Number(rawPayload[termKey] || 0);
     return acc;
   }, {});
-  return normalizeBookingPayload({
+  const payload = normalizeBookingPayload({
     ...rawPayload,
     total_amount: Number(rawPayload.total_amount || 0),
     ...numericTerms,
   });
+  try { TERM_KEYS.forEach((key) => { if (payload[key] > 0) participantsForTerm(payload, key, { validate: true }); }); }
+  catch (error) { error.status = 400; throw error; }
+  return payload;
 };
 
 const validatePayload = (payload) => {
@@ -170,7 +175,7 @@ BookingApprovalRoutes.post("/", authenticateUser, upload.array("paymentProofs", 
     return res.status(201).send({ message: "Booking submitted for approval.", approval });
   } catch (err) {
     console.error("Booking approval submit error:", err);
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -182,7 +187,7 @@ BookingApprovalRoutes.get("/", authenticateUser, async (req, res) => {
     const approvals = await BookingApprovalModel.find(query).sort({ updatedAt: -1 }).lean();
     return res.status(200).send(approvals);
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -224,6 +229,7 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
         }
       }
 
+      if (!payload.term_shares?.[termKey]?.creator?.user_id || !payload.term_shares?.[termKey]?.payment_date) return res.status(400).json({ message: 'Continuation requires its own creator and payment date.' });
       const mergedBooking = {
         ...existingBooking.toObject(),
         services: Array.from(new Set([
@@ -232,7 +238,7 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
         ].filter(Boolean))),
         term_shares: {
           ...(existingBooking.term_shares || {}),
-          ...(payload.term_shares || {}),
+          [termKey]: payload.term_shares?.[termKey] || {},
         },
         [termKey]: Number(payload[termKey] || 0),
         payment_proof_url: approval.payment_proof_url,
@@ -252,11 +258,16 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
           },
         };
       }
+      const financialBooking = await prepareFinancialMutation(existingBooking, mergedBooking, { actor: req.user, reason: `${termKey} approved`, targetTerm: termKey });
+      Object.assign(mergedBooking, financialBooking);
       delete mergedBooking.updatedhistory;
+      delete mergedBooking._id;
+      delete mergedBooking.createdAt;
+      delete mergedBooking.updatedAt;
 
       const historyEntry = await buildContinuationHistoryEntry(approval, existingBooking.toObject(), mergedBooking);
-      const booking = await BookingModel.findByIdAndUpdate(
-        existingBooking._id,
+      const booking = await BookingModel.findOneAndUpdate(
+        revisionFilter(existingBooking.toObject()),
         {
           $set: mergedBooking,
           $push: { updatedhistory: historyEntry },
@@ -264,6 +275,7 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
         { new: true }
       );
 
+      if (!booking) return res.status(409).json({ message: 'Booking changed. Refresh before approving.' });
       approval.status = "approved";
       approval.approved_booking_id = booking._id.toString();
       approval.reviewed_by = getUserId(req);
@@ -317,7 +329,8 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
     delete bookingPayload.funddisbursement;
     delete bookingPayload.projectionLeadId;
 
-    const booking = await BookingModel.create(bookingPayload);
+    const financialBooking = await prepareFinancialMutation(null, bookingPayload, { actor: req.user, reason: 'Initial booking approved', reconcile: false });
+    const booking = await BookingModel.create(financialBooking);
     approval.status = "approved";
     approval.approved_booking_id = booking._id.toString();
     approval.reviewed_by = getUserId(req);
@@ -363,7 +376,7 @@ BookingApprovalRoutes.patch("/:id/approve", authenticateUser, async (req, res) =
     return res.status(200).send({ message: "Booking approved.", approval, booking });
   } catch (err) {
     console.error("Booking approval approve error:", err);
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -391,7 +404,7 @@ BookingApprovalRoutes.patch("/:id/reject", authenticateUser, async (req, res) =>
 
     return res.status(200).send({ message: "Booking approval rejected.", approval });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -419,7 +432,7 @@ BookingApprovalRoutes.patch("/:id/send-back", authenticateUser, async (req, res)
 
     return res.status(200).send({ message: "Booking sent back.", approval });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 
@@ -460,7 +473,7 @@ BookingApprovalRoutes.patch("/:id/resubmit", authenticateUser, upload.array("pay
 
     return res.status(200).send({ message: "Booking approval resubmitted.", approval });
   } catch (err) {
-    return res.status(500).send({ message: err.message });
+    return res.status(err.status || 500).send({ message: err.message });
   }
 });
 

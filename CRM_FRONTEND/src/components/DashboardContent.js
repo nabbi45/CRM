@@ -40,6 +40,7 @@ import Loader from "./Loader";
 import PaymentReminders from "./PaymentReminders";
 import Popup from "./Popup";
 import EditBooking from "./EditBooking";
+import DeductionManager from "./DeductionManager";
 import { enqueueSnackbar } from "notistack";
 const ACCENT = "#ff3b1f";
 const TERM_KEYS = Array.from({ length: 10 }, (_, index) => `term_${index + 1}`);
@@ -113,6 +114,8 @@ const DashboardContent = () => {
   const [personalMostRevenueService, setPersonalMostRevenueService] = useState({ name: "-", revenue: 0 });
   const [serviceDeductionCatalog, setServiceDeductionCatalog] = useState([]);
   const [totalServiceDeductions, setTotalServiceDeductions] = useState(0);
+  const [pendingServiceDeductions, setPendingServiceDeductions] = useState(0);
+  const [financialDialog, setFinancialDialog] = useState({ open: false, bookingId: '' });
   const [totalManualRefunds, setTotalManualRefunds] = useState(0);
   const [totalRefundableCuts, setTotalRefundableCuts] = useState(0);
   const [deductionTransactions, setDeductionTransactions] = useState([]);
@@ -438,6 +441,7 @@ const DashboardContent = () => {
       setManualRefundTransactions(summary.manualRefundTransactions);
       setRefundableTransactions(summary.refundableTransactions);
       setTotalServiceDeductions(summary.totalServiceDeductions);
+      setPendingServiceDeductions(summary.totalPendingServiceDeductions || 0);
       setTotalManualRefunds(summary.totalManualRefunds);
       setTotalRefundableCuts(summary.totalRefundableCuts);
       setTotalBookings(summary.totalBookings);
@@ -486,7 +490,7 @@ const DashboardContent = () => {
     const adminCards = [
       { label: "Bookings", value: totalBookings.toLocaleString(), sub: "All accessible bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
       { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
-      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "vendor" },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: `Applied this month ? Pending ${formatCurrency(pendingServiceDeductions)}`, icon: <PaidOutlinedIcon fontSize="small" />, detailType: "vendor" },
       { label: "Refund Adjustments", value: formatCurrency(Math.round(totalManualRefunds)), sub: "Manual refunds this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "manualRefund" },
       { label: "Refundable Cuts", value: formatCurrency(Math.round(totalRefundableCuts)), sub: "Refundable clause this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "refundable" },
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "Live today after deductions", icon: <TodayOutlinedIcon fontSize="small" /> },
@@ -497,7 +501,7 @@ const DashboardContent = () => {
     const userCards = [
       { label: "Bookings", value: totalBookings.toLocaleString(), sub: "Your live bookings", icon: <BookOnlineOutlinedIcon fontSize="small" /> },
       { label: "Revenue This Month", value: formatCurrency(totalRevenue), sub: "After deductions", icon: <CurrencyRupeeOutlinedIcon fontSize="small" /> },
-      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: "Vendor costs this month", icon: <PaidOutlinedIcon fontSize="small" />, detailType: "vendor" },
+      { label: "Service Deductions", value: formatCurrency(Math.round(totalServiceDeductions)), sub: `Applied this month ? Pending ${formatCurrency(pendingServiceDeductions)}`, icon: <PaidOutlinedIcon fontSize="small" />, detailType: "vendor" },
       { label: "Refund Adjustments", value: formatCurrency(Math.round(totalManualRefunds)), sub: "Manual refunds this month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "manualRefund" },
       { label: "Refundable Cuts", value: formatCurrency(Math.round(totalRefundableCuts)), sub: "This month", icon: <ReceiptLongOutlinedIcon fontSize="small" />, detailType: "refundable" },
       { label: "Today's Revenue", value: formatCurrency(todayRevenue), sub: "From today's bookings", icon: <TodayOutlinedIcon fontSize="small" /> },
@@ -517,6 +521,7 @@ const DashboardContent = () => {
     totalRevenue,
     totalManualRefunds,
     totalServiceDeductions,
+    pendingServiceDeductions,
     totalRefundableCuts,
     totalUsers,
     periodLabel,
@@ -1233,6 +1238,7 @@ const DashboardContent = () => {
           </DialogActions>
         </Dialog>
 
+        <DeductionManager open={financialDialog.open} bookingId={financialDialog.bookingId} onClose={() => setFinancialDialog({ open: false, bookingId: '' })} onChanged={() => fetchDashboardData(userSession)} />
         <Dialog open={deductionDialogOpen} onClose={() => setDeductionDialogOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Service Deduction Master</DialogTitle>
           <DialogContent dividers>
@@ -1316,7 +1322,7 @@ const DashboardContent = () => {
                       <TableCell>{row.companyName || "-"}</TableCell>
                       <TableCell>{row.service || "-"}</TableCell>
                       <TableCell>{row.type || "-"}</TableCell>
-                      <TableCell>{row.bookingId || "-"}</TableCell>
+                      <TableCell><Button size="small" onClick={() => setFinancialDialog({ open: true, bookingId: row.bookingId })}>Deduction details</Button></TableCell>
                       <TableCell align="right" sx={{ fontWeight: 700 }}>
                         {formatCurrency(row.deduction || 0)}
                       </TableCell>

@@ -14,6 +14,8 @@
     "test:hrm": "node --test tests/hrmRules.test.mjs tests/hrm.integration.test.mjs",
     "test:leads": "node --test tests/leadsManagement.integration.test.mjs",
     "test:dashboard": "node --test tests/dashboard.integration.test.mjs",
+    "test:financials": "node --test tests/bookingFinancials.test.mjs tests/serviceDeductions.integration.test.mjs tests/deductionLifecycle.integration.test.mjs tests/dashboard.integration.test.mjs",
+    "audit:deductions": "node scripts/audit-booking-deductions.mjs --summary",
     "test:performance": "node --test tests/readPerformance.integration.test.mjs"
   },
   "proxy": "https://crm-jeig.onrender.com",

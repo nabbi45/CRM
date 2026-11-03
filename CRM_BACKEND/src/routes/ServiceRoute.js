@@ -15,7 +15,7 @@ ServiceRoutes.post('/api/services', authenticateUser, authorizeDevRole, async (r
         return res.status(400).send('Invalid input data');
     }
     const parsedDeduction = Number(deduction || 0);
-    if (parsedDeduction < 0) {
+    if (!Number.isFinite(parsedDeduction) || parsedDeduction < 0) {
         return res.status(400).send({ message: 'Deduction cannot be negative' });
     }
 
@@ -48,7 +48,7 @@ ServiceRoutes.patch('/api/services/:id', authenticateUser, authorizeDevRole,asyn
     try {
         if (Object.prototype.hasOwnProperty.call(updates, "deduction")) {
             updates.deduction = Number(updates.deduction || 0);
-            if (updates.deduction < 0) {
+            if (!Number.isFinite(updates.deduction) || updates.deduction < 0) {
                 return res.status(400).send({ message: 'Deduction cannot be negative' });
             }
         }

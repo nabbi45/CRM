@@ -100,7 +100,7 @@ app.use(cors(corsOptions));
 app.use(requestTiming);
 app.use(invalidateReadsAfterWrite);
 app.use((_req, res, next) => {
-  res.set('X-CRM-Read-Version', '2026-10-25');
+  res.set('X-CRM-Read-Version', '2026-11-03');
   next();
 });
 app.options("*", cors(corsOptions));

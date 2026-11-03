@@ -51,7 +51,7 @@ polling skips hidden tabs and overlapping polls; audio is enabled by a user gest
    return JSON, not `index.html`. The build includes both the new manifest and the
    previous `/manifest.json` for compatibility.
 4. Hard-refresh an existing browser tab after the deployments.
-5. Verify the backend response header `X-CRM-Read-Version: 2026-10-25` to confirm
+5. Verify the backend response header `X-CRM-Read-Version: 2026-11-03` to confirm
    that this read-path fix is actually running. An old frontend asset hash alone
    cannot explain or prove the current backend performance.
 
@@ -138,3 +138,17 @@ month. No booking/payment dates were modified for this change.
 `node scripts/diagnose-dashboard-period.mjs` from `CRM_BACKEND` is a read-only
 diagnostic using the existing connection with automatic index/collection creation
 disabled. It prints aggregate financial/date counts and does not run CRM jobs.
+
+## Term dates and deduction ledger (3 November 2026)
+
+The financial calculator now isolates term dates and payment modes, applies cash
+without GST removal, and tracks actual service deductions and pending balances
+across ten terms. Scorecards use projected financial records and index each booking
+once. Audit events and exact-record backups load on demand. The dashboard retains
+its shared source read and existing cache invalidation.
+
+Deploy the backend before the frontend. Director/dev historical fee review and
+capped original/current-month recovery are explicit actions after deployment;
+deployment itself does not bulk post historical recoveries. Full behavior, API
+contracts, live audit findings and validation are documented in
+[DEDUCTION_LEDGER_2026-11-03.md](DEDUCTION_LEDGER_2026-11-03.md).

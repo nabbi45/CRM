@@ -22,6 +22,7 @@ import { enqueueSnackbar } from "notistack";
 import { useLocation } from "react-router-dom";
 import servicesList from "../Data/ServicesData";
 import ServiceDropdown from "./Servicesdropdown";
+import DeductionPreview from "./DeductionPreview";
 import { apiUrl } from "./LoginSignup";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -152,6 +153,7 @@ const AddBooking = ({ onClose }) => {
     }));
   };
 
+  const [deductionCatalog, setDeductionCatalog] = useState(null);
   const [sharedPersons, setSharedPersons] = useState([{ userId: "", percentage: "" }]);
   const [shareCount, setShareCount] = useState(1);
   const [users, setUsers] = useState([]);
@@ -170,6 +172,28 @@ const AddBooking = ({ onClose }) => {
   const adminRoles = ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev"];
   const isAdminRole = adminRoles.includes((userSessionForUi.user_role || "").toLowerCase());
   const isCashPayment = (paymentMode = "") => String(paymentMode).trim().toLowerCase() === "cash";
+
+  const previewTermKey = `term_${selectedTermNumber || 1}`;
+  const previewSource = isContinuationTerm ? selectedSourceBooking : undefined;
+  const previewBooking = {
+    ...previewSource,
+    user_id: previewSource?.user_id || userSessionForUi.user_id,
+    bdm: previewSource?.bdm || userSessionForUi.name,
+    bank: formData.bank,
+    is_refundable: previewSource ? previewSource.is_refundable : formData.isRefundable,
+    refundable_percentage: previewSource ? previewSource.refundable_percentage : Number(formData.refundablePercentage || 0),
+    services: Array.from(new Set([...(previewSource?.services || []), ...formData.services])),
+    [previewTermKey]: Number(formData.amount || 0),
+    term_shares: {
+      ...(previewSource?.term_shares || {}),
+      [previewTermKey]: {
+        creator: { user_id: userSessionForUi.user_id, user_name: userSessionForUi.name },
+        payment_date: formData.paymentDate,
+        payment_mode: formData.bank,
+        shared_with: sharedPersons.filter((person) => person.userId && String(person.userId) !== String(userSessionForUi.user_id)).map((person) => ({ user_id: person.userId, percentage: person.percentage === '' ? null : Number(person.percentage) })),
+      },
+    },
+  };
 
   const formatDateInput = (value) => {
     if (!value) return "";
@@ -439,15 +463,22 @@ const AddBooking = ({ onClose }) => {
         return;
       }
 
+      const selectedShares = sharedPersons.filter((person) => person.userId);
+      const blankShares = selectedShares.filter((person) => person.percentage === '' || person.percentage == null);
+      if (blankShares.length && blankShares.length !== selectedShares.length) {
+        enqueueSnackbar('Leave every coworker percentage blank, or enter every percentage.', { variant: 'error' });
+        setLoading(false);
+        return;
+      }
       const receivedAmount = Number(formData.amount);
       const total_amount = Number(formData.totalAmount);
       const buildShareEntries = () =>
-        sharedPersons.filter((p) => p.userId && p.percentage && String(p.userId) !== String(userSession.user_id)).map((person) => {
+        sharedPersons.filter((p) => p.userId && String(p.userId) !== String(userSession.user_id)).map((person) => {
           const userObj = users.find(u => String(u._id) === String(person.userId));
           return {
             user_id: person.userId,
             user_name: userObj ? userObj.name?.toUpperCase() : "COWORKER",
-            percentage: Number(person.percentage),
+            percentage: person.percentage === '' || person.percentage == null ? null : Number(person.percentage),
           };
         });
 
@@ -1020,7 +1051,10 @@ const AddBooking = ({ onClose }) => {
             <Paper elevation={0} sx={sectionCardSx("#faf7ff", "#8b5cf6", "#fbf7ff")}>
               <SectionTitle icon={<FactCheckOutlinedIcon fontSize="small" />} title="Booking Specifics" color="#8b5cf6" />
               <Grid container spacing={2}>
-                <ServiceDropdown formData={formData} setFormData={setFormData} accentColor="#8b5cf6" surfaceColor="#fbf7ff" />
+                <ServiceDropdown formData={formData} setFormData={setFormData} onCatalogLoaded={setDeductionCatalog} accentColor="#8b5cf6" surfaceColor="#fbf7ff" />
+                <Grid item xs={12}>
+                  <DeductionPreview catalog={deductionCatalog} source={previewSource} targetTerm={previewTermKey} booking={previewBooking} />
+                </Grid>
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -1250,7 +1284,7 @@ const AddBooking = ({ onClose }) => {
                   value={person.percentage}
                   onChange={(e) => setNormalizedSharedPercent(index, e.target.value)}
                   onBlur={(e) => setNormalizedSharedPercent(index, e.target.value, true)}
-                  placeholder="0.5"
+                  placeholder="Blank = equal split"
                   InputProps={{
                     endAdornment: <Typography sx={{ mr: 1, color: 'text.secondary' }}>%</Typography>
                   }}

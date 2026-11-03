@@ -11,11 +11,11 @@ const normalizeSharedEntries = (entries = [], creatorUserId = "") =>
     .map((shared) => ({
       ...shared,
       user_name: toUpperText(shared.user_name),
-      percentage: Number(shared?.percentage || 0),
+      percentage: shared.percentage === '' || shared.percentage == null ? null : Number(shared.percentage),
     }))
     .filter((shared) => {
       const userId = String(shared?.user_id || "");
-      if (!userId || Number(shared?.percentage || 0) <= 0) return false;
+      if (!userId) return false;
       if (creatorUserId && userId === String(creatorUserId)) return false;
       return true;
     });

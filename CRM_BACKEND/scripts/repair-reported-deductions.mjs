@@ -16,11 +16,12 @@ try {
   await mongoose.connect(process.env.Mongo_URL, { serverSelectionTimeoutMS: 10000 });
   const filter = { company_name: { $in: [/^GREENION ENERGY$/i, /^ANIL$/i] }, isDeleted: { $ne: true } };
   if (requestedIds.length) filter._id = { $in: requestedIds };
-  const bookings = await BookingModel.find(filter).select('company_name contact_person bdm date services service_deductions_snapshot updatedhistory').lean();
+  const bookings = await BookingModel.find(filter).select('company_name contact_person bdm date services service_deductions_snapshot updatedhistory financial_version').lean();
   if (apply && (!requestedIds.length || bookings.length !== requestedIds.length)) throw new Error('Supply the exact booking IDs from the preview.');
   const catalog = await ServiceModel.find({ $or: [{ name: /UTTAR PRADESH|STARTUP INDIA/i }, { value: /UTTAR PRADESH|STARTUP INDIA/i }] }).select('name value deduction').lean();
   console.log(JSON.stringify({ catalog }, null, 2));
   for (const booking of bookings) {
+    if (apply && booking.financial_version >= 2) throw new Error('Use the audited deduction review/recovery API for financial version 2.');
     const before = booking.service_deductions_snapshot || [];
     const after = await reconcileServiceDeductionSnapshot(booking.services, before);
     const simplified = (rows) => rows.map((r) => ({ service_name: r.service_name, deduction: r.deduction }));
