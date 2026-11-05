@@ -33,19 +33,17 @@ import {
   monthlyCredit,
 } from "./rules.js";
 
-const SYSTEM = ["super admin", "director", "dev", "srdev", "sr dev"];
-const ADMIN = [...SYSTEM, "hr", "admin", "senior admin"];
+const SYSTEM = ["director", "dev", "srdev", "sr dev"];
+const ADMIN = [...SYSTEM, "hr"];
 export const role = (u) =>
   String(u?.user_role || "")
     .trim()
     .toLowerCase();
 export const isSystem = (u) => SYSTEM.includes(role(u));
+// Other roles manage HRM only when a director/dev grants them "timecard_edit".
 export const isHR = (u) =>
   Boolean(
-    isSystem(u) ||
-      // Named HR/Admin roles retain their authority even if they have an older,
-      // customised permission list that predates the HRM permission keys.
-      ADMIN.includes(role(u)) ||
+    ADMIN.includes(role(u)) ||
       u?.feature_permissions?.includes("timecard_edit"),
   );
 // First activation is an HR-owned business decision. System authority is still

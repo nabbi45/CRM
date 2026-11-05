@@ -49,10 +49,18 @@ const FEATURE_KEYS = [
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
 const canManageMeetingUpdateEditors = (role = '') => ['dev', 'srdev', 'sr dev'].includes(normalizeRole(role));
 
+const HRM_PERMISSION_KEYS = ['timecard', 'timecard_edit'];
+const canManageHrmPermissions = (role = '') => ['director', 'dev', 'srdev', 'sr dev'].includes(normalizeRole(role));
+// Only director/dev may change HRM access; everyone else keeps the HRM keys from `fallback`.
+const lockHrmPermissions = (requested, fallback = []) => [
+  ...requested.filter((key) => !HRM_PERMISSION_KEYS.includes(key)),
+  ...fallback.filter((key) => HRM_PERMISSION_KEYS.includes(key)),
+];
+
 const DEFAULT_ROLE_PERMISSIONS = {
   dev: FEATURE_KEYS,
   srdev: FEATURE_KEYS,
-  'super admin': FEATURE_KEYS.filter((key) => key !== 'meeting_updates_edit'),
+  'super admin': FEATURE_KEYS.filter((key) => !['meeting_updates_edit', 'timecard_edit'].includes(key)),
   admin: [
     'dashboard_overview',
     'new_booking',
@@ -70,7 +78,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_services',
     'company_profile',
     'timecard',
-    'timecard_edit',
     'communication',
     'employee_profile',
     'security',
@@ -92,7 +99,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_services',
     'company_profile',
     'timecard',
-    'timecard_edit',
     'communication',
     'employee_profile',
     'security',
@@ -193,7 +199,10 @@ const UserRoutes = express.Router();
 UserRoutes.post("/adduser", authenticateUser, authorizeFeature('manage_users'), async (req, res) => {
   try {
     const { name, email, password, user_role, feature_permissions } = req.body;
-    const sanitizedPermissions = sanitizeFeaturePermissions(feature_permissions);
+    let sanitizedPermissions = sanitizeFeaturePermissions(feature_permissions);
+    if (sanitizedPermissions.length && !canManageHrmPermissions(req.user?.user_role)) {
+      sanitizedPermissions = lockHrmPermissions(sanitizedPermissions, getDefaultFeaturePermissionsForRole(user_role));
+    }
 
     // Check if all required fields are provided
     if (!name || !email || !password) {
@@ -261,6 +270,9 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeFeature('manage_use
       if (targetHasEditPermission !== nextHasEditPermission && !canManageMeetingUpdateEditors(req.user?.user_role)) {
         return res.status(403).send({ message: 'Only Dev or Sr Dev can grant or revoke Edit Meeting Updates permission.' });
       }
+      if (!canManageHrmPermissions(req.user?.user_role)) {
+        updates.feature_permissions = lockHrmPermissions(updates.feature_permissions, targetUser.feature_permissions || []);
+      }
     }
 
     if (updates.name) {
@@ -269,6 +281,9 @@ UserRoutes.patch('/edituser/:id', authenticateUser, authorizeFeature('manage_use
 
     if (updates.user_role && !Object.prototype.hasOwnProperty.call(updates, 'feature_permissions')) {
       updates.feature_permissions = getDefaultFeaturePermissionsForRole(updates.user_role);
+      if (!canManageHrmPermissions(req.user?.user_role)) {
+        updates.feature_permissions = lockHrmPermissions(updates.feature_permissions, targetUser.feature_permissions || []);
+      }
     }
 
     // Normalize email if it's being updated

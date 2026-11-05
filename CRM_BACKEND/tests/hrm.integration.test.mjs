@@ -48,7 +48,14 @@ test("authorised HR roles may perform first HRM activation", () => {
     hrm.canActivatePortal({ user_role: "hr", feature_permissions: ["timecard_edit"] }),
     true,
   );
-  assert.equal(hrm.canActivatePortal({ user_role: "admin" }), true);
+  assert.equal(hrm.canActivatePortal({ user_role: "director" }), true);
+  assert.equal(hrm.canActivatePortal({ user_role: "dev" }), true);
+  assert.equal(hrm.canActivatePortal({ user_role: "admin" }), false);
+  assert.equal(hrm.canActivatePortal({ user_role: "super admin" }), false);
+  assert.equal(
+    hrm.canActivatePortal({ user_role: "admin", feature_permissions: ["timecard_edit"] }),
+    true,
+  );
   assert.equal(hrm.canActivatePortal({ user_role: "employee" }), false);
 });
 test("setup can review an existing account without fabricating a full CRM profile", async () => {
@@ -148,7 +155,7 @@ before(
         name: "HR",
         email: "hr@example.test",
         password: "not-a-real-password",
-        user_role: "super admin",
+        user_role: "director",
       },
       {
         name: "Employee",

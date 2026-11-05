@@ -70,6 +70,15 @@ test('continuation approval retains saved rates, snapshots new fees and charges 
   await auth(request(app).patch(`/booking-approvals/${approval._id}/approve`)).send({}).expect(400);
 });
 
+test('continuation approval succeeds for a legacy booking with no stored financial revision', async () => {
+  const { insertedId } = await BookingModel.collection.insertOne({ ...base({ services: [startup], term_1: 5900, bank: 'Bank', date: new Date('2026-10-15'), payment_date: new Date('2026-10-15') }), createdAt: new Date('2026-10-15') });
+  assert.equal((await BookingModel.collection.findOne({ _id: insertedId })).financial_revision, undefined);
+  const approval = await BookingApprovalModel.create({ payload: { continuation_of_booking_id: String(insertedId), continuation_term_key: 'term_2', services: [startup], term_2: 5900, bank: 'Bank', payment_date: '2026-11-03', term_shares: { term_2: { creator: { user_id: String(A._id), user_name: 'A' }, payment_date: '2026-11-03', payment_mode: 'Bank' } } }, submitted_by: String(A._id), submitted_by_name: 'A', submitted_by_role: 'employee' });
+  await auth(request(app).patch(`/booking-approvals/${approval._id}/approve`)).send({}).expect(200);
+  const saved = await get(insertedId);
+  assert.equal(saved.term_2, 5900); assert.equal(saved.financial_revision, 1);
+});
+
 test('catalog aliases are charged once and cash GST flags cannot reduce the score', async () => {
   const booking = await fresh({ services: [startup, 'STARTUP', registration], term_1: 5900, bank: 'Cash', gst_included: true, shared_with: [{ user_id: String(B._id), percentage: null }] });
   const state = calculateBookingFinancials(await get(booking._id));

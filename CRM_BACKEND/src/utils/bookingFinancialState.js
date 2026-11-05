@@ -87,5 +87,9 @@ export function isolateTermUpdate(old, input) {
   return { updates, target };
 }
 
-export const revisionFilter = (booking) => ({ _id: booking._id, ...(booking.financial_revision == null ? { $or: [{ financial_revision: { $exists: false } }, { financial_revision: 0 }] } : { financial_revision: Number(booking.financial_revision) }) });
+// Legacy documents have no stored revision but hydrate with the schema default 0, so 0 must also match a missing/null field.
+export const revisionFilter = (booking) => {
+  const revision = Number(booking.financial_revision || 0);
+  return { _id: booking._id, financial_revision: revision === 0 ? { $in: [null, 0] } : revision };
+};
 export const amountChanged = (old, next, target) => target && termFinancialSignature(old, target) !== termFinancialSignature(next, target);

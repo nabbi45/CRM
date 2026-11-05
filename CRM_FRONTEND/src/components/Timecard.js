@@ -54,7 +54,7 @@ const Timecard = () => {
     const ACCENT = isDark ? '#fff' : '#111827';
     const session = JSON.parse(localStorage.getItem('userSession')) || {};
     const headers = { Authorization: session.token || '', 'Content-Type': 'application/json' };
-    const systemTimecardRoles = ['dev', 'srdev', 'sr dev', 'super admin', 'director'];
+    const systemTimecardRoles = ['dev', 'srdev', 'sr dev', 'director', 'hr'];
     const isApprover = canAccessFeature(session, 'timecard_edit') || systemTimecardRoles.includes(session.user_role?.toLowerCase());
 
     const [tab, setTab] = useState(0);

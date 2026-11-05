@@ -66,10 +66,20 @@ export const ROLE_TEMPLATE_OPTIONS = [
 
 const normalizeRole = (role = '') => role.toString().trim().toLowerCase();
 
+export const HRM_PERMISSION_KEYS = ['timecard', 'timecard_edit'];
+const HRM_CONTROL_ROLES = ['director', 'dev', 'srdev', 'sr dev'];
+const HRM_MANAGER_ROLES = ['hr', ...HRM_CONTROL_ROLES];
+export const canManageHrmPermissions = (role) => HRM_CONTROL_ROLES.includes(normalizeRole(role));
+// Keeps the HRM keys from `previous` when the editor is not allowed to change them.
+export const lockHrmPermissions = (next = [], previous = []) => [
+  ...next.filter((key) => !HRM_PERMISSION_KEYS.includes(key)),
+  ...previous.filter((key) => HRM_PERMISSION_KEYS.includes(key)),
+];
+
 const DEFAULT_ROLE_PERMISSIONS = {
   dev: FEATURE_KEYS,
   srdev: FEATURE_KEYS,
-  'super admin': FEATURE_KEYS.filter((key) => key !== 'meeting_updates_edit'),
+  'super admin': FEATURE_KEYS.filter((key) => !['meeting_updates_edit', 'timecard_edit'].includes(key)),
   admin: [
     'dashboard_overview',
     'scorecard',
@@ -89,7 +99,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_services',
     'company_profile',
     'timecard',
-    'timecard_edit',
     'communication',
     'employee_profile',
     'security',
@@ -113,7 +122,6 @@ const DEFAULT_ROLE_PERMISSIONS = {
     'manage_services',
     'company_profile',
     'timecard',
-    'timecard_edit',
     'communication',
     'employee_profile',
     'security',
@@ -177,6 +185,8 @@ export const resolveFeaturePermissions = (userSession = {}) => {
   if (!final.includes('meeting_updates')) final.push('meeting_updates');
   if (!final.includes('booking_approvals') && ['bdm', 'employee', 'sales'].includes(normalizeRole(userSession?.user_role))) final.push('booking_approvals');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev'].includes(normalizeRole(userSession?.user_role)) && !final.includes('security')) final.push('security');
+  if (HRM_MANAGER_ROLES.includes(normalizeRole(userSession?.user_role))) final.push('timecard', 'timecard_edit');
+  if (canManageHrmPermissions(userSession?.user_role)) final.push('manage_users');
   if (['director', 'super admin', 'dev', 'srdev', 'sr dev', 'admin', 'senior admin'].includes(normalizeRole(userSession?.user_role)) && !final.includes('booking_approvals')) {
     final.push('booking_approvals');
   }

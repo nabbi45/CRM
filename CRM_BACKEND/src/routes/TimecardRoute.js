@@ -12,17 +12,9 @@ router.use(authenticateUser);
 const isTimecardAdmin = (userSession) => {
   const permissions = userSession.feature_permissions || [];
   const role = (userSession.user_role || '').toLowerCase().trim();
-  if (permissions.length === 0) {
-    return ["admin", "senior admin", "super admin", "director", "dev", "srdev", "sr dev", "hr"].includes(role);
-  }
-
   return (
     permissions.includes("timecard_edit") ||
-    role === "super admin" ||
-    role === "director" ||
-    role === "dev" ||
-    role === "srdev" ||
-    role === "sr dev"
+    ["hr", "director", "dev", "srdev", "sr dev"].includes(role)
   );
 };
 

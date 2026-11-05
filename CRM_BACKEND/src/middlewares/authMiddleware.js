@@ -72,7 +72,7 @@ export const authorizeFeature = (featureKey) => {
   return (req, res, next) => {
     const userPermissions = req.user?.feature_permissions || [];
     const normalizedRole = (req.user?.user_role || '').toString().trim().toLowerCase();
-    const adminRoles = ['srdev', 'dev', 'admin', 'senior admin', 'super admin'];
+    const adminRoles = ['srdev', 'sr dev', 'dev', 'director', 'admin', 'senior admin', 'super admin'];
 
     // Allow admin/dev roles full access
     if (adminRoles.includes(normalizedRole)) {

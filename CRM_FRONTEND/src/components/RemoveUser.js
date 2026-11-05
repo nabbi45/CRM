@@ -35,9 +35,12 @@ import { requestJson } from "../utils/requestJson";
 import {
   FEATURE_KEYS,
   FEATURE_LABELS,
+  HRM_PERMISSION_KEYS,
   ROLE_TEMPLATE_OPTIONS,
   applyRoleTemplate,
+  canManageHrmPermissions,
   getDefaultFeaturePermissionsForRole,
+  lockHrmPermissions,
 } from "../utils/featureAccess";
 
 const AVATAR_CACHE_MS = 5 * 60 * 1000;
@@ -128,6 +131,8 @@ const RemoveUser = () => {
   const isMobileOrTablet = useMediaQuery(theme.breakpoints.down("md"));
   const currentRole = String(JSON.parse(localStorage.getItem("userSession"))?.user_role || "").trim().toLowerCase();
   const canGrantMeetingEdit = ["dev", "srdev", "sr dev"].includes(currentRole);
+  const canGrantHrm = canManageHrmPermissions(currentRole);
+  const isHrmLocked = (featureKey) => !canGrantHrm && HRM_PERMISSION_KEYS.includes(featureKey);
 
   const loadUsers = useCallback(async (sessionToken) => {
     if (!sessionToken) {
@@ -175,18 +180,21 @@ const RemoveUser = () => {
     setFeaturePermissions(Array.isArray(user.feature_permissions) ? user.feature_permissions : getDefaultFeaturePermissionsForRole(user.user_role));
   };
 
+  const withHrmLock = (next) => (prev) => (canGrantHrm ? next : lockHrmPermissions(next, prev));
+
   const handleEditRoleChange = (value) => {
     setUserRole(value);
-    setFeaturePermissions(getDefaultFeaturePermissionsForRole(value));
+    setFeaturePermissions(withHrmLock(getDefaultFeaturePermissionsForRole(value)));
   };
 
   const applyEditPresetRole = (roleKey) => {
     const preset = applyRoleTemplate(roleKey);
     setUserRole(preset.role);
-    setFeaturePermissions(preset.permissions);
+    setFeaturePermissions(withHrmLock(preset.permissions));
   };
 
   const toggleFeaturePermission = (featureKey) => {
+    if (isHrmLocked(featureKey)) return;
     setFeaturePermissions((prev) =>
       prev.includes(featureKey)
         ? prev.filter((key) => key !== featureKey)
@@ -562,6 +570,8 @@ const RemoveUser = () => {
                         type="checkbox"
                         checked={featurePermissions.includes(featureKey)}
                         onChange={() => toggleFeaturePermission(featureKey)}
+                        disabled={isHrmLocked(featureKey)}
+                        title={isHrmLocked(featureKey) ? "Only Director or Dev can change HRM access" : undefined}
                       />
                       {FEATURE_LABELS[featureKey] || featureKey}
                     </label>

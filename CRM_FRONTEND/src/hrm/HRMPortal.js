@@ -2653,6 +2653,7 @@ function HRMWorkspace() {
                   { value: "Absent", label: "Absent - one unpaid day" },
                   { value: "UA", label: "UA - two-day policy adjustment" },
                   "Half Day",
+                  { value: "WFH", label: "WFH - work from home (paid)" },
                 ]}
                 onChange={(v) =>
                   setEditAttendance({
@@ -2661,7 +2662,7 @@ function HRMWorkspace() {
                       ? {
                           status: v,
                           payable:
-                            v === "Present"
+                            v === "Present" || v === "WFH"
                               ? 1
                               : v === "Half Day"
                                 ? 0.5

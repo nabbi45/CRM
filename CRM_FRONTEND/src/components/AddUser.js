@@ -4,8 +4,10 @@ import { apiUrl } from "./LoginSignup";
 import {
   FEATURE_KEYS,
   FEATURE_LABELS,
+  HRM_PERMISSION_KEYS,
   ROLE_TEMPLATE_OPTIONS,
   applyRoleTemplate,
+  canManageHrmPermissions,
   getDefaultFeaturePermissionsForRole,
 } from "../utils/featureAccess";
 import { useColorMode } from "../context/AppThemeProvider";
@@ -17,6 +19,7 @@ const AddUser = () => {
   const [userId, setUserId] = useState(""); // Store the logged-in user's ID
   const [Token, setToken] = useState(""); // Store the logged-in user's ID
   const canGrantMeetingEdit = ["dev", "srdev", "sr dev"].includes(String(userRole || "").trim().toLowerCase());
+  const canGrantHrm = canManageHrmPermissions(userRole);
 
   useEffect(() => {
     const userSession = JSON.parse(localStorage.getItem("userSession"));
@@ -53,6 +56,7 @@ const AddUser = () => {
   };
 
   const toggleFeature = (featureKey) => {
+    if (!canGrantHrm && HRM_PERMISSION_KEYS.includes(featureKey)) return;
     setFormData((prev) => ({
       ...prev,
       feature_permissions: prev.feature_permissions.includes(featureKey)
@@ -305,6 +309,8 @@ const AddUser = () => {
                 type="checkbox"
                 checked={formData.feature_permissions.includes(featureKey)}
                 onChange={() => toggleFeature(featureKey)}
+                disabled={!canGrantHrm && HRM_PERMISSION_KEYS.includes(featureKey)}
+                title={!canGrantHrm && HRM_PERMISSION_KEYS.includes(featureKey) ? "Only Director or Dev can change HRM access" : undefined}
               />
               {FEATURE_LABELS[featureKey] || featureKey}
             </label>
